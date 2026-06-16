@@ -5,6 +5,10 @@ import type { Product, ProductFilter } from '@/types';
 const PRODUCT_COLS =
   'id, slug, name, description, price, original_price, discount, images, category_id, tags, in_stock, stock_count, rating, review_count, is_trending, is_new_arrival, is_best_seller, metadata, created_at, updated_at, category:categories(*)';
 
+function normalizeSearchTerm(value: string) {
+  return value.replace(/[^\p{L}\p{N}\s-]/gu, ' ').trim().replace(/\s+/g, ' ');
+}
+
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   const { data, error } = await publicSupabase
     .from('products')
@@ -66,7 +70,12 @@ export async function listProducts(
     .select(PRODUCT_COLS, { count: 'exact' });
 
   if (filter.category) q = q.eq('category.slug', filter.category);
-  if (filter.search) q = q.textSearch('fts', filter.search, { type: 'websearch' });
+  if (filter.search) {
+    const normalized = normalizeSearchTerm(filter.search);
+    if (normalized) {
+      q = q.textSearch('fts', normalized, { type: 'websearch' });
+    }
+  }
   if (filter.minPrice != null) q = q.gte('price', filter.minPrice);
   if (filter.maxPrice != null) q = q.lte('price', filter.maxPrice);
   if (filter.inStock) q = q.eq('in_stock', true);

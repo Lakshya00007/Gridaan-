@@ -1,7 +1,7 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
-import { env } from '@/lib/env';
+import { publicEnv } from '@/lib/env';
 
 let _client: ReturnType<typeof createBrowserClient> | null = null;
 
@@ -9,8 +9,8 @@ let _client: ReturnType<typeof createBrowserClient> | null = null;
 export function createClient() {
   if (!_client) {
     _client = createBrowserClient(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+      publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
   }
   return _client;

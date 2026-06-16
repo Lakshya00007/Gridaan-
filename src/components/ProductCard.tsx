@@ -1,16 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, ShoppingBag, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useCart } from '@/store/cart';
 import { formatRupees } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
 import type { Product } from '@/types';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { getWishlistState, toggleWishlist } from '@/lib/wishlist-client';
 
 interface Props {
   product: Product;
@@ -21,10 +21,23 @@ interface Props {
 export default function ProductCard({ product, index = 0, priority = false }: Props) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const router = useRouter();
   const { add: addToCart, setOpen: setCartOpen } = useCart();
 
   const isOut = !product.in_stock || product.stock_count <= 0;
+
+  useEffect(() => {
+    let active = true;
+    void getWishlistState(product.id).then((state) => {
+      if (active) {
+        setWishlisted(state.wishlisted);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [product.id]);
 
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault();
@@ -41,34 +54,25 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
   async function handleWishlist(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    if (wishlistLoading) return;
+    setWishlistLoading(true);
+    const result = await toggleWishlist(product.id);
+    if (!result.signedIn) {
       toast.error('Please sign in to use wishlist');
+      setWishlistLoading(false);
       return;
     }
-    if (wishlisted) {
-      await supabase
-        .from('wishlist_items')
-        .delete()
-        .eq('product_id', product.id)
-        .eq('user_id', user.id);
-      setWishlisted(false);
-      toast.success('Removed from wishlist');
-    } else {
-      const { error } = await supabase
-        .from('wishlist_items')
-        .insert({ product_id: product.id, user_id: user.id });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      setWishlisted(true);
-      toast.success('Added to wishlist');
+
+    if (result.error) {
+      toast.error(result.error);
+      setWishlistLoading(false);
+      return;
     }
+
+    setWishlisted(result.wishlisted);
+    toast.success(result.wishlisted ? 'Added to wishlist' : 'Removed from wishlist');
     router.refresh();
+    setWishlistLoading(false);
   }
 
   return (
@@ -83,7 +87,7 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
         <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-3">
           {!imgLoaded && <div className="absolute inset-0 shimmer" />}
           <Image
-            src={product.images?.[0] || '/placeholder.png'}
+            src={product.images?.[0] || '/placeholder.svg'}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -122,8 +126,9 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
 
           <button
             onClick={handleWishlist}
+            disabled={wishlistLoading}
             aria-label="Toggle wishlist"
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-60"
           >
             <Heart
               className={cn(

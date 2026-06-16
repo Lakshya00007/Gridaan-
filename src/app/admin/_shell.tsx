@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BarChart3, Package, ShoppingCart, Tag, Users, LogOut, ChevronLeft, Settings } from 'lucide-react';
+import { BarChart3, Package, ShoppingCart, Tag, LogOut, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
@@ -16,10 +16,6 @@ const nav = [
   { href: '/admin/products', label: 'Products', icon: Package },
   { href: '/admin/categories', label: 'Categories', icon: Tag },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
-  { href: '/admin/customers', label: 'Customers', icon: Users },
-  { href: '/admin/coupons', label: 'Coupons', icon: Tag },
-  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminShell({ user, children }: Props) {
@@ -45,8 +41,7 @@ export default function AdminShell({ user, children }: Props) {
         <div className="p-4 flex items-center justify-between border-b border-neutral-800">
           {!collapsed && (
             <Link href="/" className="flex items-center gap-1.5">
-              <span className="heading-display text-lg">Lumiere</span>
-              <span className="heading-italic text-gold-400 text-sm">Jewels</span>
+              <span className="heading-display text-lg">Gridaan</span>
             </Link>
           )}
           <button

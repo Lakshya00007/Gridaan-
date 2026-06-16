@@ -10,7 +10,7 @@ export default function Footer() {
           <div className="text-center max-w-xl mx-auto">
             <h3 className="heading-display text-2xl md:text-3xl mb-3">Stay in the Glow</h3>
             <p className="text-neutral-400 text-sm mb-6">
-              Subscribe for exclusive deals, new arrivals, and style inspiration.
+              Subscribe for exclusive deals, new Gridaan arrivals, and style inspiration.
             </p>
             <NewsletterForm />
           </div>
@@ -21,8 +21,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-1.5 mb-4">
-              <span className="heading-display text-xl">Lumiere</span>
-              <span className="heading-italic text-gold-400">Jewels</span>
+              <span className="heading-display text-xl">Gridaan</span>
             </div>
             <p className="text-neutral-400 text-sm leading-relaxed mb-6">
               Premium fashion jewelry for the modern woman. Affordable elegance for every occasion.
@@ -79,10 +78,10 @@ export default function Footer() {
               <li className="flex items-start gap-2.5">
                 <Mail className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
                 <a
-                  href="mailto:hello@lumierejewels.com"
+                  href="mailto:hello@gridaan.com"
                   className="hover:text-gold-400 break-all"
                 >
-                  hello@lumierejewels.com
+                  hello@gridaan.com
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
@@ -97,7 +96,7 @@ export default function Footer() {
       <div className="border-t border-neutral-800">
         <div className="container py-6 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-xs text-neutral-500">
-            © {new Date().getFullYear()} Lumiere Jewels. All rights reserved.
+            © {new Date().getFullYear()} Gridaan. All rights reserved.
           </p>
           <p className="text-[10px] text-neutral-600">
             Secured by Razorpay · Powered by Supabase

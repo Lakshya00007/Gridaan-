@@ -111,7 +111,7 @@ export default function CartDrawer() {
                       >
                         <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
                           <Image
-                            src={item.product.images?.[0] || '/placeholder.png'}
+                            src={item.product.images?.[0] || '/placeholder.svg'}
                             alt={item.product.name}
                             fill
                             sizes="80px"

@@ -99,7 +99,7 @@ export default async function ProductPage({ params }: PageProps) {
               <Link key={p.id} href={`/product/${p.slug}`} className="group">
                 <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-3">
                   <Image
-                    src={p.images?.[0] || '/placeholder.png'}
+                    src={p.images?.[0] || '/placeholder.svg'}
                     alt={p.name}
                     fill
                     sizes="(max-width: 768px) 50vw, 25vw"

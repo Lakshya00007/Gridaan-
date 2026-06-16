@@ -73,14 +73,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               '@type': 'Store',
               name: siteConfig.name,
               url: siteConfig.url,
-              logo: `${siteConfig.url}/logo.png`,
+              logo: siteConfig.logo,
               description: siteConfig.description,
               telephone: siteConfig.contact.phone,
               email: siteConfig.contact.email,
-              sameAs: [
-                'https://www.instagram.com/lumierejewels',
-                'https://www.facebook.com/lumierejewels',
-              ],
             }),
           }}
         />

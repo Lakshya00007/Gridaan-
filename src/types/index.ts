@@ -177,9 +177,22 @@ export interface OrderStatusHistory {
 
 /* ----------------- Cart (client-side) ----------------- */
 
+export interface CartProductSnapshot {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  original_price: number;
+  discount: number;
+  images: string[];
+  in_stock: boolean;
+  stock_count: number;
+  category?: Pick<Category, 'id' | 'slug' | 'name'> | null;
+}
+
 export interface CartItem {
   product_id: string;
-  product: Product;
+  product: CartProductSnapshot;
   quantity: number;
 }
 

@@ -18,6 +18,10 @@ const querySchema = z.object({
   offset: z.coerce.number().min(0).default(0),
 });
 
+function normalizeSearchTerm(value: string) {
+  return value.replace(/[^\p{L}\p{N}\s-]/gu, ' ').trim().replace(/\s+/g, ' ');
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const parsed = querySchema.safeParse(Object.fromEntries(sp));
@@ -43,7 +47,12 @@ export async function GET(req: NextRequest) {
     { count: 'exact' }
   );
   if (categoryId) q = q.eq('category_id', categoryId);
-  if (f.q) q = q.or(`name.ilike.%${f.q}%,description.ilike.%${f.q}%,tags.cs.{${f.q}}`);
+  if (f.q) {
+    const normalized = normalizeSearchTerm(f.q);
+    if (normalized) {
+      q = q.textSearch('fts', normalized, { type: 'websearch' });
+    }
+  }
   if (f.min != null) q = q.gte('price', f.min);
   if (f.max != null) q = q.lte('price', f.max);
   if (f.in_stock) q = q.eq('in_stock', true);

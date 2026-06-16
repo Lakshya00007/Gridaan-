@@ -43,7 +43,7 @@ export function buildCustomerOrderMessage(order: Order): string {
   const lines: string[] = [];
   lines.push(`Hi ${order.customer_name.split(' ')[0]},`);
   lines.push('');
-  lines.push(`Thank you for your order at *Lumiere Jewels*!`);
+  lines.push(`Thank you for your order at *Gridaan*!`);
   lines.push('');
   lines.push(`*Order:* ${order.order_number}`);
   lines.push(`*Total:* Rs. ${order.total.toLocaleString('en-IN')}`);
@@ -68,7 +68,7 @@ export function buildStatusUpdateMessage(
     '',
     `Your order *${order.order_number}* status has been updated to: *${status}*.`,
     '',
-    'Thank you for shopping with Lumiere Jewels.',
+    'Thank you for shopping with Gridaan.',
   ].join('\n');
 }
 

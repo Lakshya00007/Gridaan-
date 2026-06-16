@@ -2,17 +2,18 @@ import type { Metadata } from 'next';
 import { env } from './env';
 
 export const siteConfig = {
-  name: 'Lumiere Jewels',
-  title: 'Lumiere Jewels - Premium Fashion Jewelry',
+  name: 'Gridaan',
+  title: 'Gridaan - Premium Fashion Jewelry',
   description:
     'Shop premium fashion jewelry, artificial jewelry, Korean jewelry, oxidized jewelry, bridal sets and daily wear accessories at affordable prices.',
   url: env.NEXT_PUBLIC_SITE_URL,
-  ogImage: `${env.NEXT_PUBLIC_SITE_URL}/og.png`,
+  logo: `${env.NEXT_PUBLIC_SITE_URL}/logo.svg`,
+  ogImage: `${env.NEXT_PUBLIC_SITE_URL}/og.svg`,
   locale: 'en_IN',
-  twitter: '@lumierejewels',
+  twitter: '@gridaan',
   contact: {
     phone: '+91-98765-43210',
-    email: 'hello@lumierejewels.com',
+    email: 'hello@gridaan.com',
   },
 };
 

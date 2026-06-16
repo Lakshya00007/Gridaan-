@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Truck, Check, XCircle, MessageCircle, ExternalLink, Eye, LucideIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatRupees, formatDateTime, cn } from '@/lib/utils';
@@ -16,11 +17,24 @@ const statusColor: Record<OrderStatus, string> = {
   returned: 'bg-neutral-200 text-neutral-700',
 };
 
-export default function OrdersAdmin({ orders: initial }: { orders: Order[] }) {
+export default function OrdersAdmin({
+  orders: initial,
+  page,
+  pageSize,
+  totalCount,
+  hasMore,
+}: {
+  orders: Order[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasMore: boolean;
+}) {
   const [orders, setOrders] = useState(initial);
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all');
   const [openOrder, setOpenOrder] = useState<Order | null>(null);
+  const router = useRouter();
 
   const filtered = orders.filter((o) => {
     if (statusFilter !== 'all' && o.order_status !== statusFilter) return false;
@@ -51,7 +65,10 @@ export default function OrdersAdmin({ orders: initial }: { orders: Order[] }) {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Orders</h1>
-          <p className="text-sm text-neutral-500">{orders.length.toLocaleString('en-IN')} total</p>
+          <p className="text-sm text-neutral-500">
+            Showing {(page - 1) * pageSize + (orders.length ? 1 : 0)}-
+            {(page - 1) * pageSize + orders.length} of {Math.max(totalCount, orders.length).toLocaleString('en-IN')}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | OrderStatus)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
@@ -71,6 +88,29 @@ export default function OrdersAdmin({ orders: initial }: { orders: Order[] }) {
           placeholder="Search by order #, customer name, phone, email…"
           className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none"
         />
+      </div>
+
+      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs text-neutral-400">
+          Server-side pagination keeps admin order loading predictable in production.
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push(`/admin/orders?page=${page - 1}`)}
+            disabled={page <= 1}
+            className="px-3 py-2 rounded-lg border border-neutral-200 text-sm disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-neutral-500">Page {page}</span>
+          <button
+            onClick={() => router.push(`/admin/orders?page=${page + 1}`)}
+            disabled={!hasMore}
+            className="px-3 py-2 rounded-lg border border-neutral-200 text-sm disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">

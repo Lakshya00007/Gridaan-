@@ -28,7 +28,7 @@ type RazorpayCheckoutOptions = {
   key: string;
   amount: number;
   currency: 'INR';
-  name: string;
+      name: string;
   description: string;
   order_id: string;
   handler: (response: RazorpayCheckoutResponse) => Promise<void>;
@@ -235,7 +235,7 @@ export default function CheckoutView() {
       key,
       amount: rzpOrder.amount,
       currency: 'INR',
-      name: 'Lumiere Jewels',
+      name: 'Gridaan',
       description: 'Order payment',
       order_id: rzpOrder.id,
       handler: async function (response: {
@@ -398,7 +398,7 @@ export default function CheckoutView() {
                   <div key={item.product.id} className="flex gap-3">
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.product.images?.[0]} alt="" className="w-full h-full object-cover" />
+                      <img src={item.product.images?.[0] || '/placeholder.svg'} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-neutral-900 truncate">{item.product.name}</p>

@@ -22,7 +22,7 @@ export const useUI = create<UIState>()(
       setSearchQuery: (q) => set({ searchQuery: q }),
     }),
     {
-      name: 'lumiere-ui',
+      name: 'gridaan-ui',
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ searchQuery: s.searchQuery }),
     }

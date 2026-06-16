@@ -104,8 +104,7 @@ export default function LoginView() {
       >
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-1.5 mb-6">
-            <span className="heading-display text-2xl">Lumiere</span>
-            <span className="heading-italic text-gold-500">Jewels</span>
+            <span className="heading-display text-2xl">Gridaan</span>
           </Link>
           <h2 className="heading-display text-xl text-neutral-900">
             {mode === 'login' ? 'Welcome back' : 'Create your account'}

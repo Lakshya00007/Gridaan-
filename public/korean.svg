@@ -1,0 +1,10 @@
+<svg width="800" height="1000" viewBox="0 0 800 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="1000" fill="#F9F1E6"/>
+  <circle cx="612" cy="190" r="132" fill="#EBC686" fill-opacity="0.42"/>
+  <circle cx="164" cy="866" r="164" fill="#E1AE63" fill-opacity="0.2"/>
+  <rect x="84" y="84" width="632" height="832" rx="48" fill="#FFF9F2" stroke="#D49A43" stroke-width="3"/>
+  <path d="M260 342C260 286.772 304.772 242 360 242H420C495.111 242 556 302.889 556 378V378C556 453.111 495.111 514 420 514H396V610H352V470H420C470.81 470 512 428.81 512 378C512 327.19 470.81 286 420 286H360C329.072 286 304 311.072 304 342V370H260V342Z" fill="#1F1A17"/>
+  <circle cx="384" cy="694" r="94" fill="#F4D5A5"/>
+  <circle cx="384" cy="694" r="58" fill="#FFF9F2" stroke="#D49A43" stroke-width="14"/>
+  <text x="400" y="846" text-anchor="middle" fill="#1F1A17" font-family="Georgia, serif" font-size="54" font-weight="700">Korean Edit</text>
+</svg>

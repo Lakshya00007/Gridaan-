@@ -1,50 +1,57 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Heart, ShoppingBag, Minus, Plus, Truck, Shield, RotateCcw, Star, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/store/cart';
 import { formatRupees, cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 import type { Product } from '@/types';
+import { useRouter } from 'next/navigation';
+import { getWishlistState, toggleWishlist as toggleWishlistItem } from '@/lib/wishlist-client';
 
 export default function ProductPageClient({ product }: { product: Product }) {
   const [selected, setSelected] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const { add: addToCart, setOpen: setCartOpen } = useCart();
+  const router = useRouter();
 
   const isOut = !product.in_stock || product.stock_count <= 0;
 
-  async function toggleWishlist() {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+  useEffect(() => {
+    let active = true;
+    void getWishlistState(product.id).then((state) => {
+      if (active) {
+        setWishlisted(state.wishlisted);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [product.id]);
+
+  async function handleWishlistToggle() {
+    if (wishlistLoading) return;
+    setWishlistLoading(true);
+    const result = await toggleWishlistItem(product.id);
+    if (!result.signedIn) {
       toast.error('Please sign in to use wishlist');
+      setWishlistLoading(false);
       return;
     }
-    if (wishlisted) {
-      await supabase
-        .from('wishlist_items')
-        .delete()
-        .eq('product_id', product.id)
-        .eq('user_id', user.id);
-      setWishlisted(false);
-      toast.success('Removed from wishlist');
-    } else {
-      const { error } = await supabase
-        .from('wishlist_items')
-        .insert({ product_id: product.id, user_id: user.id });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      setWishlisted(true);
-      toast.success('Added to wishlist');
+
+    if (result.error) {
+      toast.error(result.error);
+      setWishlistLoading(false);
+      return;
     }
+
+    setWishlisted(result.wishlisted);
+    toast.success(result.wishlisted ? 'Added to wishlist' : 'Removed from wishlist');
+    router.refresh();
+    setWishlistLoading(false);
   }
 
   function handleAdd() {
@@ -82,7 +89,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
                 className="relative w-full h-full"
               >
                 <Image
-                  src={product.images?.[selected] || '/placeholder.png'}
+                  src={product.images?.[selected] || '/placeholder.svg'}
                   alt={product.name}
                   fill
                   priority
@@ -205,7 +212,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
                 if (isOut) return;
                 e.preventDefault();
                 addToCart(product, quantity);
-                window.location.href = '/checkout';
+                router.push('/checkout');
               }}
               className={cn(
                 'flex-1 btn-primary py-4 text-base font-semibold',
@@ -218,7 +225,8 @@ export default function ProductPageClient({ product }: { product: Product }) {
 
           <div className="flex items-center gap-4 mb-8 pb-8 border-b border-neutral-100">
             <button
-              onClick={toggleWishlist}
+              onClick={handleWishlistToggle}
+              disabled={wishlistLoading}
               className="flex items-center gap-2 text-sm text-neutral-600 hover:text-red-500 transition-colors"
             >
               <Heart className={cn('w-5 h-5', wishlisted && 'fill-red-500 text-red-500')} />

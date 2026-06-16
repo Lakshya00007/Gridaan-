@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { errorResponse, badRequest } from '@/lib/api';
+import { assertJsonRequest, assertSameOrigin, errorResponse, badRequest } from '@/lib/api';
+import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
 
 const schema = z.object({
   code: z.string().min(3).max(40),
@@ -10,7 +11,19 @@ const schema = z.object({
 
 /** POST /api/coupons/validate { code, subtotal } */
 export async function POST(req: NextRequest) {
+  // Rate limiting: max 10 coupon checks per minute per client
+  const clientId = getClientIdentifier(req);
+  if (isRateLimited(clientId, { limit: 10, windowSec: 60 })) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    );
+  }
+
   try {
+    assertJsonRequest(req);
+    assertSameOrigin(req);
+
     const body = await schema.parse(await req.json());
     const supabase = await createClient();
     const { data, error } = await supabase.rpc('validate_coupon', {

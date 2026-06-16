@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Category } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getWishlistCount, WISHLIST_CHANGED_EVENT } from '@/lib/wishlist-client';
 
 interface HeaderProps {
   categories: Category[];
@@ -57,15 +58,19 @@ export default function Header({ categories, user }: HeaderProps) {
       setWishlistCount(0);
       return;
     }
-    const supabase = createClient();
-    supabase
-      .from('wishlist_items')
-      .select('id, product:products(*)', { count: 'exact', head: true })
-      .then(({ count }) => {
-        if (active) setWishlistCount(count ?? 0);
-      });
+    const syncCount = async () => {
+      const count = await getWishlistCount();
+      if (active) {
+        setWishlistCount(count);
+      }
+    };
+
+    void syncCount();
+    window.addEventListener(WISHLIST_CHANGED_EVENT, syncCount);
+
     return () => {
       active = false;
+      window.removeEventListener(WISHLIST_CHANGED_EVENT, syncCount);
     };
   }, [user]);
 
@@ -109,8 +114,7 @@ export default function Header({ categories, user }: HeaderProps) {
             </button>
 
             <Link href="/" className="flex items-center gap-1.5" prefetch>
-              <span className="heading-display text-xl md:text-2xl text-neutral-900">Lumiere</span>
-              <span className="heading-italic text-gold-500 text-sm md:text-base">Jewels</span>
+              <span className="heading-display text-xl md:text-2xl text-neutral-900">Gridaan</span>
             </Link>
 
             <nav className="hidden lg:flex items-center gap-8">
@@ -345,8 +349,7 @@ export default function Header({ categories, user }: HeaderProps) {
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-1.5"
                 >
-                  <span className="heading-display text-xl">Lumiere</span>
-                  <span className="heading-italic text-gold-500">Jewels</span>
+                  <span className="heading-display text-xl">Gridaan</span>
                 </Link>
                 <button
                   onClick={() => setMobileOpen(false)}

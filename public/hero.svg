@@ -1,0 +1,11 @@
+<svg width="1200" height="1600" viewBox="0 0 1200 1600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1600" fill="#F6EEE3"/>
+  <circle cx="940" cy="252" r="196" fill="#EEC786" fill-opacity="0.4"/>
+  <circle cx="230" cy="1286" r="260" fill="#E5B16A" fill-opacity="0.18"/>
+  <rect x="132" y="128" width="936" height="1344" rx="72" fill="#FFF9F2" stroke="#D49A43" stroke-width="4"/>
+  <path d="M600 420C600 420 470 590 470 746C470 874 547 964 600 1004C653 964 730 874 730 746C730 590 600 420 600 420Z" fill="#D49A43"/>
+  <circle cx="600" cy="786" r="124" fill="#FFF9F2"/>
+  <circle cx="600" cy="786" r="76" fill="#F3D19F"/>
+  <text x="600" y="1190" text-anchor="middle" fill="#221C18" font-family="Georgia, serif" font-size="72" font-weight="700">Gridaan</text>
+  <text x="600" y="1262" text-anchor="middle" fill="#8A6431" font-family="Arial, sans-serif" font-size="30">Jewelry placeholders ready for real campaign photography</text>
+</svg>

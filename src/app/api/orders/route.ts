@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { checkoutSchema } from '@/lib/validators';
 import { computeCartTotals } from '@/lib/cart-totals';
-import { errorResponse, badRequest, notFound } from '@/lib/api';
+import { assertJsonRequest, assertSameOrigin, errorResponse, badRequest, notFound } from '@/lib/api';
 import { getProfile } from '@/lib/supabase/auth';
 import type { Coupon, Product } from '@/types';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
+import { publicEnv } from '@/lib/env';
 
 const PRODUCT_COLS =
   'id, slug, name, description, price, original_price, discount, images, category_id, tags, in_stock, stock_count, rating, review_count, is_trending, is_new_arrival, is_best_seller, metadata, created_at, updated_at, category:categories(*)';
@@ -30,10 +32,22 @@ type ValidateCouponRow = {
  *      the order_id + key for the checkout modal.
  */
 export async function POST(req: NextRequest) {
+  // Rate limiting: max 5 orders per minute per client
+  const clientId = getClientIdentifier(req);
+  if (isRateLimited(clientId, { limit: 5, windowSec: 60 })) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    );
+  }
+
   try {
+    assertJsonRequest(req);
+    assertSameOrigin(req);
+
     const body = await req.json();
     const input = checkoutSchema.parse(body);
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const profile = await getProfile();
 
     // Re-fetch products server-side
@@ -72,9 +86,9 @@ export async function POST(req: NextRequest) {
           .from('coupons')
           .select('type, value, min_order, max_discount')
           .eq('code', validationRows[0].coupon_code)
-          .single();
-        if (crow) coupon = crow as CouponForTotals;
-      }
+        .single();
+      if (crow) coupon = crow as CouponForTotals;
+    }
     }
 
     const totals = computeCartTotals({
@@ -124,7 +138,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         order: { ...order, razorpay_order_id: rzp.id },
         rzp_order: { id: rzp.id, amount: rzp.amount, currency: rzp.currency },
-        rzp_key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        rzp_key: publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID,
       });
     }
 

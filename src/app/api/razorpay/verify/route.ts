@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { verifyRzpSignature } from '@/lib/razorpay';
-import { errorResponse, badRequest, notFound } from '@/lib/api';
+import { assertJsonRequest, assertSameOrigin, errorResponse, badRequest, notFound } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
+import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
 
 const schema = z.object({
   order_id: z.string().uuid(),
@@ -20,7 +21,19 @@ const schema = z.object({
  * client), then marks the order as paid.
  */
 export async function POST(req: NextRequest) {
+  // Rate limiting: max 5 payment verifications per minute per client
+  const clientId = getClientIdentifier(req);
+  if (isRateLimited(clientId, { limit: 5, windowSec: 60 })) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    );
+  }
+
   try {
+    assertJsonRequest(req);
+    assertSameOrigin(req);
+
     const input = schema.parse(await req.json());
     const valid = verifyRzpSignature({
       orderId: input.razorpay_order_id,
@@ -29,7 +42,7 @@ export async function POST(req: NextRequest) {
     });
     if (!valid) throw badRequest('Invalid signature', 'invalid_signature');
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('id, razorpay_order_id, payment_status')
@@ -73,6 +86,7 @@ export async function POST(req: NextRequest) {
     }
 
     revalidatePath('/admin/orders');
+    revalidatePath(`/order-success?id=${input.order_id}`);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

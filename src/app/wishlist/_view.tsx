@@ -5,6 +5,7 @@ import { Heart } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
 import type { Product } from '@/types';
 import { createClient } from '@/lib/supabase/client';
+import { WISHLIST_CHANGED_EVENT } from '@/lib/wishlist-client';
 
 export default function WishlistView() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -12,32 +13,51 @@ export default function WishlistView() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
+    let active = true;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+
+    const loadWishlist = async () => {
+      setLoading(true);
+      const { data } = await supabase.auth.getUser();
       if (!data.user) {
+        if (!active) return;
         setSignedIn(false);
+        setProducts([]);
         setLoading(false);
         return;
       }
-      setSignedIn(true);
-      supabase
+
+      if (active) {
+        setSignedIn(true);
+      }
+
+      const { data: wishlistData, error } = await supabase
         .from('wishlist_items')
         .select('product:products(*)')
         .eq('user_id', data.user.id)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (!error) {
-            setProducts(
-              (data ?? [])
-                .map((row: { product: Product | Product[] | null }) =>
-                  Array.isArray(row.product) ? row.product[0] : row.product
-                )
-                .filter(Boolean) as Product[]
-            );
-          }
-          setLoading(false);
-        });
-    });
+        .order('created_at', { ascending: false });
+
+      if (!active) return;
+
+      if (!error) {
+        setProducts(
+          (wishlistData ?? [])
+            .map((row: { product: Product | Product[] | null }) =>
+              Array.isArray(row.product) ? row.product[0] : row.product
+            )
+            .filter(Boolean) as Product[]
+        );
+      }
+      setLoading(false);
+    };
+
+    void loadWishlist();
+    window.addEventListener(WISHLIST_CHANGED_EVENT, loadWishlist);
+
+    return () => {
+      active = false;
+      window.removeEventListener(WISHLIST_CHANGED_EVENT, loadWishlist);
+    };
   }, []);
 
   if (loading) {

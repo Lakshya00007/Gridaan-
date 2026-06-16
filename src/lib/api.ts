@@ -2,6 +2,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { getProfile } from '@/lib/supabase/auth';
+import { publicEnv } from '@/lib/env';
 
 export type RouteHandler = (
   req: Request,
@@ -76,4 +77,28 @@ export function forbidden(message = 'forbidden') {
 }
 export function notFound(message = 'not found') {
   return new ApiError(message, 404);
+}
+
+export function assertJsonRequest(req: Request) {
+  const contentType = req.headers.get('content-type')?.split(';')[0]?.trim();
+  if (contentType !== 'application/json') {
+    throw badRequest('Expected application/json request body', 'invalid_content_type');
+  }
+}
+
+export function assertSameOrigin(req: Request) {
+  const allowedOrigin = new URL(publicEnv.NEXT_PUBLIC_SITE_URL).origin;
+  const origin = req.headers.get('origin');
+  const referer = req.headers.get('referer');
+
+  if (origin && origin !== allowedOrigin) {
+    throw forbidden('Origin not allowed');
+  }
+
+  if (!origin && referer) {
+    const refererOrigin = new URL(referer).origin;
+    if (refererOrigin !== allowedOrigin) {
+      throw forbidden('Referer not allowed');
+    }
+  }
 }
