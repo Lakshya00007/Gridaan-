@@ -30,3 +30,4 @@ claude-cli.py
 .env
 node_modules
 .next
+supabase/.temp/
