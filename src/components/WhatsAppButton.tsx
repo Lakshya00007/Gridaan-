@@ -1,13 +1,10 @@
-import { env } from '@/lib/env';
+import { buildStorefrontWhatsAppLink } from '@/lib/whatsapp';
 
 export default function WhatsAppButton() {
-  const number = env.WHATSAPP_ADMIN_NUMBER;
-  const message = encodeURIComponent(
-    'Hi! I want to know more about your jewelry collection.'
-  );
+  const href = buildStorefrontWhatsAppLink();
   return (
     <a
-      href={`https://wa.me/${number}?text=${message}`}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat on WhatsApp"

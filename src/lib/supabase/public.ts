@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/env.public';
 
 export const publicSupabase = createClient(
   publicEnv.NEXT_PUBLIC_SUPABASE_URL,

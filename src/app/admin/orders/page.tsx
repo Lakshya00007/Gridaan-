@@ -1,5 +1,6 @@
 import OrdersAdmin from './_client';
 import { createServiceClient } from '@/lib/supabase/server';
+import { getAdminWhatsAppNumber } from '@/lib/whatsapp';
 import type { Order } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,7 @@ export default async function Page({ searchParams }: PageProps) {
   return (
     <OrdersAdmin
       orders={(orders ?? []) as Order[]}
+      adminWhatsappNumber={getAdminWhatsAppNumber()}
       page={pageNumber}
       pageSize={PAGE_SIZE}
       totalCount={count ?? 0}

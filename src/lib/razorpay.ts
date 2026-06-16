@@ -5,14 +5,14 @@
 import 'server-only';
 import Razorpay from 'razorpay';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { env } from './env';
+import { serverEnv } from './env.server';
 
 let _razorpay: Razorpay | null = null;
 export function getRazorpay() {
   if (!_razorpay) {
     _razorpay = new Razorpay({
-      key_id: env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      key_secret: env.RAZORPAY_KEY_SECRET,
+      key_id: serverEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      key_secret: serverEnv.RAZORPAY_KEY_SECRET,
     });
   }
   return _razorpay;
@@ -43,7 +43,7 @@ export interface VerifyRzpSignatureInput {
 export function verifyRzpSignature(input: VerifyRzpSignatureInput): boolean {
   const { orderId, paymentId, signature } = input;
   const payload = `${orderId}|${paymentId}`;
-  const expected = createHmac('sha256', env.RAZORPAY_KEY_SECRET)
+  const expected = createHmac('sha256', serverEnv.RAZORPAY_KEY_SECRET)
     .update(payload)
     .digest('hex');
   const a = Buffer.from(expected, 'utf8');
@@ -53,12 +53,12 @@ export function verifyRzpSignature(input: VerifyRzpSignatureInput): boolean {
 }
 
 export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
-  if (!env.RAZORPAY_WEBHOOK_SECRET) {
+  if (!serverEnv.RAZORPAY_WEBHOOK_SECRET) {
     // In production this must be set. Log loudly so it surfaces immediately.
     console.error('[razorpay] RAZORPAY_WEBHOOK_SECRET is not configured — rejecting webhook');
     return false;
   }
-  const expected = createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
+  const expected = createHmac('sha256', serverEnv.RAZORPAY_WEBHOOK_SECRET)
     .update(rawBody)
     .digest('hex');
   const a = Buffer.from(expected, 'utf8');

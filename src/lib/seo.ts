@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
-import { env } from './env';
+import { publicEnv } from './env.public';
 
 export const siteConfig = {
   name: 'Gridaan',
   title: 'Gridaan - Premium Fashion Jewelry',
   description:
     'Shop premium fashion jewelry, artificial jewelry, Korean jewelry, oxidized jewelry, bridal sets and daily wear accessories at affordable prices.',
-  url: env.NEXT_PUBLIC_SITE_URL,
-  logo: `${env.NEXT_PUBLIC_SITE_URL}/logo.svg`,
-  ogImage: `${env.NEXT_PUBLIC_SITE_URL}/og.svg`,
+  url: publicEnv.NEXT_PUBLIC_SITE_URL,
+  logo: `${publicEnv.NEXT_PUBLIC_SITE_URL}/logo.svg`,
+  ogImage: `${publicEnv.NEXT_PUBLIC_SITE_URL}/og.svg`,
   locale: 'en_IN',
   twitter: '@gridaan',
   contact: {

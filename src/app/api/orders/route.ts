@@ -7,7 +7,7 @@ import { getProfile } from '@/lib/supabase/auth';
 import type { Coupon, Product } from '@/types';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/env.public';
 
 const PRODUCT_COLS =
   'id, slug, name, description, price, original_price, discount, images, category_id, tags, in_stock, stock_count, rating, review_count, is_trending, is_new_arrival, is_best_seller, metadata, created_at, updated_at, category:categories(*)';

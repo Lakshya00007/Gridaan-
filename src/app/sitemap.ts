@@ -1,9 +1,9 @@
 import { MetadataRoute } from 'next';
 import { publicSupabase } from '@/lib/supabase/public';
-import { env } from '@/lib/env';
+import { publicEnv } from '@/lib/env.public';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = env.NEXT_PUBLIC_SITE_URL;
+  const baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL;
 
   // Static routes
   const routes: MetadataRoute.Sitemap = [

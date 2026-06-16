@@ -2,7 +2,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { getProfile } from '@/lib/supabase/auth';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/env.public';
 
 export type RouteHandler = (
   req: Request,

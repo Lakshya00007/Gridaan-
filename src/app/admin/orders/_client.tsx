@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Truck, Check, XCircle, MessageCircle, ExternalLink, Eye, LucideIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatRupees, formatDateTime, cn } from '@/lib/utils';
-import { buildAdminOrderLink, buildCustomerOrderLink, buildStatusUpdateLink } from '@/lib/whatsapp';
+import { buildAdminOrderLink, buildCustomerOrderLink, buildStatusUpdateLink } from '@/lib/whatsapp-links';
 import type { Order, OrderStatus } from '@/types';
 
 const STATUSES: OrderStatus[] = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'returned'];
@@ -19,12 +19,14 @@ const statusColor: Record<OrderStatus, string> = {
 
 export default function OrdersAdmin({
   orders: initial,
+  adminWhatsappNumber,
   page,
   pageSize,
   totalCount,
   hasMore,
 }: {
   orders: Order[];
+  adminWhatsappNumber: string;
   page: number;
   pageSize: number;
   totalCount: number;
@@ -159,7 +161,7 @@ export default function OrdersAdmin({
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <a
-                          href={buildAdminOrderLink(o)}
+                          href={buildAdminOrderLink(o, adminWhatsappNumber)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
@@ -185,6 +187,7 @@ export default function OrdersAdmin({
 
       {openOrder && (
         <OrderDrawer
+          adminWhatsappNumber={adminWhatsappNumber}
           order={openOrder}
           onClose={() => setOpenOrder(null)}
           onStatus={(s) => updateStatus(openOrder.id, s)}
@@ -195,10 +198,12 @@ export default function OrdersAdmin({
 }
 
 function OrderDrawer({
+  adminWhatsappNumber,
   order,
   onClose,
   onStatus,
 }: {
+  adminWhatsappNumber: string;
   order: Order;
   onClose: () => void;
   onStatus: (s: OrderStatus) => void;
@@ -260,7 +265,7 @@ function OrderDrawer({
             </div>
             <div className="grid grid-cols-1 gap-2 mt-3">
               <a
-                href={buildAdminOrderLink(order)}
+                href={buildAdminOrderLink(order, adminWhatsappNumber)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-medium hover:bg-green-100"

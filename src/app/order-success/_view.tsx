@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatRupees } from '@/lib/utils';
-import { buildCustomerOrderLink } from '@/lib/whatsapp';
+import { buildCustomerOrderLink } from '@/lib/whatsapp-links';
 import type { Order } from '@/types';
 
 export default function OrderSuccessView() {

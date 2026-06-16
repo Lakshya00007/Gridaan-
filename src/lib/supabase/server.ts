@@ -2,7 +2,7 @@ import 'server-only';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient as createRawClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { env } from '@/lib/env';
+import { serverEnv } from '@/lib/env.server';
 
 type SupabaseCookieToSet = {
   name: string;
@@ -21,8 +21,8 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serverEnv.NEXT_PUBLIC_SUPABASE_URL,
+    serverEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -48,8 +48,8 @@ export async function createClient() {
  */
 export function createServiceClient() {
   return createRawClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
+    serverEnv.NEXT_PUBLIC_SUPABASE_URL,
+    serverEnv.SUPABASE_SERVICE_ROLE_KEY,
     {
       auth: {
         autoRefreshToken: false,
