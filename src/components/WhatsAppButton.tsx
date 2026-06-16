@@ -2,6 +2,8 @@ import { buildStorefrontWhatsAppLink } from '@/lib/whatsapp';
 
 export default function WhatsAppButton() {
   const href = buildStorefrontWhatsAppLink();
+  if (!href) return null;
+
   return (
     <a
       href={href}

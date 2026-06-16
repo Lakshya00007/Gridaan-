@@ -11,15 +11,35 @@ import {
 } from './whatsapp-links';
 import type { Order } from '@/types';
 
+let hasWarnedAboutMissingWhatsAppConfig = false;
+
+function warnMissingWhatsAppConfig(reason: string) {
+  if (hasWarnedAboutMissingWhatsAppConfig) return;
+  hasWarnedAboutMissingWhatsAppConfig = true;
+  console.warn(`[whatsapp] ${reason}`);
+}
+
 export function buildAdminOrderLink(order: Order): string {
+  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
+    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Admin WhatsApp links are disabled.');
+    return '';
+  }
   return buildAdminOrderLinkWithPhone(order, serverEnv.WHATSAPP_ADMIN_NUMBER);
 }
 
-export function getAdminWhatsAppNumber(): string {
+export function getAdminWhatsAppNumber(): string | null {
+  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
+    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Admin WhatsApp links are disabled.');
+    return null;
+  }
   return serverEnv.WHATSAPP_ADMIN_NUMBER;
 }
 
-export function buildStorefrontWhatsAppLink(): string {
+export function buildStorefrontWhatsAppLink(): string | null {
+  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
+    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Storefront WhatsApp button is disabled.');
+    return null;
+  }
   const message = encodeURIComponent('Hi! I want to know more about your jewelry collection.');
   return `https://wa.me/${serverEnv.WHATSAPP_ADMIN_NUMBER}?text=${message}`;
 }
@@ -30,9 +50,19 @@ export function buildStorefrontWhatsAppLink(): string {
  * deep-links; this exists for automation.
  */
 export async function sendWhatsApp(to: string, body: string): Promise<boolean> {
-  if (!serverEnv.WHATSAPP_API_TOKEN) return false;
+  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
+    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Skipping WhatsApp send.');
+    return false;
+  }
+  if (!serverEnv.WHATSAPP_API_TOKEN) {
+    warnMissingWhatsAppConfig('WHATSAPP_API_TOKEN is not configured. Skipping WhatsApp send.');
+    return false;
+  }
   const phoneNumberId = serverEnv.WHATSAPP_PHONE_NUMBER_ID;
-  if (!phoneNumberId) return false;
+  if (!phoneNumberId) {
+    warnMissingWhatsAppConfig('WHATSAPP_PHONE_NUMBER_ID is not configured. Skipping WhatsApp send.');
+    return false;
+  }
 
   try {
     const res = await fetch(

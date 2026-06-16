@@ -26,7 +26,7 @@ export default function OrdersAdmin({
   hasMore,
 }: {
   orders: Order[];
-  adminWhatsappNumber: string;
+  adminWhatsappNumber: string | null;
   page: number;
   pageSize: number;
   totalCount: number;
@@ -160,15 +160,17 @@ export default function OrdersAdmin({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <a
-                          href={buildAdminOrderLink(o, adminWhatsappNumber)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                          title="WhatsApp admin"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </a>
+                        {adminWhatsappNumber && (
+                          <a
+                            href={buildAdminOrderLink(o, adminWhatsappNumber)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                            title="WhatsApp admin"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                        )}
                         <button
                           onClick={() => setOpenOrder(o)}
                           className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg"
@@ -203,7 +205,7 @@ function OrderDrawer({
   onClose,
   onStatus,
 }: {
-  adminWhatsappNumber: string;
+  adminWhatsappNumber: string | null;
   order: Order;
   onClose: () => void;
   onStatus: (s: OrderStatus) => void;
@@ -264,14 +266,16 @@ function OrderDrawer({
               )}
             </div>
             <div className="grid grid-cols-1 gap-2 mt-3">
-              <a
-                href={buildAdminOrderLink(order, adminWhatsappNumber)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-medium hover:bg-green-100"
-              >
-                <MessageCircle className="w-4 h-4" /> Send to admin on WhatsApp <ExternalLink className="w-3 h-3" />
-              </a>
+              {adminWhatsappNumber && (
+                <a
+                  href={buildAdminOrderLink(order, adminWhatsappNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-medium hover:bg-green-100"
+                >
+                  <MessageCircle className="w-4 h-4" /> Send to admin on WhatsApp <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
               <a
                 href={buildCustomerOrderLink(order)}
                 target="_blank"

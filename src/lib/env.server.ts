@@ -9,7 +9,8 @@ const serverSchema = z.object({
   RAZORPAY_WEBHOOK_SECRET: z.string().min(8).optional(),
   WHATSAPP_ADMIN_NUMBER: z
     .string()
-    .regex(/^\d{10,15}$/, 'Use country code + number, digits only'),
+    .regex(/^\d{10,15}$/, 'Use country code + number, digits only')
+    .optional(),
   WHATSAPP_API_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   ADMIN_BOOTSTRAP_SECRET: z.string().min(16).optional(),
