@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import ProductPageClient from './_client';
 import { getProductBySlug, getRelatedProducts } from '@/server/products';
+import { safeJsonLd, stripHtml } from '@/lib/safe-json';
 import { buildMetadata, siteConfig } from '@/lib/seo';
 import { truncate, formatRupees } from '@/lib/utils';
 
@@ -15,15 +16,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) return buildMetadata({ title: 'Product Not Found', robots: { index: false } });
+  const plainDescription = stripHtml(product.description);
   return buildMetadata({
     title: product.name,
-    description: truncate(product.description, 160),
+    description: truncate(plainDescription, 160),
     alternates: { canonical: `${siteConfig.url}/product/${product.slug}` },
     openGraph: {
       type: 'website',
       url: `${siteConfig.url}/product/${product.slug}`,
       title: product.name,
-      description: truncate(product.description, 160),
+      description: truncate(plainDescription, 160),
       images: product.images?.[0]
         ? [{ url: product.images[0], width: 1200, height: 1200, alt: product.name }]
         : undefined,
@@ -36,12 +38,13 @@ export default async function ProductPage({ params }: PageProps) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
   const related = await getRelatedProducts(product, 4);
+  const plainDescription = stripHtml(product.description);
 
   const ldJson: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: truncate(product.description, 500),
+    description: truncate(plainDescription, 500),
     image: product.images,
     sku: product.id,
     brand: { '@type': 'Brand', name: siteConfig.name },
@@ -118,7 +121,7 @@ export default async function ProductPage({ params }: PageProps) {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ldJson) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(ldJson) }}
       />
     </div>
   );

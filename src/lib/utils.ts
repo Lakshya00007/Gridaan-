@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import DOMPurify from 'isomorphic-dompurify';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,11 +21,6 @@ export function slugify(input: string) {
     .replace(/[^\w\s-]/g, '')
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
-}
-
-/** Strict client-side HTML sanitiser. */
-export function sanitise(html: string): string {
-  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
 }
 
 /** Truncate a string. */

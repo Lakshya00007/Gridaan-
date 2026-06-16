@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { buildMetadata, siteConfig } from '@/lib/seo';
+import { safeJsonLd } from '@/lib/safe-json';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CartDrawer from '@/components/CartDrawer';
@@ -68,7 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: safeJsonLd({
               '@context': 'https://schema.org',
               '@type': 'Store',
               name: siteConfig.name,

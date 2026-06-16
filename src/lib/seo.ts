@@ -26,6 +26,11 @@ export function buildMetadata(overrides: Partial<Metadata> = {}): Metadata {
     metadataBase: new URL(siteConfig.url),
     title: { default: siteConfig.title, template: `%s | ${siteConfig.name}` },
     description: siteConfig.description,
+    icons: {
+      icon: '/logo.svg',
+      shortcut: '/logo.svg',
+      apple: '/logo.svg',
+    },
     keywords: [
       'fashion jewelry',
       'artificial jewelry',
