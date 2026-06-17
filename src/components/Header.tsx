@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ShoppingBag,
   Heart,
@@ -138,16 +139,16 @@ export default function Header({ categories, user }: HeaderProps) {
               <Menu className="w-5 h-5" />
             </button>
 
-            <Link href="/" className="flex items-center gap-3" prefetch>
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#f5e2c8] via-[#fff6ea] to-[#d8b183] text-sm font-semibold tracking-[0.22em] text-neutral-900 shadow-[0_12px_26px_-18px_rgba(98,68,30,0.55)] ring-1 ring-white/60">
-                G
-              </span>
-              <span className="flex flex-col">
-                <span className="heading-display text-xl md:text-[1.7rem] leading-none text-neutral-900">Gridaan</span>
-                <span className="hidden md:block text-[10px] font-medium uppercase tracking-[0.32em] text-neutral-400">
-                  Fashion Jewellery
-                </span>
-              </span>
+            <Link href="/" className="flex shrink-0 items-center" prefetch aria-label="Gridaan home">
+              <Image
+                src="/logo.png"
+                alt="Gridaan"
+                width={220}
+                height={72}
+                priority
+                sizes="(min-width: 1024px) 210px, (min-width: 640px) 160px, 150px"
+                className="h-[52px] w-[150px] object-contain object-left sm:w-[160px] md:h-16 lg:w-[210px]"
+              />
             </Link>
 
             <nav className="hidden lg:flex items-center gap-1 rounded-full border border-stone-200/80 bg-white/85 px-2 py-2 shadow-[0_18px_44px_-36px_rgba(53,38,18,0.45)] backdrop-blur">
@@ -380,17 +381,18 @@ export default function Header({ categories, user }: HeaderProps) {
                   <Link
                     href="/"
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3"
+                    className="flex shrink-0 items-center"
+                    aria-label="Gridaan home"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#f5e2c8] via-[#fff6ea] to-[#d8b183] text-xs font-semibold tracking-[0.22em] text-neutral-900 shadow-[0_12px_26px_-18px_rgba(98,68,30,0.55)]">
-                      G
-                    </span>
-                    <span>
-                      <span className="heading-display block text-xl text-neutral-900">Gridaan</span>
-                      <span className="text-[10px] font-medium uppercase tracking-[0.28em] text-neutral-400">
-                        Fashion Jewellery
-                      </span>
-                    </span>
+                    <Image
+                      src="/logo.png"
+                      alt="Gridaan"
+                      width={160}
+                      height={56}
+                      priority
+                      sizes="150px"
+                      className="h-14 w-[150px] object-contain object-left"
+                    />
                   </Link>
                   <button
                     onClick={() => setMobileOpen(false)}
