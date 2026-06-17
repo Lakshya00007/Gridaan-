@@ -15,6 +15,16 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'gridaan.com' }],
+        destination: 'https://www.gridaan.com/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     const ContentSecurityPolicy = `
       default-src 'self';
