@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 import ProductPageClient from './_client';
 import { getProductBySlug, getRelatedProducts } from '@/server/products';
 import { safeJsonLd, stripHtml } from '@/lib/safe-json';
-import { buildBreadcrumbJsonLd, buildMetadata, siteConfig } from '@/lib/seo';
+import { buildBreadcrumbJsonLd, buildPageMetadata, siteConfig, toAbsoluteAssetUrl } from '@/lib/seo';
 import { getCategoryPageByFilterSlug, getCategoryPageHref } from '@/lib/category-pages';
 import { truncate, formatRupees } from '@/lib/utils';
 
@@ -16,21 +16,29 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-  if (!product) return buildMetadata({ title: 'Product Not Found', robots: { index: false } });
+  if (!product) {
+    return buildPageMetadata({
+      title: 'Product Not Found',
+      description: 'This product is not available.',
+      path: '/shop',
+      robots: { index: false, follow: false },
+    });
+  }
   const plainDescription = stripHtml(product.description);
-  return buildMetadata({
+  const primaryImage = product.images?.[0] ? toAbsoluteAssetUrl(product.images[0]) : undefined;
+
+  return buildPageMetadata({
     title: product.name,
     description: truncate(plainDescription, 160),
-    alternates: { canonical: `${siteConfig.url}/product/${product.slug}` },
-    openGraph: {
-      type: 'website',
-      url: `${siteConfig.url}/product/${product.slug}`,
-      title: product.name,
-      description: truncate(plainDescription, 160),
-      images: product.images?.[0]
-        ? [{ url: product.images[0], width: 1200, height: 1200, alt: product.name }]
-        : undefined,
-    },
+    path: `/product/${product.slug}`,
+    openGraphImage: primaryImage,
+    keywords: [
+      product.name,
+      product.category?.name ?? '',
+      'Gridaan',
+      'fashion jewellery',
+      'affordable Indian fashion jewellery',
+    ].filter(Boolean),
   });
 }
 
@@ -41,33 +49,33 @@ export default async function ProductPage({ params }: PageProps) {
   const related = await getRelatedProducts(product, 4);
   const plainDescription = stripHtml(product.description);
   const categoryPage = product.category?.slug ? getCategoryPageByFilterSlug(product.category.slug) : null;
+  const productImages = (product.images ?? []).map((image) => toAbsoluteAssetUrl(image));
+  const schemaImages = productImages.length > 0 ? productImages : [siteConfig.icon];
+  const productUrl = `${siteConfig.url}/product/${product.slug}`;
+  const productSku = typeof product.metadata?.sku === 'string' ? product.metadata.sku : undefined;
 
   const ldJson: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     description: truncate(plainDescription, 500),
-    image: product.images,
-    sku: product.id,
+    image: schemaImages,
     brand: { '@type': 'Brand', name: siteConfig.name },
     offers: {
       '@type': 'Offer',
-      url: `${siteConfig.url}/product/${product.slug}`,
+      url: productUrl,
       priceCurrency: 'INR',
-      price: product.price,
+      price: String(product.price),
       availability:
         product.in_stock && product.stock_count > 0
           ? 'https://schema.org/InStock'
           : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
       seller: { '@type': 'Organization', name: siteConfig.name },
     },
   };
-  if (product.rating && product.review_count > 0) {
-    ldJson.aggregateRating = {
-      '@type': 'AggregateRating',
-      ratingValue: product.rating,
-      reviewCount: product.review_count,
-    };
+  if (productSku) {
+    ldJson.sku = productSku;
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -76,7 +84,7 @@ export default async function ProductPage({ params }: PageProps) {
     ...(categoryPage
       ? [{ name: categoryPage.fullLabel, url: `${siteConfig.url}${getCategoryPageHref(categoryPage.slug)}` }]
       : []),
-    { name: product.name, url: `${siteConfig.url}/product/${product.slug}` },
+    { name: product.name, url: productUrl },
   ]);
 
   return (

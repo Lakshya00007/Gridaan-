@@ -1,8 +1,15 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'sonner';
-import { buildMetadata, buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/seo';
+import {
+  buildMetadata,
+  buildOrganizationJsonLd,
+  buildPreviewNoIndexRobots,
+  buildWebsiteJsonLd,
+  isPreviewHost,
+} from '@/lib/seo';
 import { safeJsonLd } from '@/lib/safe-json';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -16,7 +23,17 @@ import { buildStorefrontWhatsAppLink } from '@/lib/whatsapp';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' });
 
-export const metadata: Metadata = buildMetadata();
+export async function generateMetadata(): Promise<Metadata> {
+  const host = (await headers()).get('host') ?? '';
+
+  if (isPreviewHost(host)) {
+    return buildMetadata({
+      robots: buildPreviewNoIndexRobots(),
+    });
+  }
+
+  return buildMetadata();
+}
 
 export const viewport: Viewport = {
   themeColor: [
