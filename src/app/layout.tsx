@@ -11,6 +11,7 @@ import WhatsAppButton from '@/components/WhatsAppButton';
 import { getProfile } from '@/lib/supabase/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getActiveCategories } from '@/server/categories';
+import { buildStorefrontWhatsAppLink } from '@/lib/whatsapp';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' });
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } = await supabase.auth.getUser();
   const profile = await getProfile();
   const categories = await getActiveCategories();
+  const whatsappHref = buildStorefrontWhatsAppLink();
 
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
@@ -62,7 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main id="main" className="min-h-[60vh]">
           {children}
         </main>
-        <Footer />
+        <Footer whatsappHref={whatsappHref} />
         <CartDrawer />
         <WhatsAppButton />
         <Toaster richColors position="top-center" />

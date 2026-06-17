@@ -5,15 +5,15 @@ export const siteConfig = {
   name: 'Gridaan',
   title: 'Gridaan - Premium Fashion Jewelry',
   description:
-    'Shop premium fashion jewelry, artificial jewelry, Korean jewelry, oxidized jewelry, bridal sets and daily wear accessories at affordable prices.',
+    'Shop affordable Indian fashion jewelry with a premium look, including earrings, necklace sets, combo packs, wedding guest styles, and daily wear picks.',
   url: publicEnv.NEXT_PUBLIC_SITE_URL,
   logo: `${publicEnv.NEXT_PUBLIC_SITE_URL}/logo.svg`,
   ogImage: `${publicEnv.NEXT_PUBLIC_SITE_URL}/og.svg`,
   locale: 'en_IN',
   twitter: '@gridaan',
-  contact: {
-    phone: '+91-98765-43210',
-    email: 'hello@gridaan.com',
+  contact: {} as {
+    phone?: string;
+    email?: string;
   },
 };
 
@@ -34,12 +34,13 @@ export function buildMetadata(overrides: Partial<Metadata> = {}): Metadata {
     keywords: [
       'fashion jewelry',
       'artificial jewelry',
-      'Korean jewelry',
-      'oxidized jewelry',
-      'bridal sets',
       'Indian jewelry',
-      'affordable luxury',
+      'earrings',
+      'necklace sets',
+      'combo packs',
+      'wedding guest jewelry',
       'daily wear jewelry',
+      'affordable fashion jewelry',
     ],
     openGraph: {
       type: 'website',

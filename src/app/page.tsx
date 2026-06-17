@@ -16,8 +16,8 @@ export default async function HomePage() {
     getActiveCategories(),
   ]);
 
-  const { products: koreanReal } = await listProducts({
-    category: 'korean-jewelry',
+  const { products: comboPicks } = await listProducts({
+    category: 'combo-packs',
     limit: 2,
   });
 
@@ -40,35 +40,34 @@ export default async function HomePage() {
               </div>
 
               <h1 className="heading-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-neutral-900 mb-6">
-                Elegance in
+                Affordable Indian
                 <br />
-                Every <span className="heading-italic text-gold-500">Detail</span>
+                <span className="heading-italic text-gold-500">Fashion Jewelry</span>
               </h1>
 
               <p className="text-neutral-500 text-base md:text-lg max-w-md mx-auto lg:mx-0 mb-8 leading-relaxed">
-                Discover handcrafted fashion jewelry that tells your story. From bridal sets to everyday
-                elegance &mdash; affordable luxury awaits.
+                Premium-look earrings, necklace sets &amp; festive jewelry starting ₹99.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                <Link href="/shop" className="btn-primary px-10 py-4 text-base group">
-                  Shop Collection
+                <Link href="/shop?category=earrings" className="btn-primary px-10 py-4 text-base group">
+                  Shop Earrings
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link href="/shop?category=bridal-sets" className="btn-outline px-10 py-4 text-base">
-                  Bridal Sets
+                <Link href="/shop?category=combo-packs" className="btn-outline px-10 py-4 text-base">
+                  Explore Combo Packs
                 </Link>
               </div>
 
               <div className="flex items-center justify-center lg:justify-start gap-8 mt-12">
                 {[
-                  { num: '10K+', label: 'Happy Customers' },
-                  { num: '500+', label: 'Products' },
-                  { num: '4.8★', label: 'Average Rating' },
+                  { title: 'COD Available', detail: 'Easy checkout across India' },
+                  { title: 'Premium Look', detail: 'Festive styles that feel elevated' },
+                  { title: 'Affordable Prices', detail: 'Launch picks starting at ₹99' },
                 ].map((stat) => (
-                  <div key={stat.label} className="text-center">
-                    <p className="text-xl md:text-2xl font-bold text-neutral-900">{stat.num}</p>
-                    <p className="text-xs text-neutral-400 mt-0.5">{stat.label}</p>
+                  <div key={stat.title} className="text-center max-w-[8.5rem]">
+                    <p className="text-sm md:text-base font-semibold text-neutral-900">{stat.title}</p>
+                    <p className="text-xs text-neutral-400 mt-1 leading-relaxed">{stat.detail}</p>
                   </div>
                 ))}
               </div>
@@ -96,10 +95,10 @@ export default async function HomePage() {
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {[
-              { icon: Truck, title: 'Free Shipping', desc: 'On orders ₹999+' },
-              { icon: Shield, title: 'Secure Payment', desc: 'Razorpay & COD' },
-              { icon: RotateCcw, title: 'Easy Returns', desc: '7-day return policy' },
-              { icon: Sparkles, title: 'Premium Quality', desc: 'Certified jewelry' },
+              { icon: Truck, title: 'COD Available', desc: 'Easy shopping across India' },
+              { icon: Shield, title: 'Premium Look', desc: 'Polished festive-ready styles' },
+              { icon: RotateCcw, title: 'Affordable Prices', desc: 'Statement pieces from ₹99' },
+              { icon: Sparkles, title: 'Launch Picks', desc: 'Earrings, sets, combos & more' },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex items-center gap-3 justify-center">
                 <div className="w-10 h-10 rounded-full bg-gold-50 flex items-center justify-center flex-shrink-0">
@@ -173,14 +172,14 @@ export default async function HomePage() {
         bg="warm"
       />
 
-      {/* BRIDAL BANNER */}
+      {/* WEDDING GUEST EDIT */}
       <section className="py-16 md:py-24 bg-white">
         <div className="container">
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-neutral-900 to-neutral-800 min-h-[400px] md:min-h-[500px] flex items-center">
             <div className="absolute inset-0">
               <Image
                 src="/bridal-banner.svg"
-                alt="Bridal collection"
+                alt="Wedding guest jewelry edit"
                 fill
                 sizes="100vw"
                 className="object-cover opacity-40"
@@ -189,17 +188,17 @@ export default async function HomePage() {
             </div>
             <div className="relative z-10 p-8 md:p-16 max-w-xl">
               <p className="text-gold-400 text-xs font-semibold uppercase tracking-[0.3em] mb-4">
-                Bridal Collection
+                Wedding Guest Edit
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-white mb-4">
-                Your Perfect <span className="heading-italic text-gold-400">Bridal</span> Look
+                Dress Up Your <span className="heading-italic text-gold-400">Wedding Guest</span> Look
               </h2>
               <p className="text-neutral-300 text-sm md:text-base mb-8 leading-relaxed">
-                Make your special day unforgettable with our stunning bridal jewelry sets. Traditional,
-                contemporary, and everything in between.
+                Find statement earrings, necklace sets, and festive add-ons that instantly elevate your
+                saree, suit, or dress for every celebration invite.
               </p>
-              <Link href="/shop?category=bridal-sets" className="btn-gold">
-                Explore Bridal Sets
+              <Link href="/shop?category=wedding-guest" className="btn-gold">
+                Shop Wedding Guest
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -220,14 +219,14 @@ export default async function HomePage() {
         bg="white"
       />
 
-      {/* KOREAN */}
+      {/* COMBO PACKS */}
       <section className="py-16 md:py-24 bg-warm-50">
         <div className="container">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="aspect-[4/5] rounded-3xl overflow-hidden">
               <Image
                 src="/korean.svg"
-                alt="Korean jewelry collection"
+                alt="Combo packs collection"
                 width={800}
                 height={1000}
                 className="w-full h-full object-cover"
@@ -235,18 +234,18 @@ export default async function HomePage() {
             </div>
             <div className="md:pl-8">
               <p className="text-gold-600 text-xs font-semibold uppercase tracking-[0.3em] mb-4">
-                Korean Style
+                Combo Packs
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-neutral-900 mb-6">
-                Minimalist <span className="heading-italic text-gold-500">Korean</span> Jewelry
+                More sparkle, <span className="heading-italic text-gold-500">better value</span>
               </h2>
               <p className="text-neutral-500 leading-relaxed mb-8">
-                Embrace the K-beauty trend with our curated collection of minimalist, dainty jewelry pieces.
-                Perfect for everyday elegance and subtle sophistication.
+                Discover ready-to-gift combos and coordinated picks that make festive styling simple,
+                affordable, and polished in one click.
               </p>
               <div className="grid grid-cols-2 gap-4 mb-8">
-                {koreanReal.length > 0 ? (
-                  koreanReal.map((p) => (
+                {comboPicks.length > 0 ? (
+                  comboPicks.map((p) => (
                     <Link key={p.id} href={`/product/${p.slug}`} className="text-left group" prefetch>
                       <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-2">
                         <Image
@@ -262,11 +261,11 @@ export default async function HomePage() {
                     </Link>
                   ))
                 ) : (
-                  <p className="text-sm text-neutral-400">Check back soon!</p>
+                  <p className="text-sm text-neutral-400">Combo packs are landing soon. Check back shortly.</p>
                 )}
               </div>
-              <Link href="/shop?category=korean-jewelry" className="btn-primary">
-                Shop Korean Collection
+              <Link href="/shop?category=combo-packs" className="btn-primary">
+                Shop Combo Packs
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -293,20 +292,20 @@ export default async function HomePage() {
           <div className="relative rounded-3xl bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500 p-8 md:p-16 text-center overflow-hidden">
             <div className="relative z-10">
               <p className="text-white/80 text-xs font-semibold uppercase tracking-[0.3em] mb-3">
-                Limited Time Offer
+                Launch Offer
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-white mb-4">
-                Festival Sale &mdash; Up to 50% Off
+                Festive jewelry that looks premium, priced for repeat wear
               </h2>
               <p className="text-white/80 max-w-lg mx-auto mb-8">
-                Use code <span className="font-bold text-white">FESTIVE20</span> for an extra 20% off on your
-                first order.
+                Explore daily wear, wedding guest styles, and affordable gifting picks without stretching
+                your budget.
               </p>
               <Link
-                href="/shop"
+                href="/shop?category=daily-wear"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-10 py-4 text-sm font-semibold text-gold-700 hover:shadow-lg transition-all active:scale-[0.98]"
               >
-                Shop Now
+                Shop Daily Wear
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

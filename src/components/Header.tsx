@@ -8,7 +8,6 @@ import {
   Menu,
   X,
   User,
-  ChevronDown,
   LogOut,
   Package,
   Shield,
@@ -37,12 +36,23 @@ export default function Header({ categories, user }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [catOpen, setCatOpen] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [, startTransition] = useTransition();
   const router = useRouter();
   const { searchQuery, setSearchQuery, isSearchOpen, setSearchOpen } = useUI();
   const { getCount: getCartCount, setOpen: setCartOpen } = useCart();
+  const launchCategoryLinks = [
+    { slug: 'earrings', label: 'Earrings' },
+    { slug: 'combo-packs', label: 'Combo Packs' },
+    { slug: 'wedding-guest', label: 'Wedding Guest' },
+    { slug: 'daily-wear', label: 'Daily Wear' },
+  ];
+  const navLinks = launchCategoryLinks
+    .map((link) => {
+      const category = categories.find((item) => item.slug === link.slug);
+      return category ? { ...link, icon: category.icon } : null;
+    })
+    .filter((link): link is { slug: string; label: string; icon: string | null } => Boolean(link));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -90,11 +100,9 @@ export default function Header({ categories, user }: HeaderProps) {
     <>
       {/* Announcement bar */}
       <div className="bg-neutral-900 text-white text-center py-2 px-4 text-[11px] sm:text-xs font-medium tracking-wider">
-        <span>✨ Free shipping on orders above ₹999</span>
+        <span>✨ Premium-look fashion jewelry from ₹99</span>
         <span className="hidden sm:inline"> · </span>
-        <span className="hidden sm:inline">
-          Use code <span className="text-gold-300">WELCOME10</span> for 10% off
-        </span>
+        <span className="hidden sm:inline">COD available across India</span>
       </div>
 
       <header
@@ -121,63 +129,23 @@ export default function Header({ categories, user }: HeaderProps) {
               <Link href="/" className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors">
                 Home
               </Link>
-              <div
-                className="relative"
-                onMouseEnter={() => setCatOpen(true)}
-                onMouseLeave={() => setCatOpen(false)}
+              <Link
+                href="/shop"
+                className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+                prefetch
               >
+                Shop
+              </Link>
+              {navLinks.map((link) => (
                 <Link
-                  href="/shop"
-                  className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors flex items-center gap-1"
+                  key={link.slug}
+                  href={`/shop?category=${link.slug}`}
+                  className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+                  prefetch
                 >
-                  Shop <ChevronDown className="w-3 h-3" />
+                  {link.label}
                 </Link>
-                <AnimatePresence>
-                  {catOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full left-1/2 -translate-x-1/2 pt-3"
-                    >
-                      <div className="bg-white rounded-2xl shadow-xl border border-neutral-100 p-3 grid grid-cols-2 gap-1 min-w-[360px]">
-                        <Link
-                          href="/shop"
-                          className="px-4 py-2.5 rounded-xl text-sm font-medium text-neutral-900 hover:bg-gold-50 transition-colors"
-                          prefetch
-                        >
-                          All Jewelry
-                        </Link>
-                        {categories.map((cat) => (
-                          <Link
-                            key={cat.id}
-                            href={`/shop?category=${cat.slug}`}
-                            className="px-4 py-2.5 rounded-xl text-sm text-neutral-600 hover:bg-gold-50 hover:text-neutral-900 transition-colors flex items-center gap-2"
-                            prefetch
-                          >
-                            {cat.icon && <span>{cat.icon}</span>} {cat.name}
-                          </Link>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <Link
-                href="/shop?category=bridal-sets"
-                className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
-                prefetch
-              >
-                Bridal
-              </Link>
-              <Link
-                href="/shop?category=korean-jewelry"
-                className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
-                prefetch
-              >
-                Korean
-              </Link>
+              ))}
             </nav>
 
             <div className="flex items-center gap-0.5 sm:gap-1">
@@ -313,7 +281,7 @@ export default function Header({ categories, user }: HeaderProps) {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search earrings, necklaces, rings..."
+                      placeholder="Search earrings, necklace sets, combo packs..."
                       className="w-full pl-12 pr-4 py-3 bg-neutral-50 rounded-full border border-neutral-200 focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none transition-all text-sm"
                       autoFocus
                     />
@@ -372,16 +340,16 @@ export default function Header({ categories, user }: HeaderProps) {
                   onClick={() => setMobileOpen(false)}
                   className="block px-4 py-3 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-50"
                 >
-                  Shop All
+                  Shop
                 </Link>
-                {categories.map((cat) => (
+                {navLinks.map((link) => (
                   <Link
-                    key={cat.id}
-                    href={`/shop?category=${cat.slug}`}
+                    key={link.slug}
+                    href={`/shop?category=${link.slug}`}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-neutral-600 hover:bg-neutral-50"
                   >
-                    {cat.icon && <span>{cat.icon}</span>} {cat.name}
+                    {link.icon && <span>{link.icon}</span>} {link.label}
                   </Link>
                 ))}
                 <div className="my-2 border-t border-neutral-100" />

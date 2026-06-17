@@ -1,57 +1,65 @@
-'use client';
 import Link from 'next/link';
-import { Mail, Phone, MapPin, Instagram, Facebook, Twitter } from 'lucide-react';
+import { MessageCircle, ShieldCheck, WalletCards, Truck } from 'lucide-react';
 
-export default function Footer() {
+interface FooterProps {
+  whatsappHref?: string | null;
+}
+
+export default function Footer({ whatsappHref }: FooterProps) {
   return (
     <footer className="bg-neutral-900 text-white mt-16">
       <div className="border-b border-neutral-800">
-        <div className="container py-12 md:py-16">
-          <div className="text-center max-w-xl mx-auto">
-            <h3 className="heading-display text-2xl md:text-3xl mb-3">Stay in the Glow</h3>
-            <p className="text-neutral-400 text-sm mb-6">
-              Subscribe for exclusive deals, new Gridaan arrivals, and style inspiration.
-            </p>
-            <NewsletterForm />
+        <div className="container py-12 md:py-14">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400 mb-3">
+                Gridaan Launch Edit
+              </p>
+              <h3 className="heading-display text-2xl md:text-3xl mb-3">
+                Premium-look jewelry at everyday prices
+              </h3>
+              <p className="text-sm text-neutral-400 leading-relaxed">
+                Shop earrings, necklace sets, combo packs, wedding guest picks, and daily wear styles
+                made for festive looks without the heavy price tag.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/shop" className="btn-gold justify-center">
+                Shop Collection
+              </Link>
+              {whatsappHref ? (
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline border-white/20 text-white hover:border-gold-400 hover:text-gold-300 justify-center"
+                >
+                  Chat on WhatsApp
+                </a>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="container py-12 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-1.5 mb-4">
-              <span className="heading-display text-xl">Gridaan</span>
-            </div>
-            <p className="text-neutral-400 text-sm leading-relaxed mb-6">
-              Premium fashion jewelry for the modern woman. Affordable elegance for every occasion.
+        <div className="grid gap-10 md:grid-cols-[1.3fr_0.9fr_0.9fr_1fr]">
+          <div>
+            <span className="heading-display text-xl">Gridaan</span>
+            <p className="mt-4 text-sm leading-relaxed text-neutral-400 max-w-sm">
+              Affordable Indian fashion jewelry with a premium look for gifting, festive dressing, and
+              everyday styling.
             </p>
-            <div className="flex gap-2.5">
-              {[
-                { Icon: Instagram, label: 'Instagram' },
-                { Icon: Facebook, label: 'Facebook' },
-                { Icon: Twitter, label: 'Twitter' },
-              ].map(({ Icon, label }) => (
-                <a
-                  key={label}
-                  href="#"
-                  aria-label={label}
-                  className="w-10 h-10 rounded-full bg-neutral-800 hover:bg-gold-500 flex items-center justify-center transition-colors"
-                >
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
-            </div>
           </div>
 
           <FooterColumn
             title="Shop"
             items={[
               { label: 'Earrings', href: '/shop?category=earrings' },
-              { label: 'Necklaces', href: '/shop?category=necklaces' },
-              { label: 'Rings', href: '/shop?category=rings' },
-              { label: 'Bracelets', href: '/shop?category=bracelets' },
-              { label: 'Bridal Sets', href: '/shop?category=bridal-sets' },
+              { label: 'Necklace Sets', href: '/shop?category=necklace-sets' },
+              { label: 'Combo Packs', href: '/shop?category=combo-packs' },
+              { label: 'Wedding Guest', href: '/shop?category=wedding-guest' },
+              { label: 'Daily Wear', href: '/shop?category=daily-wear' },
             ]}
           />
 
@@ -59,7 +67,7 @@ export default function Footer() {
             title="Help"
             items={[
               { label: 'Contact Us', href: '/contact' },
-              { label: 'Shipping & Returns', href: '/shipping' },
+              { label: 'Shipping', href: '/shipping' },
               { label: 'FAQ', href: '/faq' },
               { label: 'Privacy Policy', href: '/privacy' },
               { label: 'Terms of Service', href: '/terms' },
@@ -67,27 +75,33 @@ export default function Footer() {
           />
 
           <div>
-            <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Contact</h4>
+            <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Why Shop Gridaan</h4>
             <ul className="space-y-3 text-sm text-neutral-400">
               <li className="flex items-start gap-2.5">
-                <Phone className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <a href="tel:+919876543210" className="hover:text-gold-400">
-                  +91 98765 43210
-                </a>
+                <WalletCards className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
+                <span>Affordable pricing with premium-look finishes.</span>
               </li>
               <li className="flex items-start gap-2.5">
-                <Mail className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <a
-                  href="mailto:hello@gridaan.com"
-                  className="hover:text-gold-400 break-all"
-                >
-                  hello@gridaan.com
-                </a>
+                <Truck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
+                <span>COD available and careful packing for gifting.</span>
               </li>
               <li className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <span>Mumbai, Maharashtra, India</span>
+                <ShieldCheck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
+                <span>Secure checkout powered by Razorpay.</span>
               </li>
+              {whatsappHref ? (
+                <li className="flex items-start gap-2.5">
+                  <MessageCircle className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-gold-300 transition-colors"
+                  >
+                    Need help choosing a style? Chat with us on WhatsApp.
+                  </a>
+                </li>
+              ) : null}
             </ul>
           </div>
         </div>
@@ -98,9 +112,7 @@ export default function Footer() {
           <p className="text-xs text-neutral-500">
             © {new Date().getFullYear()} Gridaan. All rights reserved.
           </p>
-          <p className="text-[10px] text-neutral-600">
-            Secured by Razorpay · Powered by Supabase
-          </p>
+          <p className="text-[10px] text-neutral-600">Affordable Indian fashion jewelry with a premium look.</p>
         </div>
       </div>
     </footer>
@@ -127,27 +139,5 @@ function FooterColumn({
         ))}
       </ul>
     </div>
-  );
-}
-
-function NewsletterForm() {
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        // Hook up to your provider here (Resend, Mailchimp, etc.)
-      }}
-      className="flex gap-2"
-    >
-      <input
-        type="email"
-        required
-        placeholder="Enter your email"
-        className="flex-1 px-5 py-3 bg-neutral-800 rounded-full border border-neutral-700 text-sm placeholder:text-neutral-500 focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none transition-all"
-      />
-      <button className="px-6 py-3 bg-gold-500 hover:bg-gold-600 rounded-full text-sm font-medium transition-colors">
-        Subscribe
-      </button>
-    </form>
   );
 }
