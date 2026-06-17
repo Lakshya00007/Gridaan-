@@ -86,18 +86,61 @@ export function assertJsonRequest(req: Request) {
   }
 }
 
+function normalizeOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isLocalDevOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return (
+      url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getAllowedOrigins(): Set<string> {
+  const allowed = new Set<string>();
+  const configuredOrigin = normalizeOrigin(publicEnv.NEXT_PUBLIC_SITE_URL);
+
+  if (configuredOrigin) {
+    allowed.add(configuredOrigin);
+  }
+
+  allowed.add('https://gridaan.com');
+  allowed.add('https://www.gridaan.com');
+
+  return allowed;
+}
+
+function isAllowedOrigin(origin: string): boolean {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+
+  if (getAllowedOrigins().has(normalized)) {
+    return true;
+  }
+
+  return isLocalDevOrigin(normalized);
+}
+
 export function assertSameOrigin(req: Request) {
-  const allowedOrigin = new URL(publicEnv.NEXT_PUBLIC_SITE_URL).origin;
   const origin = req.headers.get('origin');
   const referer = req.headers.get('referer');
 
-  if (origin && origin !== allowedOrigin) {
+  if (origin && !isAllowedOrigin(origin)) {
     throw forbidden('Origin not allowed');
   }
 
   if (!origin && referer) {
-    const refererOrigin = new URL(referer).origin;
-    if (refererOrigin !== allowedOrigin) {
+    if (!isAllowedOrigin(referer)) {
       throw forbidden('Referer not allowed');
     }
   }

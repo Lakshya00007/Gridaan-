@@ -18,7 +18,7 @@ const nextConfig = {
   async headers() {
     const ContentSecurityPolicy = `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' https://checkout.razorpay.com;
+      script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com;
       style-src 'self' 'unsafe-inline';
       img-src 'self' data: blob: https://*.supabase.co https://images.pexels.com https://res.cloudinary.com https://lh3.googleusercontent.com;
       font-src 'self' data: https://fonts.gstatic.com;
