@@ -1,6 +1,7 @@
 export type CategoryPageConfig = {
   slug: string;
   filterSlug: string;
+  imagePath: string;
   shortLabel: string;
   fullLabel: string;
   heading: string;
@@ -13,6 +14,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-earrings',
     filterSlug: 'women-earrings',
+    imagePath: '/categories/women-earrings.webp',
     shortLabel: 'Women Earrings',
     fullLabel: 'Women Earrings',
     heading: 'Women Earrings',
@@ -25,6 +27,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-necklaces',
     filterSlug: 'women-necklaces',
+    imagePath: '/categories/women-necklaces.webp',
     shortLabel: 'Women Necklaces',
     fullLabel: 'Women Necklaces',
     heading: 'Women Necklaces',
@@ -37,6 +40,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-bangles-bracelets',
     filterSlug: 'women-bangles-bracelets',
+    imagePath: '/categories/women-bangles-bracelets.webp',
     shortLabel: 'Bangles & Bracelets',
     fullLabel: 'Bangles & Bracelets',
     heading: 'Bangles & Bracelets',
@@ -49,6 +53,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-rings',
     filterSlug: 'women-rings',
+    imagePath: '/categories/women-rings.webp',
     shortLabel: 'Women Rings',
     fullLabel: 'Women Rings',
     heading: 'Women Rings',
@@ -61,6 +66,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-anklets-toe-rings',
     filterSlug: 'women-anklets-toe-rings',
+    imagePath: '/categories/women-anklets-toe-rings.webp',
     shortLabel: 'Anklets & Toe Rings',
     fullLabel: 'Anklets & Toe Rings',
     heading: 'Anklets & Toe Rings',
@@ -73,7 +79,8 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-hair-jewellery',
     filterSlug: 'women-hair-jewellery',
-    shortLabel: 'Hair Jewellery',
+    imagePath: '/categories/women-hair-jewellery.webp',
+    shortLabel: 'Maang Tikka & Hair Jewellery',
     fullLabel: 'Maang Tikka & Hair Jewellery',
     heading: 'Maang Tikka & Hair Jewellery',
     seoTitle: 'Maang Tikka & Hair Jewellery | Festive Hair Accessories | Gridaan',
@@ -85,6 +92,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'women-full-sets',
     filterSlug: 'women-full-sets',
+    imagePath: '/categories/women-full-sets.webp',
     shortLabel: 'Full Jewellery Sets',
     fullLabel: 'Full Jewellery Sets',
     heading: 'Full Jewellery Sets',
@@ -97,6 +105,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'men-chains',
     filterSlug: 'men-chains',
+    imagePath: '/categories/men-chains.webp',
     shortLabel: 'Men Chains',
     fullLabel: 'Men Chains',
     heading: 'Men Chains',
@@ -109,6 +118,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'men-pendants',
     filterSlug: 'men-pendants',
+    imagePath: '/categories/men-pendants.webp',
     shortLabel: 'Men Pendants',
     fullLabel: 'Men Pendants',
     heading: 'Men Pendants',
@@ -121,6 +131,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'men-kadas',
     filterSlug: 'men-kadas',
+    imagePath: '/categories/men-kadas.webp',
     shortLabel: 'Men Kadas',
     fullLabel: 'Men Kadas',
     heading: 'Men Kadas',
@@ -133,6 +144,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'men-bracelets',
     filterSlug: 'men-bracelets',
+    imagePath: '/categories/men-bracelets.webp',
     shortLabel: 'Men Bracelets',
     fullLabel: 'Men Bracelets',
     heading: 'Men Bracelets',
@@ -145,6 +157,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'men-rings',
     filterSlug: 'men-rings',
+    imagePath: '/categories/men-rings.webp',
     shortLabel: 'Men Rings',
     fullLabel: 'Men Rings',
     heading: 'Men Rings',
@@ -157,6 +170,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
   {
     slug: 'men-ear-studs',
     filterSlug: 'men-ear-studs',
+    imagePath: '/categories/men-ear-studs.webp',
     shortLabel: 'Men Ear Studs',
     fullLabel: 'Men Ear Studs',
     heading: 'Men Ear Studs',
@@ -174,6 +188,10 @@ export function getCategoryPageBySlug(slug: string) {
 
 export function getCategoryPageByFilterSlug(filterSlug: string) {
   return categoryPageConfigs.find((config) => config.filterSlug === filterSlug) ?? null;
+}
+
+export function getCategoryImagePath(filterSlug: string) {
+  return getCategoryPageByFilterSlug(filterSlug)?.imagePath ?? null;
 }
 
 export function getCategoryPageHref(slug: string) {

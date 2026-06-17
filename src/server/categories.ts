@@ -1,5 +1,6 @@
 import { publicSupabase } from '@/lib/supabase/public';
 import { unstable_cache } from 'next/cache';
+import { getCategoryPageByFilterSlug } from '@/lib/category-pages';
 import type { Category } from '@/types';
 
 export const getActiveCategories = unstable_cache(
@@ -15,7 +16,20 @@ export const getActiveCategories = unstable_cache(
       return [];
     }
 
-    return (data ?? []) as Category[];
+    return ((data ?? []) as Category[]).map((category) => {
+      const config = getCategoryPageByFilterSlug(category.slug);
+
+      if (!config) {
+        return category;
+      }
+
+      return {
+        ...category,
+        name: config.shortLabel,
+        description: category.description ?? config.description,
+        image_url: category.image_url ?? config.imagePath,
+      };
+    });
   },
   ['active-categories'],
   { revalidate: 300, tags: ['categories'] }

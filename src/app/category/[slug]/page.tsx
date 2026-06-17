@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import ProductCard from '@/components/ProductCard';
 import { categoryPageConfigs, getCategoryPageBySlug, getCategoryPageHref } from '@/lib/category-pages';
-import { buildBreadcrumbJsonLd, buildPageMetadata, siteConfig } from '@/lib/seo';
+import { absoluteUrl, buildBreadcrumbJsonLd, buildPageMetadata, siteConfig } from '@/lib/seo';
 import { safeJsonLd } from '@/lib/safe-json';
 import { listProducts } from '@/server/products';
 
@@ -31,6 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: config.seoTitle,
     description: config.description,
     path: getCategoryPageHref(config.slug),
+    openGraphImage: absoluteUrl(config.imagePath),
     keywords: [
       config.fullLabel,
       'Gridaan',
@@ -63,22 +65,37 @@ export default async function CategoryPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-white">
       <section className="bg-warm-50 py-12 md:py-16">
-        <div className="container max-w-5xl">
-          <nav className="mb-5 flex items-center gap-2 text-xs text-neutral-400">
-            <Link href="/" className="hover:text-neutral-600">
-              Home
-            </Link>
-            <span>/</span>
-            <Link href="/shop" className="hover:text-neutral-600">
-              Shop
-            </Link>
-            <span>/</span>
-            <span className="text-neutral-600">{config.fullLabel}</span>
-          </nav>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-600 mb-3">Category</p>
-          <h1 className="heading-display text-3xl md:text-5xl text-neutral-900 mb-4">{config.heading}</h1>
-          <p className="max-w-3xl text-sm md:text-base text-neutral-600 leading-7">{config.description}</p>
-          <p className="max-w-3xl text-sm md:text-base text-neutral-500 leading-7 mt-4">{config.intro}</p>
+        <div className="container max-w-6xl">
+          <div className="grid gap-8 md:grid-cols-[1.15fr_0.85fr] md:items-center">
+            <div>
+              <nav className="mb-5 flex items-center gap-2 text-xs text-neutral-400">
+                <Link href="/" className="hover:text-neutral-600">
+                  Home
+                </Link>
+                <span>/</span>
+                <Link href="/shop" className="hover:text-neutral-600">
+                  Shop
+                </Link>
+                <span>/</span>
+                <span className="text-neutral-600">{config.fullLabel}</span>
+              </nav>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-600 mb-3">Category</p>
+              <h1 className="heading-display text-3xl md:text-5xl text-neutral-900 mb-4">{config.heading}</h1>
+              <p className="max-w-3xl text-sm md:text-base text-neutral-600 leading-7">{config.description}</p>
+              <p className="max-w-3xl text-sm md:text-base text-neutral-500 leading-7 mt-4">{config.intro}</p>
+            </div>
+            <div className="relative aspect-[5/4] overflow-hidden rounded-[2rem] bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 shadow-sm ring-1 ring-black/5">
+              <Image
+                src={config.imagePath}
+                alt={config.fullLabel}
+                fill
+                sizes="(max-width: 768px) 100vw, 40vw"
+                className="object-cover"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
+            </div>
+          </div>
         </div>
       </section>
 

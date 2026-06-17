@@ -130,6 +130,8 @@ export default async function HomePage() {
           <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-4 xl:grid-cols-5 md:overflow-visible md:pb-0">
             {categories.map((cat) => {
               const categoryPage = getCategoryPageByFilterSlug(cat.slug);
+              const categoryImage = cat.image_url ?? categoryPage?.imagePath ?? null;
+              const categoryLabel = categoryPage?.shortLabel ?? cat.name;
 
               return (
                 <Link
@@ -138,27 +140,27 @@ export default async function HomePage() {
                   className="snap-center flex-shrink-0 w-36 md:w-auto group"
                   prefetch
                 >
-                  <div className="aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-3 relative">
-                    {cat.image_url ? (
+                  <div className="aspect-square rounded-[1.5rem] overflow-hidden bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 mb-3 relative shadow-sm ring-1 ring-black/5">
+                    {categoryImage ? (
                       <Image
-                        src={cat.image_url}
-                        alt={cat.name}
+                        src={categoryImage}
+                        alt={categoryLabel}
                         fill
                         sizes="(max-width: 768px) 144px, 200px"
-                        className="object-cover group-hover:scale-110 transition-transform duration-700"
+                        className="object-cover group-hover:scale-105 transition-transform duration-700"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-4xl bg-gold-50">
-                        {cat.icon}
-                      </div>
+                      <div className="w-full h-full bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                    {cat.icon ? (
-                      <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-2xl">{cat.icon}</span>
-                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-3">
+                      <span className="inline-flex rounded-full bg-white/88 px-3 py-1 text-[11px] font-medium tracking-wide text-neutral-800 backdrop-blur-sm">
+                        {categoryLabel}
+                      </span>
+                    </div>
                   </div>
                   <p className="text-sm font-medium text-neutral-700 group-hover:text-gold-600 transition-colors text-center">
-                    {cat.name}
+                    {categoryLabel}
                   </p>
                 </Link>
               );
