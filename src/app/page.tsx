@@ -17,8 +17,8 @@ export default async function HomePage() {
     getActiveCategories(),
   ]);
 
-  const { products: comboPicks } = await listProducts({
-    category: 'combo-packs',
+  const { products: featuredSets } = await listProducts({
+    category: 'women-full-sets',
     limit: 2,
   });
 
@@ -51,12 +51,15 @@ export default async function HomePage() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                <Link href="/shop?category=earrings" className="btn-primary px-10 py-4 text-base group">
-                  Shop Earrings
+                <Link
+                  href={getCategoryPageHref('women-earrings')}
+                  className="btn-primary px-10 py-4 text-base group"
+                >
+                  Shop Women Earrings
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link href="/shop?category=combo-packs" className="btn-outline px-10 py-4 text-base">
-                  Explore Combo Packs
+                <Link href={getCategoryPageHref('women-full-sets')} className="btn-outline px-10 py-4 text-base">
+                  Explore Full Jewellery Sets
                 </Link>
               </div>
 
@@ -121,43 +124,43 @@ export default async function HomePage() {
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-gold-600 uppercase tracking-[0.2em] mb-3">Browse By</p>
             <h2 className="heading-display text-3xl md:text-4xl text-neutral-900">
-              Our <span className="heading-italic text-gold-500">Categories</span>
+              Women &amp; Men <span className="heading-italic text-gold-500">Categories</span>
             </h2>
           </div>
-          <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-5 md:overflow-visible md:pb-0">
-            {categories.slice(0, 10).map((cat) => {
+          <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-4 xl:grid-cols-5 md:overflow-visible md:pb-0">
+            {categories.map((cat) => {
               const categoryPage = getCategoryPageByFilterSlug(cat.slug);
 
               return (
-              <Link
-                key={cat.id}
-                href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${cat.slug}`}
-                className="snap-center flex-shrink-0 w-36 md:w-auto group"
-                prefetch
-              >
-                <div className="aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-3 relative">
-                  {cat.image_url ? (
-                    <Image
-                      src={cat.image_url}
-                      alt={cat.name}
-                      fill
-                      sizes="(max-width: 768px) 144px, 200px"
-                      className="object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl bg-gold-50">
-                      {cat.icon}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                  {cat.icon && (
-                    <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-2xl">{cat.icon}</span>
-                  )}
-                </div>
-                <p className="text-sm font-medium text-neutral-700 group-hover:text-gold-600 transition-colors text-center">
-                  {cat.name}
-                </p>
-              </Link>
+                <Link
+                  key={cat.id}
+                  href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${cat.slug}`}
+                  className="snap-center flex-shrink-0 w-36 md:w-auto group"
+                  prefetch
+                >
+                  <div className="aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-3 relative">
+                    {cat.image_url ? (
+                      <Image
+                        src={cat.image_url}
+                        alt={cat.name}
+                        fill
+                        sizes="(max-width: 768px) 144px, 200px"
+                        className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl bg-gold-50">
+                        {cat.icon}
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                    {cat.icon ? (
+                      <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-2xl">{cat.icon}</span>
+                    ) : null}
+                  </div>
+                  <p className="text-sm font-medium text-neutral-700 group-hover:text-gold-600 transition-colors text-center">
+                    {cat.name}
+                  </p>
+                </Link>
               );
             })}
           </div>
@@ -202,8 +205,8 @@ export default async function HomePage() {
                 Find statement earrings, necklace sets, and festive add-ons that instantly elevate your
                 saree, suit, or dress for every celebration invite.
               </p>
-              <Link href="/shop?category=wedding-guest" className="btn-gold">
-                Shop Wedding Guest
+              <Link href={getCategoryPageHref('women-hair-jewellery')} className="btn-gold">
+                Shop Hair Jewellery
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -224,7 +227,7 @@ export default async function HomePage() {
         bg="white"
       />
 
-      {/* COMBO PACKS */}
+      {/* FULL JEWELLERY SETS */}
       <section className="py-16 md:py-24 bg-warm-50">
         <div className="container">
           <div className="grid md:grid-cols-2 gap-8 items-center">
@@ -239,18 +242,18 @@ export default async function HomePage() {
             </div>
             <div className="md:pl-8">
               <p className="text-gold-600 text-xs font-semibold uppercase tracking-[0.3em] mb-4">
-                Combo Packs
+                Full Jewellery Sets
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-neutral-900 mb-6">
-                More sparkle, <span className="heading-italic text-gold-500">better value</span>
+                Coordinated styles, <span className="heading-italic text-gold-500">one easy pick</span>
               </h2>
               <p className="text-neutral-500 leading-relaxed mb-8">
-                Discover ready-to-gift combos and coordinated picks that make festive styling simple,
-                affordable, and polished in one click.
+                Explore necklace-and-earring pairings, festive combos, and full-set looks that make
+                gifting and occasion styling feel polished without the guesswork.
               </p>
               <div className="grid grid-cols-2 gap-4 mb-8">
-                {comboPicks.length > 0 ? (
-                  comboPicks.map((p) => (
+                {featuredSets.length > 0 ? (
+                  featuredSets.map((p) => (
                     <Link key={p.id} href={`/product/${p.slug}`} className="text-left group" prefetch>
                       <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-2">
                         <Image
@@ -266,11 +269,11 @@ export default async function HomePage() {
                     </Link>
                   ))
                 ) : (
-                  <p className="text-sm text-neutral-400">Combo packs are landing soon. Check back shortly.</p>
+                  <p className="text-sm text-neutral-400">Fresh jewellery sets are landing soon. Check back shortly.</p>
                 )}
               </div>
-              <Link href="/shop?category=combo-packs" className="btn-primary">
-                Shop Combo Packs
+              <Link href={getCategoryPageHref('women-full-sets')} className="btn-primary">
+                Shop Full Jewellery Sets
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -303,14 +306,14 @@ export default async function HomePage() {
                 Festive jewelry that looks premium, priced for repeat wear
               </h2>
               <p className="text-white/80 max-w-lg mx-auto mb-8">
-                Explore daily wear, wedding guest styles, and affordable gifting picks without stretching
-                your budget.
+                Explore women earrings, jewellery sets, and everyday gifting picks without stretching your
+                budget.
               </p>
               <Link
-                href="/shop?category=daily-wear"
+                href={getCategoryPageHref('women-earrings')}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-10 py-4 text-sm font-semibold text-gold-700 hover:shadow-lg transition-all active:scale-[0.98]"
               >
-                Shop Daily Wear
+                Shop Women Earrings
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

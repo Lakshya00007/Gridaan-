@@ -4,7 +4,7 @@ import { buildPageMetadata } from '@/lib/seo';
 export const metadata = buildPageMetadata({
   title: 'About Gridaan | Affordable Indian Fashion Jewelry',
   description:
-    'Learn about Gridaan, an Indian fashion jewelry brand offering premium-look earrings, necklace sets, combo packs, wedding guest jewelry, and daily wear accessories at affordable prices.',
+    "Learn about Gridaan, an Indian fashion jewelry brand offering premium-look women's earrings, necklaces, bangles, full jewellery sets, and men's accessories at affordable prices.",
   path: '/about',
 });
 
@@ -18,7 +18,7 @@ export default function AboutPage() {
         {
           heading: 'What Gridaan offers',
           body: [
-            'Gridaan focuses on fashion jewelry that feels elevated without feeling expensive. The collection includes earrings, necklace sets, combo packs, wedding guest jewelry, and daily wear jewelry for different occasions and budgets.',
+            "Gridaan focuses on fashion jewelry that feels elevated without feeling expensive. The collection includes women's earrings, necklaces, bangles, bracelets, rings, anklets, hair jewellery, full sets, and men's chains, pendants, kadas, bracelets, rings, and ear studs.",
             'Our goal is simple: make premium-look jewelry accessible for repeat wear, festive looks, quick gifting, and everyday styling across India.',
           ],
         },
@@ -26,7 +26,7 @@ export default function AboutPage() {
           heading: 'Premium-look jewelry at budget prices',
           body: [
             'We curate styles that photograph beautifully, style easily, and help customers get dressed up without paying luxury prices.',
-            'Whether you are shopping for statement earrings, coordinated necklace sets, or value combo packs, Gridaan is designed around affordable fashion choices that still feel polished.',
+            "Whether you are shopping for statement women's earrings, coordinated jewellery sets, or bold men's accessories, Gridaan is designed around affordable fashion choices that still feel polished.",
           ],
         },
         {

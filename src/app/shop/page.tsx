@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = buildPageMetadata({
   title: 'Shop Fashion Jewelry Online | Gridaan',
   description:
-    'Shop affordable Indian fashion jewelry online at Gridaan. Explore earrings, necklace sets, combo packs, wedding guest jewelry, and daily wear jewelry.',
+    "Shop affordable Indian fashion jewelry online at Gridaan. Explore women's earrings, necklaces, bangles, full jewellery sets, and men's chains, bracelets, rings, and pendants.",
   path: '/shop',
 });
 

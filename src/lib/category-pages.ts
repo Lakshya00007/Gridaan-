@@ -11,64 +11,160 @@ export type CategoryPageConfig = {
 
 export const categoryPageConfigs: CategoryPageConfig[] = [
   {
-    slug: 'earrings',
-    filterSlug: 'earrings',
-    shortLabel: 'Earrings',
-    fullLabel: 'Earrings',
-    heading: 'Earrings Collection',
-    seoTitle: 'Earrings Collection | Jhumka, Studs & Chandbali | Gridaan',
+    slug: 'women-earrings',
+    filterSlug: 'women-earrings',
+    shortLabel: 'Women Earrings',
+    fullLabel: 'Women Earrings',
+    heading: 'Women Earrings',
+    seoTitle: 'Women Earrings | Jhumkas, Studs, Hoops & Chandbalis | Gridaan',
     description:
-      'Shop affordable earrings at Gridaan including jhumkas, studs, chandbalis, oxidised earrings, pearl earrings, and AD earrings.',
+      'Jhumkas, studs, hoops, chandbali earrings and ear cuffs for daily, festive and wedding looks.',
     intro:
-      'Explore everyday studs, festive chandbalis, oxidised pairs, and statement earrings designed to give your outfit a premium look without stretching your budget.',
+      'Browse women earrings with a premium look for casual styling, festive outfits, and wedding guest dressing at affordable prices.',
   },
   {
-    slug: 'necklace-sets',
-    filterSlug: 'necklace-sets',
-    shortLabel: 'Necklace Sets',
-    fullLabel: 'Necklace Sets',
-    heading: 'Necklace Sets',
-    seoTitle: 'Necklace Sets | Kundan, Pearl & Oxidised Sets | Gridaan',
+    slug: 'women-necklaces',
+    filterSlug: 'women-necklaces',
+    shortLabel: 'Women Necklaces',
+    fullLabel: 'Women Necklaces',
+    heading: 'Women Necklaces',
+    seoTitle: 'Women Necklaces | Chokers, Pendants & Kundan-Look Styles | Gridaan',
     description:
-      'Shop premium-look necklace sets at Gridaan including kundan chokers, pearl chokers, oxidised necklace sets, and AD necklace sets.',
+      'Chokers, pendant sets, layered necklaces and kundan-look necklace styles.',
     intro:
-      'From festive chokers to easy-to-style necklace sets, this collection is built for wedding guests, gifting, and dressy looks that still feel affordable.',
+      'Find easy-to-style chokers, layered necklace looks, and statement styles made for gifting, festive dressing, and everyday glam.',
   },
   {
-    slug: 'combo-packs',
-    filterSlug: 'combo-packs',
-    shortLabel: 'Combo Packs',
-    fullLabel: 'Combo Packs',
-    heading: 'Jewelry Combo Packs',
-    seoTitle: 'Jewelry Combo Packs | Affordable Fashion Jewelry Sets | Gridaan',
+    slug: 'women-bangles-bracelets',
+    filterSlug: 'women-bangles-bracelets',
+    shortLabel: 'Bangles & Bracelets',
+    fullLabel: 'Bangles & Bracelets',
+    heading: 'Bangles & Bracelets',
+    seoTitle: 'Bangles & Bracelets | Lac, Metal & Charm Styles | Gridaan',
     description:
-      'Shop value jewelry combo packs at Gridaan including earrings combos, rings combos, festive combos, and college girl jewelry combos.',
+      'Lac bangles, metal bangles, charm bracelets and ethnic bracelet styles.',
     intro:
-      'Choose combo packs when you want more value in one order, whether you are shopping for gifting, festive styling, or quick daily-wear updates.',
+      'Explore stackable bracelets, festive bangles, and wristwear that completes both ethnic and western-inspired looks.',
   },
   {
-    slug: 'wedding-guest-jewelry',
-    filterSlug: 'wedding-guest',
-    shortLabel: 'Wedding Guest',
-    fullLabel: 'Wedding Guest Jewelry',
-    heading: 'Wedding Guest Jewelry',
-    seoTitle: 'Wedding Guest Jewelry | Festive Jewelry Sets | Gridaan',
+    slug: 'women-rings',
+    filterSlug: 'women-rings',
+    shortLabel: 'Women Rings',
+    fullLabel: 'Women Rings',
+    heading: 'Women Rings',
+    seoTitle: 'Women Rings | Cocktail, Adjustable & Stackable Rings | Gridaan',
     description:
-      'Shop affordable wedding guest jewelry at Gridaan including kundan sets, chandbalis, maang tikka, hathphool, nath, and choker sets.',
+      'Cocktail rings, adjustable rings, stackable rings and fashion rings.',
     intro:
-      'Build a polished wedding guest look with affordable festive jewelry that pairs easily with sarees, lehengas, suits, and occasion dresses.',
+      'Discover statement rings and everyday ring styles that add shine to festive outfits, college looks, and gifting edits.',
   },
   {
-    slug: 'daily-wear-jewelry',
-    filterSlug: 'daily-wear',
-    shortLabel: 'Daily Wear',
-    fullLabel: 'Daily Wear Jewelry',
-    heading: 'Daily Wear Jewelry',
-    seoTitle: 'Daily Wear Jewelry | Minimal Earrings, Rings & Bracelets | Gridaan',
+    slug: 'women-anklets-toe-rings',
+    filterSlug: 'women-anklets-toe-rings',
+    shortLabel: 'Anklets & Toe Rings',
+    fullLabel: 'Anklets & Toe Rings',
+    heading: 'Anklets & Toe Rings',
+    seoTitle: 'Anklets & Toe Rings | Payal and Bichiya Styles | Gridaan',
     description:
-      'Shop lightweight daily wear jewelry at Gridaan including minimal earrings, small studs, simple rings, pendants, and bracelets.',
+      'Payal, bichiya, anklets and toe rings for ethnic and festive styling.',
     intro:
-      'Find simple, easy-to-wear pieces for work, college, gifting, and everyday styling with a neat premium look at accessible prices.',
+      'Shop anklets and toe rings that bring a traditional finish to ethnic styling and celebratory dressing.',
+  },
+  {
+    slug: 'women-hair-jewellery',
+    filterSlug: 'women-hair-jewellery',
+    shortLabel: 'Hair Jewellery',
+    fullLabel: 'Maang Tikka & Hair Jewellery',
+    heading: 'Maang Tikka & Hair Jewellery',
+    seoTitle: 'Maang Tikka & Hair Jewellery | Festive Hair Accessories | Gridaan',
+    description:
+      'Maang tikka, matha patti, hair chains and traditional hair jewellery.',
+    intro:
+      'Finish wedding guest and festive looks with traditional hair jewellery, maang tikka styles, and standout head accessories.',
+  },
+  {
+    slug: 'women-full-sets',
+    filterSlug: 'women-full-sets',
+    shortLabel: 'Full Jewellery Sets',
+    fullLabel: 'Full Jewellery Sets',
+    heading: 'Full Jewellery Sets',
+    seoTitle: 'Full Jewellery Sets | Necklace, Earring & Festive Sets | Gridaan',
+    description:
+      'Necklace and earring combos, bridal-look sets and festive jewellery sets.',
+    intro:
+      'Shop coordinated jewellery sets and combo-led festive styles that make gifting and event styling easier in one purchase.',
+  },
+  {
+    slug: 'men-chains',
+    filterSlug: 'men-chains',
+    shortLabel: 'Men Chains',
+    fullLabel: 'Men Chains',
+    heading: 'Men Chains',
+    seoTitle: 'Men Chains | Cuban, Rope and Box Chains | Gridaan',
+    description:
+      'Cuban chains, rope chains, box chains and gold/silver plated chain styles.',
+    intro:
+      'Explore statement and everyday men chain styles designed for easy gifting and bold styling at accessible prices.',
+  },
+  {
+    slug: 'men-pendants',
+    filterSlug: 'men-pendants',
+    shortLabel: 'Men Pendants',
+    fullLabel: 'Men Pendants',
+    heading: 'Men Pendants',
+    seoTitle: 'Men Pendants | Om, Evil Eye & Statement Styles | Gridaan',
+    description:
+      'Om pendants, skull pendants, initials, evil eye and statement pendants.',
+    intro:
+      'Browse men pendants that work for daily wear, gifting, and layered styling with chains.',
+  },
+  {
+    slug: 'men-kadas',
+    filterSlug: 'men-kadas',
+    shortLabel: 'Men Kadas',
+    fullLabel: 'Men Kadas',
+    heading: 'Men Kadas',
+    seoTitle: 'Men Kadas | Metal and Steel-Finish Wristwear | Gridaan',
+    description:
+      'Metal kadas, steel-finish kadas and bold everyday wristwear.',
+    intro:
+      'Shop strong, everyday wristwear looks with metal-finish men kadas that suit festive, casual, and gift-ready styling.',
+  },
+  {
+    slug: 'men-bracelets',
+    filterSlug: 'men-bracelets',
+    shortLabel: 'Men Bracelets',
+    fullLabel: 'Men Bracelets',
+    heading: 'Men Bracelets',
+    seoTitle: 'Men Bracelets | Rudraksha, Beaded & Leather-Metal Styles | Gridaan',
+    description:
+      'Rudraksha bracelets, lava stone bracelets, beaded bracelets and leather-metal styles.',
+    intro:
+      'Find men bracelets that balance easy daily wear with statement styling for casual outfits and gifting.',
+  },
+  {
+    slug: 'men-rings',
+    filterSlug: 'men-rings',
+    shortLabel: 'Men Rings',
+    fullLabel: 'Men Rings',
+    heading: 'Men Rings',
+    seoTitle: 'Men Rings | Band, Signet and Stone-Look Styles | Gridaan',
+    description:
+      'Band rings, signet rings, stone-look rings and masculine fashion rings.',
+    intro:
+      'Explore bold ring styles for men, including sleek bands and eye-catching statement pieces.',
+  },
+  {
+    slug: 'men-ear-studs',
+    filterSlug: 'men-ear-studs',
+    shortLabel: 'Men Ear Studs',
+    fullLabel: 'Men Ear Studs',
+    heading: 'Men Ear Studs',
+    seoTitle: 'Men Ear Studs | Minimal Studs and Hoops | Gridaan',
+    description:
+      'Small studs, hoops and minimal earrings for men.',
+    intro:
+      'Shop minimal men ear studs and hoop-led styles designed for simple everyday looks with a polished finish.',
   },
 ];
 

@@ -20,8 +20,8 @@ export default function Footer({ whatsappHref }: FooterProps) {
                 Premium-look jewelry at everyday prices
               </h3>
               <p className="text-sm text-neutral-400 leading-relaxed">
-                Shop earrings, necklace sets, combo packs, wedding guest picks, and daily wear styles
-                made for festive looks without the heavy price tag.
+                Shop women earrings, necklaces, bangles, full jewellery sets, and men&apos;s accessories
+                made for festive looks and everyday gifting without the heavy price tag.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -56,11 +56,12 @@ export default function Footer({ whatsappHref }: FooterProps) {
           <FooterColumn
             title="Shop"
             items={[
-              { label: 'Earrings', href: getCategoryPageHref('earrings') },
-              { label: 'Necklace Sets', href: getCategoryPageHref('necklace-sets') },
-              { label: 'Combo Packs', href: getCategoryPageHref('combo-packs') },
-              { label: 'Wedding Guest', href: getCategoryPageHref('wedding-guest-jewelry') },
-              { label: 'Daily Wear', href: getCategoryPageHref('daily-wear-jewelry') },
+              { label: 'Women Earrings', href: getCategoryPageHref('women-earrings') },
+              { label: 'Women Necklaces', href: getCategoryPageHref('women-necklaces') },
+              { label: 'Bangles & Bracelets', href: getCategoryPageHref('women-bangles-bracelets') },
+              { label: 'Full Jewellery Sets', href: getCategoryPageHref('women-full-sets') },
+              { label: 'Men Chains', href: getCategoryPageHref('men-chains') },
+              { label: 'Men Bracelets', href: getCategoryPageHref('men-bracelets') },
             ]}
           />
 

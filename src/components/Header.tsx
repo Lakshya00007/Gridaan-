@@ -43,7 +43,9 @@ export default function Header({ categories, user }: HeaderProps) {
   const { searchQuery, setSearchQuery, isSearchOpen, setSearchOpen } = useUI();
   const { getCount: getCartCount, setOpen: setCartOpen } = useCart();
   const navLinks = categoryPageConfigs
-    .filter((link) => ['earrings', 'combo-packs', 'wedding-guest-jewelry', 'daily-wear-jewelry'].includes(link.slug))
+    .filter((link) =>
+      ['women-earrings', 'women-full-sets', 'men-chains', 'men-bracelets'].includes(link.slug)
+    )
     .map((link) => {
       const category = categories.find((item) => item.slug === link.filterSlug);
       return category ? { ...link, icon: category.icon } : null;
@@ -277,7 +279,7 @@ export default function Header({ categories, user }: HeaderProps) {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search earrings, necklace sets, combo packs..."
+                      placeholder="Search women earrings, necklaces, men chains..."
                       className="w-full pl-12 pr-4 py-3 bg-neutral-50 rounded-full border border-neutral-200 focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none transition-all text-sm"
                       autoFocus
                     />

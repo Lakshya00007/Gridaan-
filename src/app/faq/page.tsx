@@ -6,7 +6,7 @@ const faqs = [
   {
     question: 'What does Gridaan sell?',
     answer:
-      'Gridaan sells affordable Indian fashion and imitation jewelry including earrings, necklace sets, combo packs, wedding guest jewelry, and daily wear accessories.',
+      "Gridaan sells affordable Indian fashion and imitation jewelry including women's earrings, necklaces, bangles, bracelets, rings, anklets, hair jewellery, full sets, and men's chains, pendants, kadas, bracelets, rings, and ear studs.",
   },
   {
     question: 'Is Cash on Delivery available?',
