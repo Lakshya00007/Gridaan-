@@ -69,7 +69,24 @@ export async function listProducts(
     .from('products')
     .select(PRODUCT_COLS, { count: 'exact' });
 
-  if (filter.category) q = q.eq('category.slug', filter.category);
+  if (filter.category && filter.category !== 'all') {
+    const { data: category, error: categoryError } = await publicSupabase
+      .from('categories')
+      .select('id')
+      .eq('slug', filter.category)
+      .maybeSingle();
+
+    if (categoryError) {
+      console.error('[products] category lookup failed', filter.category, categoryError);
+      return { products: [], count: 0 };
+    }
+
+    if (!category?.id) {
+      return { products: [], count: 0 };
+    }
+
+    q = q.eq('category_id', category.id);
+  }
   if (filter.search) {
     const normalized = normalizeSearchTerm(filter.search);
     if (normalized) {
