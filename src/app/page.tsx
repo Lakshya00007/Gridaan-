@@ -5,6 +5,7 @@ import ProductCard from '@/components/ProductCard';
 import { getFeaturedProducts, listProducts } from '@/server/products';
 import { getActiveCategories } from '@/server/categories';
 import type { Product } from '@/types';
+import { getCategoryPageByFilterSlug, getCategoryPageHref } from '@/lib/category-pages';
 
 export const revalidate = 300;
 
@@ -124,10 +125,13 @@ export default async function HomePage() {
             </h2>
           </div>
           <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-5 md:overflow-visible md:pb-0">
-            {categories.slice(0, 10).map((cat) => (
+            {categories.slice(0, 10).map((cat) => {
+              const categoryPage = getCategoryPageByFilterSlug(cat.slug);
+
+              return (
               <Link
                 key={cat.id}
-                href={`/shop?category=${cat.slug}`}
+                href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${cat.slug}`}
                 className="snap-center flex-shrink-0 w-36 md:w-auto group"
                 prefetch
               >
@@ -154,7 +158,8 @@ export default async function HomePage() {
                   {cat.name}
                 </p>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

@@ -1,16 +1,28 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 interface InfoPageProps {
   eyebrow: string;
   title: string;
   description: string;
   sections: Array<{
-    heading: string;
-    body: string[];
+      heading: string;
+      body: string[];
   }>;
+  children?: ReactNode;
+  backHref?: string;
+  backLabel?: string;
 }
 
-export default function InfoPage({ eyebrow, title, description, sections }: InfoPageProps) {
+export default function InfoPage({
+  eyebrow,
+  title,
+  description,
+  sections,
+  children,
+  backHref = '/shop',
+  backLabel = 'Back to shopping',
+}: InfoPageProps) {
   return (
     <div className="min-h-screen bg-white">
       <section className="bg-warm-50 py-12 md:py-16">
@@ -38,9 +50,11 @@ export default function InfoPage({ eyebrow, title, description, sections }: Info
             ))}
           </div>
 
+          {children ? <div className="mt-10 pt-6 border-t border-neutral-100">{children}</div> : null}
+
           <div className="mt-10 pt-6 border-t border-neutral-100">
-            <Link href="/shop" className="text-sm font-medium text-gold-700 hover:text-gold-800">
-              Back to shopping
+            <Link href={backHref} className="text-sm font-medium text-gold-700 hover:text-gold-800">
+              {backLabel}
             </Link>
           </div>
         </div>

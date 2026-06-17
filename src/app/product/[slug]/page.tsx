@@ -5,7 +5,8 @@ import type { Metadata } from 'next';
 import ProductPageClient from './_client';
 import { getProductBySlug, getRelatedProducts } from '@/server/products';
 import { safeJsonLd, stripHtml } from '@/lib/safe-json';
-import { buildMetadata, siteConfig } from '@/lib/seo';
+import { buildBreadcrumbJsonLd, buildMetadata, siteConfig } from '@/lib/seo';
+import { getCategoryPageByFilterSlug, getCategoryPageHref } from '@/lib/category-pages';
 import { truncate, formatRupees } from '@/lib/utils';
 
 interface PageProps {
@@ -39,6 +40,7 @@ export default async function ProductPage({ params }: PageProps) {
   if (!product) notFound();
   const related = await getRelatedProducts(product, 4);
   const plainDescription = stripHtml(product.description);
+  const categoryPage = product.category?.slug ? getCategoryPageByFilterSlug(product.category.slug) : null;
 
   const ldJson: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -68,6 +70,15 @@ export default async function ProductPage({ params }: PageProps) {
     };
   }
 
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'Home', url: siteConfig.url },
+    { name: 'Shop', url: `${siteConfig.url}/shop` },
+    ...(categoryPage
+      ? [{ name: categoryPage.fullLabel, url: `${siteConfig.url}${getCategoryPageHref(categoryPage.slug)}` }]
+      : []),
+    { name: product.name, url: `${siteConfig.url}/product/${product.slug}` },
+  ]);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-4 text-xs text-neutral-400 flex items-center gap-2">
@@ -78,7 +89,7 @@ export default async function ProductPage({ params }: PageProps) {
         {product.category && (
           <>
             <Link
-              href={`/shop?category=${product.category.slug}`}
+              href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${product.category.slug}`}
               className="hover:text-neutral-600 capitalize"
             >
               {product.category.name}
@@ -119,9 +130,10 @@ export default async function ProductPage({ params }: PageProps) {
         </section>
       )}
 
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(ldJson) }} />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(ldJson) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
     </div>
   );

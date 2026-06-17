@@ -2,7 +2,7 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'sonner';
-import { buildMetadata, siteConfig } from '@/lib/seo';
+import { buildMetadata, buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/seo';
 import { safeJsonLd } from '@/lib/safe-json';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -38,6 +38,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const profile = await getProfile();
   const categories = await getActiveCategories();
   const whatsappHref = buildStorefrontWhatsAppLink();
+  const globalJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [buildOrganizationJsonLd(), buildWebsiteJsonLd()],
+  };
 
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
@@ -71,16 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              '@context': 'https://schema.org',
-              '@type': 'Store',
-              name: siteConfig.name,
-              url: siteConfig.url,
-              logo: siteConfig.logo,
-              description: siteConfig.description,
-              telephone: siteConfig.contact.phone,
-              email: siteConfig.contact.email,
-            }),
+            __html: safeJsonLd(globalJsonLd),
           }}
         />
       </body>

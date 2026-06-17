@@ -1,12 +1,15 @@
 import { Suspense } from 'react';
 import ShopView from './_view';
+import { buildPageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
-  title: 'Shop',
-  description: 'Browse our complete collection of premium fashion jewelry.',
-};
+export const metadata = buildPageMetadata({
+  title: 'Shop Fashion Jewelry Online | Gridaan',
+  description:
+    'Shop affordable Indian fashion jewelry online at Gridaan. Explore earrings, necklace sets, combo packs, wedding guest jewelry, and daily wear jewelry.',
+  path: '/shop',
+});
 
 export default function ShopPage() {
   return (

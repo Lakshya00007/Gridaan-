@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { MessageCircle, ShieldCheck, WalletCards, Truck } from 'lucide-react';
+import { getCategoryPageHref } from '@/lib/category-pages';
 
 interface FooterProps {
   whatsappHref?: string | null;
@@ -55,11 +56,11 @@ export default function Footer({ whatsappHref }: FooterProps) {
           <FooterColumn
             title="Shop"
             items={[
-              { label: 'Earrings', href: '/shop?category=earrings' },
-              { label: 'Necklace Sets', href: '/shop?category=necklace-sets' },
-              { label: 'Combo Packs', href: '/shop?category=combo-packs' },
-              { label: 'Wedding Guest', href: '/shop?category=wedding-guest' },
-              { label: 'Daily Wear', href: '/shop?category=daily-wear' },
+              { label: 'Earrings', href: getCategoryPageHref('earrings') },
+              { label: 'Necklace Sets', href: getCategoryPageHref('necklace-sets') },
+              { label: 'Combo Packs', href: getCategoryPageHref('combo-packs') },
+              { label: 'Wedding Guest', href: getCategoryPageHref('wedding-guest-jewelry') },
+              { label: 'Daily Wear', href: getCategoryPageHref('daily-wear-jewelry') },
             ]}
           />
 
@@ -75,7 +76,15 @@ export default function Footer({ whatsappHref }: FooterProps) {
           />
 
           <div>
-            <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Why Shop Gridaan</h4>
+            <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Brand</h4>
+            <ul className="space-y-3 text-sm text-neutral-400 mb-5">
+              <li>
+                <Link href="/about" className="hover:text-gold-400 transition-colors">
+                  About Gridaan
+                </Link>
+              </li>
+            </ul>
+            <h5 className="text-xs font-semibold mb-3 uppercase tracking-wider text-neutral-500">Why Shop Gridaan</h5>
             <ul className="space-y-3 text-sm text-neutral-400">
               <li className="flex items-start gap-2.5">
                 <WalletCards className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />

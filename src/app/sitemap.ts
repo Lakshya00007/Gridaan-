@@ -1,64 +1,45 @@
 import { MetadataRoute } from 'next';
 import { publicSupabase } from '@/lib/supabase/public';
-import { publicEnv } from '@/lib/env.public';
+import { categoryPageConfigs } from '@/lib/category-pages';
+import { siteConfig } from '@/lib/seo';
+
+const staticRoutes = [
+  '/',
+  '/shop',
+  '/about',
+  '/help',
+  '/contact',
+  '/shipping',
+  '/faq',
+  '/privacy',
+  '/terms',
+  ...categoryPageConfigs.map((config) => `/category/${config.slug}`),
+];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL;
+  const now = new Date();
 
-  // Static routes
-  const routes: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/shop`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-  ];
+  const routes: MetadataRoute.Sitemap = staticRoutes.map((path) => ({
+    url: `${siteConfig.url}${path}`,
+    lastModified: now,
+    changeFrequency: path === '/' || path === '/shop' ? 'daily' : 'weekly',
+    priority: path === '/' ? 1 : path.startsWith('/category/') || path === '/shop' ? 0.9 : 0.7,
+  }));
 
-  // Fetch active categories
-  try {
-    const { data: categories } = await publicSupabase
-      .from('categories')
-      .select('slug, updated_at')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-
-    if (categories) {
-      categories.forEach((cat) => {
-        routes.push({
-          url: `${baseUrl}/shop?category=${cat.slug}`,
-          lastModified: new Date(cat.updated_at),
-          changeFrequency: 'weekly',
-          priority: 0.8,
-        });
-      });
-    }
-  } catch (error) {
-    console.error('[sitemap] Failed to fetch categories:', error);
-  }
-
-  // Fetch products
   try {
     const { data: products } = await publicSupabase
       .from('products')
       .select('slug, updated_at')
-      .eq('in_stock', true)
       .order('created_at', { ascending: false })
-      .limit(500); // Limit to prevent huge sitemaps
+      .limit(500);
 
     if (products) {
       products.forEach((product) => {
         routes.push({
-          url: `${baseUrl}/product/${product.slug}`,
+          url: `${siteConfig.url}/product/${product.slug}`,
           lastModified: new Date(product.updated_at),
           changeFrequency: 'weekly',
-          priority: 0.7,
+          priority: 0.8,
         });
       });
     }

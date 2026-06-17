@@ -1,9 +1,7 @@
 import { MetadataRoute } from 'next';
-import { publicEnv } from '@/lib/env.public';
+import { siteConfig } from '@/lib/seo';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL;
-
   return {
     rules: [
       {
@@ -23,6 +21,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${siteConfig.url}/sitemap.xml`,
   };
 }

@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import type { Category } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getWishlistCount, WISHLIST_CHANGED_EVENT } from '@/lib/wishlist-client';
+import { categoryPageConfigs, getCategoryPageHref } from '@/lib/category-pages';
 
 interface HeaderProps {
   categories: Category[];
@@ -41,18 +42,13 @@ export default function Header({ categories, user }: HeaderProps) {
   const router = useRouter();
   const { searchQuery, setSearchQuery, isSearchOpen, setSearchOpen } = useUI();
   const { getCount: getCartCount, setOpen: setCartOpen } = useCart();
-  const launchCategoryLinks = [
-    { slug: 'earrings', label: 'Earrings' },
-    { slug: 'combo-packs', label: 'Combo Packs' },
-    { slug: 'wedding-guest', label: 'Wedding Guest' },
-    { slug: 'daily-wear', label: 'Daily Wear' },
-  ];
-  const navLinks = launchCategoryLinks
+  const navLinks = categoryPageConfigs
+    .filter((link) => ['earrings', 'combo-packs', 'wedding-guest-jewelry', 'daily-wear-jewelry'].includes(link.slug))
     .map((link) => {
-      const category = categories.find((item) => item.slug === link.slug);
+      const category = categories.find((item) => item.slug === link.filterSlug);
       return category ? { ...link, icon: category.icon } : null;
     })
-    .filter((link): link is { slug: string; label: string; icon: string | null } => Boolean(link));
+    .filter((link): link is (typeof categoryPageConfigs)[number] & { icon: string | null } => Boolean(link));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -139,11 +135,11 @@ export default function Header({ categories, user }: HeaderProps) {
               {navLinks.map((link) => (
                 <Link
                   key={link.slug}
-                  href={`/shop?category=${link.slug}`}
+                  href={getCategoryPageHref(link.slug)}
                   className="text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
                   prefetch
                 >
-                  {link.label}
+                  {link.shortLabel}
                 </Link>
               ))}
             </nav>
@@ -345,11 +341,11 @@ export default function Header({ categories, user }: HeaderProps) {
                 {navLinks.map((link) => (
                   <Link
                     key={link.slug}
-                    href={`/shop?category=${link.slug}`}
+                    href={getCategoryPageHref(link.slug)}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm text-neutral-600 hover:bg-neutral-50"
                   >
-                    {link.icon && <span>{link.icon}</span>} {link.label}
+                    {link.icon && <span>{link.icon}</span>} {link.shortLabel}
                   </Link>
                 ))}
                 <div className="my-2 border-t border-neutral-100" />
