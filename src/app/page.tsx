@@ -78,7 +78,7 @@ export default async function HomePage() {
               <div className="relative w-full aspect-[3/4] max-w-lg mx-auto">
                 <div className="absolute inset-0 bg-gradient-to-br from-gold-200/30 to-gold-100/20 rounded-[3rem] rotate-6" />
                 <Image
-                  src="/hero.svg"
+                  src="/hero-jewelry.webp"
                   alt="Premium jewelry collection"
                   fill
                   priority
@@ -183,7 +183,7 @@ export default async function HomePage() {
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-neutral-900 to-neutral-800 min-h-[400px] md:min-h-[500px] flex items-center">
             <div className="absolute inset-0">
               <Image
-                src="/bridal-banner.svg"
+                src="/wedding-guest-banner.webp"
                 alt="Wedding guest jewelry edit"
                 fill
                 sizes="100vw"
@@ -230,7 +230,7 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="aspect-[4/5] rounded-3xl overflow-hidden">
               <Image
-                src="/korean.svg"
+                src="/combo-pack-banner.webp"
                 alt="Combo packs collection"
                 width={800}
                 height={1000}
