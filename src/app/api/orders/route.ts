@@ -4,7 +4,7 @@ import { checkoutSchema } from '@/lib/validators';
 import { computeCartTotals } from '@/lib/cart-totals';
 import { assertJsonRequest, assertSameOrigin, errorResponse, badRequest, notFound } from '@/lib/api';
 import { getProfile } from '@/lib/supabase/auth';
-import type { Coupon, Product } from '@/types';
+import type { Coupon, OrderSuccessSummary, Product } from '@/types';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
 import { publicEnv } from '@/lib/env.public';
@@ -17,6 +17,18 @@ type CouponForTotals = Pick<Coupon, 'type' | 'value' | 'min_order' | 'max_discou
 type ValidateCouponRow = {
   ok: boolean;
   coupon_code: string | null;
+};
+
+type OrderCreationResponse = {
+  order: OrderSuccessSummary;
+  rzp_order?: {
+    id: string;
+    amount: number;
+    currency: string;
+  };
+  rzp_key?: string;
+  retryable?: boolean;
+  message?: string;
 };
 /**
  * POST /api/orders
@@ -49,6 +61,10 @@ export async function POST(req: NextRequest) {
     const input = checkoutSchema.parse(body);
     const supabase = createServiceClient();
     const profile = await getProfile();
+    console.info('[orders] checkout selected payment method', {
+      paymentMethod: input.payment_method,
+      itemCount: input.items.length,
+    });
 
     // Re-fetch products server-side
     const ids = input.items.map((i) => i.product_id);
@@ -121,29 +137,75 @@ export async function POST(req: NextRequest) {
       .single();
     if (fetchError) throw fetchError;
 
+    const orderSummary: OrderSuccessSummary = {
+      id: order.id,
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      total: order.total,
+      payment_method: order.payment_method,
+      payment_status: order.payment_status,
+      order_status: order.order_status,
+      razorpay_order_id: order.razorpay_order_id,
+      created_at: order.created_at,
+    };
+
+    console.info('[orders] app order creation response', {
+      orderId: orderSummary.id,
+      orderNumber: orderSummary.order_number,
+      paymentMethod: orderSummary.payment_method,
+      paymentStatus: orderSummary.payment_status,
+    });
+
     // If payment is razorpay, create a Razorpay order server-side
     if (input.payment_method === 'razorpay') {
-      const { createRzpOrder } = await import('@/lib/razorpay');
-      const rzp = await createRzpOrder({
-        amount: totals.total * 100, // paise
-        receipt: order.order_number,
-        notes: { order_id: order.id },
-      });
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ razorpay_order_id: rzp.id })
-        .eq('id', order.id);
-      if (updateError) throw updateError;
+      try {
+        const { createRzpOrder } = await import('@/lib/razorpay');
+        const rzp = await createRzpOrder({
+          amount: totals.total * 100, // paise
+          receipt: order.order_number,
+          notes: { order_id: order.id },
+        });
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({ razorpay_order_id: rzp.id })
+          .eq('id', order.id);
+        if (updateError) throw updateError;
 
-      return NextResponse.json({
-        order: { ...order, razorpay_order_id: rzp.id },
-        rzp_order: { id: rzp.id, amount: rzp.amount, currency: rzp.currency },
-        rzp_key: publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      });
+        console.info('[orders] Razorpay create order response', {
+          orderNumber: order.order_number,
+          razorpayOrderId: rzp.id,
+          amount: Number(rzp.amount),
+          currency: rzp.currency,
+        });
+
+        const payload: OrderCreationResponse = {
+          order: { ...orderSummary, razorpay_order_id: rzp.id },
+          rzp_order: { id: rzp.id, amount: Number(rzp.amount), currency: rzp.currency },
+          rzp_key: publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        };
+
+        return NextResponse.json(payload);
+      } catch (razorpayError) {
+        console.error('[orders] failed to initialize Razorpay order', {
+          orderId: order.id,
+          orderNumber: order.order_number,
+          error: razorpayError,
+        });
+
+        const payload: OrderCreationResponse = {
+          order: orderSummary,
+          retryable: true,
+          message:
+            'Your order was created, but Razorpay could not start. Please retry payment from the order confirmation page.',
+        };
+
+        return NextResponse.json(payload, { status: 502 });
+      }
     }
 
     // COD: just return the order
-    return NextResponse.json({ order });
+    const payload: OrderCreationResponse = { order: orderSummary };
+    return NextResponse.json(payload);
   } catch (err) {
     return errorResponse(err as Error | PostgrestError);
   }

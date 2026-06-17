@@ -64,7 +64,7 @@ export default function AccountView() {
           {orders.map((order) => (
             <Link
               key={order.id}
-              href={`/order-success?id=${order.id}`}
+              href={`/order-success?order=${encodeURIComponent(order.order_number)}`}
               className="block bg-white rounded-2xl p-5 shadow-sm border border-neutral-100 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between mb-3">

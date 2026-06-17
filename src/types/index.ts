@@ -139,6 +139,18 @@ export interface Order {
   updated_at: string;
 }
 
+export interface OrderSuccessSummary {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  total: number;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  order_status: OrderStatus;
+  razorpay_order_id: string | null;
+  created_at: string;
+}
+
 export interface Coupon {
   id: string;
   code: string;

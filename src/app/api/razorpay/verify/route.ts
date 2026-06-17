@@ -5,6 +5,7 @@ import { verifyRzpSignature } from '@/lib/razorpay';
 import { assertJsonRequest, assertSameOrigin, errorResponse, badRequest, notFound } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
 import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
+import type { OrderSuccessSummary } from '@/types';
 
 const schema = z.object({
   order_id: z.string().uuid(),
@@ -35,6 +36,11 @@ export async function POST(req: NextRequest) {
     assertSameOrigin(req);
 
     const input = schema.parse(await req.json());
+    console.info('[razorpay/verify] verification request', {
+      orderId: input.order_id,
+      razorpayOrderId: input.razorpay_order_id,
+      razorpayPaymentId: input.razorpay_payment_id,
+    });
     const valid = verifyRzpSignature({
       orderId: input.razorpay_order_id,
       paymentId: input.razorpay_payment_id,
@@ -54,7 +60,12 @@ export async function POST(req: NextRequest) {
       throw badRequest('Razorpay order mismatch', 'order_mismatch');
     }
     if (order.payment_status === 'paid') {
-      return NextResponse.json({ ok: true });
+      const { data: paidOrder } = await supabase
+        .from('orders')
+        .select('id, order_number, customer_name, total, payment_method, payment_status, order_status, razorpay_order_id, created_at')
+        .eq('id', input.order_id)
+        .single();
+      return NextResponse.json({ ok: true, order: paidOrder });
     }
 
     const { error: rpcError } = await supabase.rpc('mark_order_paid', {
@@ -64,6 +75,14 @@ export async function POST(req: NextRequest) {
       p_razorpay_signature: input.razorpay_signature,
     });
     if (rpcError) throw rpcError;
+
+    const { data: paidOrder, error: paidOrderError } = await supabase
+      .from('orders')
+      .select('id, order_number, customer_name, total, payment_method, payment_status, order_status, razorpay_order_id, created_at')
+      .eq('id', input.order_id)
+      .single();
+    if (paidOrderError) throw paidOrderError;
+    const paidOrderSummary = paidOrder as OrderSuccessSummary;
 
     // Notify admin + customer via WhatsApp (best-effort)
     try {
@@ -86,8 +105,13 @@ export async function POST(req: NextRequest) {
     }
 
     revalidatePath('/admin/orders');
-    revalidatePath(`/order-success?id=${input.order_id}`);
-    return NextResponse.json({ ok: true });
+    revalidatePath(`/order-success?order=${paidOrderSummary.order_number}`);
+    console.info('[razorpay/verify] verification complete', {
+      orderId: paidOrderSummary.id,
+      orderNumber: paidOrderSummary.order_number,
+      paymentStatus: paidOrderSummary.payment_status,
+    });
+    return NextResponse.json({ ok: true, order: paidOrderSummary });
   } catch (err) {
     return errorResponse(err);
   }
