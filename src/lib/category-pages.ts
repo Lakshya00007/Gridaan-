@@ -8,6 +8,7 @@ export type CategoryPageConfig = {
   seoTitle: string;
   description: string;
   intro: string;
+  highlights?: string[];
 };
 
 export const categoryPageConfigs: CategoryPageConfig[] = [
@@ -23,6 +24,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
       'Jhumkas, studs, hoops, chandbali earrings and ear cuffs for daily, festive and wedding looks.',
     intro:
       'Browse women earrings with a premium look for casual styling, festive outfits, and wedding guest dressing at affordable prices.',
+    highlights: ['Jhumkas', 'Studs', 'Hoops', 'Chandbali', 'Ear Cuffs'],
   },
   {
     slug: 'women-necklaces',
@@ -36,6 +38,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
       'Chokers, pendant sets, layered necklaces and kundan-look necklace styles.',
     intro:
       'Find easy-to-style chokers, layered necklace looks, and statement styles made for gifting, festive dressing, and everyday glam.',
+    highlights: ['Chokers', 'Pendant Sets', 'Layered', 'Kundan Look'],
   },
   {
     slug: 'women-bangles-bracelets',
@@ -114,6 +117,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
       'Cuban chains, rope chains, box chains and gold/silver plated chain styles.',
     intro:
       'Explore statement and everyday men chain styles designed for easy gifting and bold styling at accessible prices.',
+    highlights: ['Cuban', 'Rope', 'Box Style', 'Gold/Silver Plated'],
   },
   {
     slug: 'men-pendants',
@@ -153,6 +157,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
       'Rudraksha bracelets, lava stone bracelets, beaded bracelets and leather-metal styles.',
     intro:
       'Find men bracelets that balance easy daily wear with statement styling for casual outfits and gifting.',
+    highlights: ['Rudraksha', 'Lava Stone', 'Beaded', 'Leather + Metal'],
   },
   {
     slug: 'men-rings',

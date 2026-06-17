@@ -6,6 +6,7 @@ import { getFeaturedProducts, listProducts } from '@/server/products';
 import { getActiveCategories } from '@/server/categories';
 import type { Product } from '@/types';
 import { getCategoryPageByFilterSlug, getCategoryPageHref } from '@/lib/category-pages';
+import { cn } from '@/lib/utils';
 
 export const revalidate = 300;
 
@@ -119,7 +120,7 @@ export default async function HomePage() {
       </section>
 
       {/* CATEGORIES */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="py-16 md:py-24 bg-gradient-to-b from-white via-[#fdfaf6] to-[#faf4ec]">
         <div className="container">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-gold-600 uppercase tracking-[0.2em] mb-3">Browse By</p>
@@ -137,10 +138,11 @@ export default async function HomePage() {
                 <Link
                   key={cat.id}
                   href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${cat.slug}`}
-                  className="snap-center flex-shrink-0 w-36 md:w-auto group"
+                  className="snap-center flex-shrink-0 w-40 md:w-auto group"
                   prefetch
                 >
-                  <div className="aspect-square rounded-[1.5rem] overflow-hidden bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 mb-3 relative shadow-sm ring-1 ring-black/5">
+                  <div className="overflow-hidden rounded-[1.9rem] border border-stone-200/80 bg-white/85 p-3 shadow-[0_22px_56px_-44px_rgba(53,38,18,0.4)] transition-all duration-300 group-hover:-translate-y-1 group-hover:border-gold-300 group-hover:shadow-[0_26px_66px_-42px_rgba(53,38,18,0.48)]">
+                    <div className="relative aspect-square overflow-hidden rounded-[1.45rem] bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 ring-1 ring-black/5">
                     {categoryImage ? (
                       <Image
                         src={categoryImage}
@@ -152,16 +154,20 @@ export default async function HomePage() {
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-3">
-                      <span className="inline-flex rounded-full bg-white/88 px-3 py-1 text-[11px] font-medium tracking-wide text-neutral-800 backdrop-blur-sm">
-                        {categoryLabel}
-                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-transparent" />
+                      <div className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/88 text-gold-700 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-105">
+                        <ArrowRight className="h-4 w-4" />
+                      </div>
                     </div>
                   </div>
-                  <p className="text-sm font-medium text-neutral-700 group-hover:text-gold-600 transition-colors text-center">
-                    {categoryLabel}
-                  </p>
+                  <div className="mt-4 flex items-start justify-between gap-3 px-1">
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900 group-hover:text-gold-700 transition-colors">
+                        {categoryLabel}
+                      </p>
+                      <span className="mt-2 block h-px w-10 bg-gradient-to-r from-gold-500 to-transparent" />
+                    </div>
+                  </div>
                 </Link>
               );
             })}
@@ -340,16 +346,24 @@ function Section({
   bg?: 'white' | 'warm';
 }) {
   return (
-    <section className={`py-16 md:py-24 ${bg === 'white' ? 'bg-white' : 'bg-warm-50'}`}>
-      <div className="container">
-        <div className="flex items-end justify-between mb-12">
+    <section
+      className={cn(
+        'relative overflow-hidden py-16 md:py-24',
+        bg === 'white' ? 'bg-white' : 'bg-gradient-to-b from-[#fdf9f4] to-[#f7efe5]'
+      )}
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute right-8 top-6 h-28 w-28 rounded-full bg-gold-100/35 blur-3xl" />
+      </div>
+      <div className="container relative">
+        <div className="mb-12 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold text-gold-600 uppercase tracking-[0.2em] mb-3">{eyebrow}</p>
             <h2 className="heading-display text-3xl md:text-4xl text-neutral-900">{title}</h2>
           </div>
           <Link
             href={cta.href}
-            className="hidden md:flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-gold-600 transition-colors group"
+            className="hidden md:flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-5 py-3 text-sm font-medium text-neutral-600 transition-all hover:border-gold-300 hover:text-gold-700 hover:shadow-sm group"
           >
             {cta.label}
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
