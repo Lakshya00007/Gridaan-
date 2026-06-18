@@ -97,7 +97,7 @@ export default function Footer({ whatsappHref }: FooterProps) {
               </li>
               <li className="flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <span>Secure checkout powered by Razorpay.</span>
+                <span>Manual payment verification before dispatch.</span>
               </li>
               {whatsappHref ? (
                 <li className="flex items-start gap-2.5">

@@ -2,7 +2,7 @@
   "name": "gridaan-storefront",
   "version": "1.0.0",
   "private": true,
-  "description": "Production-ready Gridaan jewelry e-commerce platform built with Next.js, Supabase, and Razorpay.",
+  "description": "Production-ready Gridaan jewelry e-commerce platform built with Next.js and Supabase.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -30,7 +30,6 @@
     "lucide-react": "^0.468.0",
     "next": "^15.5.19",
     "next-themes": "^0.4.4",
-    "razorpay": "^2.9.5",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-hook-form": "^7.54.2",

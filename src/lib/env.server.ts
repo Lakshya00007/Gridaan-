@@ -5,8 +5,6 @@ import { publicEnv } from './env.public';
 
 const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
-  RAZORPAY_KEY_SECRET: z.string().min(8),
-  RAZORPAY_WEBHOOK_SECRET: z.string().min(8).optional(),
   WHATSAPP_ADMIN_NUMBER: z
     .string()
     .regex(/^\d{10,15}$/, 'Use country code + number, digits only')
@@ -24,8 +22,6 @@ function formatIssues(prefix: string, issues: z.ZodIssue[]) {
 export const serverEnv = (() => {
   const parsed = serverSchema.safeParse({
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
-    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
     WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
     WHATSAPP_API_TOKEN: process.env.WHATSAPP_API_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,

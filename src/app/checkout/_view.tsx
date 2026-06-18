@@ -3,22 +3,35 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CreditCard, Banknote, Tag, X, ShieldCheck, Lock, type LucideIcon } from 'lucide-react';
+import {
+  ArrowLeft,
+  Banknote,
+  Building2,
+  CheckCircle2,
+  Copy,
+  Lock,
+  QrCode,
+  ShieldCheck,
+  Tag,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCart } from '@/store/cart';
 import { useUI } from '@/store/ui';
 import { formatRupees, cn } from '@/lib/utils';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from '@/lib/config';
-import type { Coupon, OrderSuccessSummary } from '@/types';
+import type { Coupon, OrderSuccessSummary, PaymentMethod } from '@/types';
 import { createClient } from '@/lib/supabase/client';
-import { getRazorpayKeyId, loadRzpScript, type RazorpayCheckoutResponse, type RazorpayOrder } from '@/lib/razorpay-client';
+import {
+  bankTransferAvailable,
+  getPaymentSupportHref,
+  manualPaymentConfig,
+  manualUpiAvailable,
+} from '@/lib/manual-payment';
 
 type OrderApiResponse = {
   order?: OrderSuccessSummary;
-  rzp_order?: RazorpayOrder;
-  rzp_key?: string;
-  retryable?: boolean;
-  message?: string;
   error?: string;
 };
 
@@ -38,9 +51,15 @@ export default function CheckoutView() {
   const [, startTransition] = useTransition();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [couponCode, setCouponCode] = useState('');
-  const [payment, setPayment] = useState<'razorpay' | 'cod'>('razorpay');
+  const [payment, setPayment] = useState<PaymentMethod>('cod');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState(false);
+  const [qrAvailable, setQrAvailable] = useState(true);
+  const [manualPayment, setManualPayment] = useState({
+    reference: '',
+    senderName: '',
+    note: '',
+  });
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -89,10 +108,33 @@ export default function CheckoutView() {
   }, [coupon, subtotal]);
   const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = Math.max(0, subtotal - discount + shipping);
+  const paymentSupportHref = getPaymentSupportHref();
 
   function setField(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: '' }));
+  }
+
+  function setManualField(key: keyof typeof manualPayment, value: string) {
+    setManualPayment((current) => ({ ...current, [key]: value }));
+    const errorKey =
+      key === 'reference'
+        ? 'manual_payment_reference'
+        : key === 'senderName'
+          ? 'manual_payment_sender_name'
+          : 'manual_payment_note';
+    if (errors[errorKey]) {
+      setErrors((current) => ({ ...current, [errorKey]: '' }));
+    }
+  }
+
+  function selectPayment(method: PaymentMethod) {
+    setPayment(method);
+    setErrors((current) => ({
+      ...current,
+      manual_payment_reference: '',
+      manual_payment_sender_name: '',
+    }));
   }
 
   function validate(): boolean {
@@ -104,8 +146,26 @@ export default function CheckoutView() {
     if (!form.city.trim()) e.city = 'City is required';
     if (!form.state) e.state = 'State is required';
     if (!form.pincode.match(/^\d{6}$/)) e.pincode = 'PIN must be 6 digits';
+    if (
+      (payment === 'manual_upi' || payment === 'bank_transfer') &&
+      !manualPayment.reference.trim()
+    ) {
+      e.manual_payment_reference = 'UPI Transaction ID / UTR is required';
+    }
+    if (payment === 'bank_transfer' && !manualPayment.senderName.trim()) {
+      e.manual_payment_sender_name = 'Sender name is required for bank transfer';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
+  }
+
+  async function copyValue(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error(`Could not copy ${label.toLowerCase()}`);
+    }
   }
 
   async function applyCoupon() {
@@ -141,22 +201,6 @@ export default function CheckoutView() {
     try {
       console.info('[checkout] selected payment method', { paymentMethod: payment });
 
-      if (payment === 'razorpay') {
-        const keyId = getRazorpayKeyId();
-        if (!keyId) {
-          toast.error('Razorpay is not configured right now. Please use Cash on Delivery.');
-          setProcessing(false);
-          return;
-        }
-        const scriptLoaded = await loadRzpScript();
-        console.info('[checkout] Razorpay script load result', { scriptLoaded, phase: 'preflight' });
-        if (!scriptLoaded) {
-          toast.error('Razorpay checkout could not load. Please try again or use Cash on Delivery.');
-          setProcessing(false);
-          return;
-        }
-      }
-
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -175,6 +219,12 @@ export default function CheckoutView() {
             country: 'India',
           },
           payment_method: payment,
+          manual_payment_reference:
+            payment === 'cod' ? undefined : manualPayment.reference.trim(),
+          manual_payment_sender_name:
+            payment === 'cod' ? undefined : manualPayment.senderName.trim() || undefined,
+          manual_payment_note:
+            payment === 'cod' ? undefined : manualPayment.note.trim() || undefined,
           coupon_code: coupon?.code,
           notes: form.notes,
           items: guest.map((g) => ({ product_id: g.product.id, quantity: g.quantity })),
@@ -184,130 +234,30 @@ export default function CheckoutView() {
       console.info('[checkout] app order creation response', {
         status: res.status,
         orderNumber: data.order?.order_number ?? null,
-        hasRazorpayOrder: Boolean(data.rzp_order?.id),
-        retryable: Boolean(data.retryable),
         error: data.error ?? null,
       });
       if (!res.ok) {
-        if (data.retryable && data.order?.order_number) {
-          toast.error(data.message ?? 'Your order was created, but payment could not start. Please retry.');
-          startTransition(() => {
-            router.push(`/order-success?order=${encodeURIComponent(data.order!.order_number)}&payment=retry`);
-          });
-          return;
-        }
-        toast.error(data.error ?? data.message ?? 'Could not place order');
+        toast.error(data.error ?? 'Could not place order');
         setProcessing(false);
         return;
       }
-      const { order, rzp_order, rzp_key } = data;
+      const { order } = data;
       if (!order?.order_number) {
         toast.error('Order created, but confirmation could not be prepared.');
         setProcessing(false);
         return;
       }
-      if (payment === 'razorpay') {
-        if (!rzp_order || !rzp_key) {
-          toast.error('Payment gateway did not initialize. Please retry payment from your confirmation page.');
-          startTransition(() => {
-            router.push(`/order-success?order=${encodeURIComponent(order.order_number)}&payment=retry`);
-          });
-          setProcessing(false);
-          return;
-        }
-        console.info('[checkout] Razorpay create order response', {
-          orderNumber: order.order_number,
-          razorpayOrderId: rzp_order.id,
-          amount: rzp_order.amount,
-          currency: rzp_order.currency,
-        });
-        await openRazorpay(rzp_order, rzp_key, order);
-      } else {
-        clear();
-        setSearchQuery('');
-        startTransition(() => {
-          router.push(`/order-success?order=${encodeURIComponent(order.order_number)}`);
-        });
-      }
+
+      clear();
+      setSearchQuery('');
+      startTransition(() => {
+        router.push(`/order-success?order=${encodeURIComponent(order.order_number)}`);
+      });
     } catch (error) {
       console.error('[checkout] placeOrder failed', error);
       toast.error('Network error');
       setProcessing(false);
     }
-  }
-
-  async function openRazorpay(rzpOrder: RazorpayOrder, key: string, order: OrderSuccessSummary) {
-    const scriptLoaded = await loadRzpScript();
-    console.info('[checkout] Razorpay script load result', { scriptLoaded, phase: 'open' });
-    if (!scriptLoaded || !window.Razorpay) {
-      toast.error('Razorpay SDK failed to initialize. Please retry payment from your confirmation page.');
-      startTransition(() => {
-        router.push(`/order-success?order=${encodeURIComponent(order.order_number)}&payment=retry`);
-      });
-      setProcessing(false);
-      return;
-    }
-    const rzp = new window.Razorpay({
-      key,
-      amount: rzpOrder.amount,
-      currency: 'INR',
-      name: 'Gridaan',
-      description: 'Order payment',
-      order_id: rzpOrder.id,
-      handler: async function (response: RazorpayCheckoutResponse) {
-        const verify = await fetch('/api/razorpay/verify', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            order_id: order.id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          }),
-        });
-        const verifyData = (await verify.json()) as OrderApiResponse & { ok?: boolean };
-        console.info('[checkout] Razorpay verification response', {
-          status: verify.status,
-          orderNumber: verifyData.order?.order_number ?? order.order_number,
-          paymentStatus: verifyData.order?.payment_status ?? null,
-          ok: Boolean(verifyData.ok),
-          error: verifyData.error ?? null,
-        });
-        if (!verify.ok) {
-          toast.error(verifyData.error ?? 'Payment verification failed');
-          setProcessing(false);
-          return;
-        }
-        clear();
-        setSearchQuery('');
-        startTransition(() => {
-          router.push(`/order-success?order=${encodeURIComponent(verifyData.order?.order_number ?? order.order_number)}`);
-        });
-      },
-      prefill: {
-        name: form.name,
-        email: form.email,
-        contact: form.phone,
-      },
-      theme: { color: '#1a1a1a' },
-      modal: {
-        ondismiss: () => {
-          toast('Payment cancelled. You can retry from your confirmation page.');
-          startTransition(() => {
-            router.push(`/order-success?order=${encodeURIComponent(order.order_number)}&payment=retry`);
-          });
-          setProcessing(false);
-        },
-      },
-    });
-    rzp.on('payment.failed', function () {
-      toast.error('Payment failed. You can retry from your confirmation page.');
-      startTransition(() => {
-        router.push(`/order-success?order=${encodeURIComponent(order.order_number)}&payment=retry`);
-      });
-      setProcessing(false);
-    });
-    rzp.open();
   }
 
   if (!mounted) return null;
@@ -396,23 +346,191 @@ export default function CheckoutView() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold mb-6">Payment Method</h3>
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold">Payment Method</h3>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Your payment is verified manually before dispatch.
+                </p>
+              </div>
               <div className="space-y-3">
                 <PayOption
-                  active={payment === 'razorpay'}
-                  onClick={() => setPayment('razorpay')}
-                  icon={CreditCard}
-                  title="Online Payment"
-                  desc="UPI, Cards, Net Banking, Wallets via Razorpay"
-                />
-                <PayOption
                   active={payment === 'cod'}
-                  onClick={() => setPayment('cod')}
+                  onClick={() => selectPayment('cod')}
                   icon={Banknote}
                   title="Cash on Delivery"
-                  desc="Pay when you receive"
+                  desc="Pay in cash when your order arrives"
                 />
+                {manualUpiAvailable ? (
+                  <PayOption
+                    active={payment === 'manual_upi'}
+                    onClick={() => selectPayment('manual_upi')}
+                    icon={QrCode}
+                    title="Pay via UPI"
+                    desc="Pay by QR or UPI ID, then submit your transaction reference"
+                  />
+                ) : null}
+                {bankTransferAvailable ? (
+                  <PayOption
+                    active={payment === 'bank_transfer'}
+                    onClick={() => selectPayment('bank_transfer')}
+                    icon={Building2}
+                    title="Bank Transfer"
+                    desc="Transfer to our bank account, then submit your UTR"
+                  />
+                ) : null}
+              </div>
+
+              {payment === 'manual_upi' && manualUpiAvailable ? (
+                <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-50/60 p-5">
+                  <div className="grid gap-5 sm:grid-cols-[10rem_1fr] sm:items-start">
+                    {qrAvailable ? (
+                      <div className="rounded-xl border border-stone-200 bg-white p-2">
+                        {/* A missing deployment asset falls back to the configured UPI ID. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src="/payment/upi-qr.png"
+                          alt="Gridaan UPI payment QR code"
+                          className="aspect-square w-full object-contain"
+                          onError={() => setQrAvailable(false)}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900">Manual UPI payment</p>
+                      <p className="mt-2 text-sm leading-6 text-neutral-600">
+                        Scan this QR or pay to the UPI ID. After payment, enter your UPI Transaction ID /
+                        UTR below. Orders are confirmed only after payment verification.
+                      </p>
+                      <div className="mt-4 space-y-2">
+                        {manualPaymentConfig.upiId ? (
+                          <PaymentDetail
+                            label="UPI ID"
+                            value={manualPaymentConfig.upiId}
+                            onCopy={() => copyValue(manualPaymentConfig.upiId!, 'UPI ID')}
+                          />
+                        ) : null}
+                        {manualPaymentConfig.upiName ? (
+                          <PaymentDetail label="Payee Name" value={manualPaymentConfig.upiName} />
+                        ) : null}
+                        <PaymentDetail label="Amount" value={formatRupees(total)} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <Field
+                      label="UPI Transaction ID / UTR *"
+                      error={errors.manual_payment_reference}
+                      className="sm:col-span-2"
+                    >
+                      <input
+                        value={manualPayment.reference}
+                        onChange={(event) => setManualField('reference', event.target.value)}
+                        placeholder="Enter the transaction reference"
+                        className={inputCls(errors.manual_payment_reference)}
+                      />
+                    </Field>
+                    <Field label="Sender Name (optional)">
+                      <input
+                        value={manualPayment.senderName}
+                        onChange={(event) => setManualField('senderName', event.target.value)}
+                        placeholder="Name used for payment"
+                        className={inputCls()}
+                      />
+                    </Field>
+                    <Field label="Payment Note (optional)">
+                      <input
+                        value={manualPayment.note}
+                        onChange={(event) => setManualField('note', event.target.value)}
+                        placeholder="Any helpful payment detail"
+                        className={inputCls()}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+
+              {payment === 'bank_transfer' && bankTransferAvailable ? (
+                <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+                  <p className="text-sm font-semibold text-neutral-900">Bank transfer details</p>
+                  <p className="mt-2 text-sm leading-6 text-neutral-600">
+                    Transfer the exact order total and enter the transaction reference below. Orders are
+                    confirmed only after the credit is verified in our bank account.
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {manualPaymentConfig.bankAccountName ? (
+                      <PaymentDetail label="Account Name" value={manualPaymentConfig.bankAccountName} />
+                    ) : null}
+                    {manualPaymentConfig.bankAccountNumber ? (
+                      <PaymentDetail
+                        label="Account Number"
+                        value={manualPaymentConfig.bankAccountNumber}
+                        onCopy={() =>
+                          copyValue(manualPaymentConfig.bankAccountNumber!, 'Account number')
+                        }
+                      />
+                    ) : null}
+                    {manualPaymentConfig.bankIfsc ? (
+                      <PaymentDetail
+                        label="IFSC"
+                        value={manualPaymentConfig.bankIfsc}
+                        onCopy={() => copyValue(manualPaymentConfig.bankIfsc!, 'IFSC')}
+                      />
+                    ) : null}
+                    {manualPaymentConfig.bankName ? (
+                      <PaymentDetail label="Bank Name" value={manualPaymentConfig.bankName} />
+                    ) : null}
+                    {manualPaymentConfig.bankBranch ? (
+                      <PaymentDetail label="Branch" value={manualPaymentConfig.bankBranch} />
+                    ) : null}
+                    <PaymentDetail label="Amount" value={formatRupees(total)} />
+                  </div>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <Field label="Transaction Reference / UTR *" error={errors.manual_payment_reference}>
+                      <input
+                        value={manualPayment.reference}
+                        onChange={(event) => setManualField('reference', event.target.value)}
+                        placeholder="Enter the bank transaction reference"
+                        className={inputCls(errors.manual_payment_reference)}
+                      />
+                    </Field>
+                    <Field label="Sender Name *" error={errors.manual_payment_sender_name}>
+                      <input
+                        value={manualPayment.senderName}
+                        onChange={(event) => setManualField('senderName', event.target.value)}
+                        placeholder="Account holder / sender name"
+                        className={inputCls(errors.manual_payment_sender_name)}
+                      />
+                    </Field>
+                    <Field label="Payment Note (optional)" className="sm:col-span-2">
+                      <textarea
+                        value={manualPayment.note}
+                        onChange={(event) => setManualField('note', event.target.value)}
+                        placeholder="Any helpful payment detail"
+                        rows={2}
+                        className={cn(inputCls(), 'resize-none')}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold">Please enter the correct UPI Transaction ID / UTR.</p>
+                <p className="mt-1 text-xs leading-5 text-amber-800">
+                  Do not close the page until your order number is saved. A submitted reference does not
+                  mark an order paid; our team verifies actual account credit first.
+                </p>
+                {paymentSupportHref ? (
+                  <a
+                    href={paymentSupportHref}
+                    target={paymentSupportHref.startsWith('https://') ? '_blank' : undefined}
+                    rel={paymentSupportHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
+                    className="mt-2 inline-flex font-semibold underline underline-offset-4"
+                  >
+                    Need help? Contact us.
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>
@@ -487,19 +605,26 @@ export default function CheckoutView() {
                     Processing…
                   </span>
                 ) : (
-                  `Place Order — ${formatRupees(total)}`
+                  `${payment === 'cod' ? 'Place Order' : 'Submit Payment for Review'} — ${formatRupees(total)}`
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-4 mt-4">
-                <div className="flex items-center gap-1 text-neutral-400">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">SSL Secured</span>
-                </div>
-                <div className="flex items-center gap-1 text-neutral-400">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">Safe Payment</span>
-                </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-neutral-500">
+                {[
+                  { icon: Banknote, label: 'COD Available' },
+                  ...(manualUpiAvailable ? [{ icon: QrCode, label: 'UPI Accepted' }] : []),
+                  ...(bankTransferAvailable
+                    ? [{ icon: Building2, label: 'Bank Transfer' }]
+                    : []),
+                  { icon: CheckCircle2, label: 'Manual Verification' },
+                  { icon: ShieldCheck, label: 'Secure Order Tracking' },
+                  { icon: Lock, label: 'SSL Secured' },
+                ].map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <Icon className="h-3.5 w-3.5 text-gold-600" />
+                    <span>{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -545,6 +670,35 @@ function Row({ label, value, className }: { label: string; value: React.ReactNod
     <div className={cn('flex justify-between text-sm', className)}>
       <span>{label}</span>
       <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function PaymentDetail({
+  label,
+  value,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  onCopy?: () => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-400">{label}</p>
+        <p className="truncate text-sm font-semibold text-neutral-900">{value}</p>
+      </div>
+      {onCopy ? (
+        <button
+          type="button"
+          onClick={onCopy}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-stone-100 hover:text-neutral-900"
+          aria-label={`Copy ${label}`}
+        >
+          <Copy className="h-4 w-4" />
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -36,34 +36,52 @@ export const addressSchema = z.object({
 export type AddressInput = z.infer<typeof addressSchema>;
 
 /* ---------- Checkout ---------- */
-export const checkoutSchema = z.object({
-  customer_name: z.string().min(2).max(120),
-  customer_email: z.string().email().optional().or(z.literal('')),
-  customer_phone: z
-    .string()
-    .min(10)
-    .max(10)
-    .regex(/^[6-9]\d{9}$/),
-  shipping_address: addressSchema,
-  payment_method: z.enum(['razorpay', 'cod']),
-  coupon_code: z.string().max(40).optional().or(z.literal('')),
-  notes: z.string().max(500).optional().or(z.literal('')),
-  items: z
-    .array(
-      z.object({
-        product_id: z.string().uuid(),
-        quantity: z.number().int().positive().max(50),
-      })
-    )
-    .min(1, 'Cart is empty'),
-});
-export type CheckoutInput = z.infer<typeof checkoutSchema>;
+export const checkoutSchema = z
+  .object({
+    customer_name: z.string().min(2).max(120),
+    customer_email: z.string().email().optional().or(z.literal('')),
+    customer_phone: z
+      .string()
+      .min(10)
+      .max(10)
+      .regex(/^[6-9]\d{9}$/),
+    shipping_address: addressSchema,
+    payment_method: z.enum(['cod', 'manual_upi', 'bank_transfer']),
+    manual_payment_reference: z.string().trim().max(100).optional().or(z.literal('')),
+    manual_payment_sender_name: z.string().trim().max(120).optional().or(z.literal('')),
+    manual_payment_note: z.string().trim().max(500).optional().or(z.literal('')),
+    coupon_code: z.string().max(40).optional().or(z.literal('')),
+    notes: z.string().max(500).optional().or(z.literal('')),
+    items: z
+      .array(
+        z.object({
+          product_id: z.string().uuid(),
+          quantity: z.number().int().positive().max(50),
+        })
+      )
+      .min(1, 'Cart is empty'),
+  })
+  .superRefine((input, context) => {
+    if (
+      (input.payment_method === 'manual_upi' || input.payment_method === 'bank_transfer') &&
+      !input.manual_payment_reference
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['manual_payment_reference'],
+        message: 'UPI Transaction ID / UTR is required',
+      });
+    }
 
-/* ---------- Razorpay create-order ---------- */
-export const createRzpOrderSchema = z.object({
-  order_id: z.string().uuid(),
-});
-export type CreateRzpOrderInput = z.infer<typeof createRzpOrderSchema>;
+    if (input.payment_method === 'bank_transfer' && !input.manual_payment_sender_name) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['manual_payment_sender_name'],
+        message: 'Sender name is required for bank transfer',
+      });
+    }
+  });
+export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 /* ---------- Admin product ---------- */
 export const productSchema = z.object({

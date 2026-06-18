@@ -4,7 +4,20 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
-  NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(8),
+  NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('false')
+    .transform((value) => value === 'true'),
+  NEXT_PUBLIC_UPI_ID: z.string().trim().min(3).optional(),
+  NEXT_PUBLIC_UPI_NAME: z.string().trim().min(2).optional(),
+  NEXT_PUBLIC_BANK_ACCOUNT_NAME: z.string().trim().min(2).optional(),
+  NEXT_PUBLIC_BANK_ACCOUNT_NUMBER: z.string().trim().min(4).optional(),
+  NEXT_PUBLIC_BANK_IFSC: z.string().trim().min(4).optional(),
+  NEXT_PUBLIC_BANK_NAME: z.string().trim().min(2).optional(),
+  NEXT_PUBLIC_BANK_BRANCH: z.string().trim().min(2).optional(),
+  NEXT_PUBLIC_PAYMENT_SUPPORT_PHONE: z.string().trim().min(8).optional(),
+  NEXT_PUBLIC_PAYMENT_SUPPORT_EMAIL: z.string().email().optional(),
 });
 
 function formatIssues(prefix: string, issues: z.ZodIssue[]) {
@@ -16,7 +29,16 @@ export const publicEnv = (() => {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-    NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED: process.env.NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED,
+    NEXT_PUBLIC_UPI_ID: process.env.NEXT_PUBLIC_UPI_ID || undefined,
+    NEXT_PUBLIC_UPI_NAME: process.env.NEXT_PUBLIC_UPI_NAME || undefined,
+    NEXT_PUBLIC_BANK_ACCOUNT_NAME: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NAME || undefined,
+    NEXT_PUBLIC_BANK_ACCOUNT_NUMBER: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER || undefined,
+    NEXT_PUBLIC_BANK_IFSC: process.env.NEXT_PUBLIC_BANK_IFSC || undefined,
+    NEXT_PUBLIC_BANK_NAME: process.env.NEXT_PUBLIC_BANK_NAME || undefined,
+    NEXT_PUBLIC_BANK_BRANCH: process.env.NEXT_PUBLIC_BANK_BRANCH || undefined,
+    NEXT_PUBLIC_PAYMENT_SUPPORT_PHONE: process.env.NEXT_PUBLIC_PAYMENT_SUPPORT_PHONE || undefined,
+    NEXT_PUBLIC_PAYMENT_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_PAYMENT_SUPPORT_EMAIL || undefined,
   });
 
   if (!parsed.success) {

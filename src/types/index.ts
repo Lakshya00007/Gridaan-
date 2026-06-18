@@ -9,7 +9,7 @@
 
 export type OrderStatus = 'placed' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
-export type PaymentMethod = 'razorpay' | 'cod';
+export type PaymentMethod = 'cod' | 'manual_upi' | 'bank_transfer';
 export type CouponType = 'percentage' | 'fixed';
 
 export interface Profile {
@@ -130,9 +130,12 @@ export interface Order {
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   order_status: OrderStatus;
-  razorpay_order_id: string | null;
-  razorpay_payment_id: string | null;
-  razorpay_signature: string | null;
+  manual_payment_reference: string | null;
+  manual_payment_sender_name: string | null;
+  manual_payment_note: string | null;
+  manual_payment_verified_at: string | null;
+  manual_payment_verified_by: string | null;
+  manual_payment_rejected_reason: string | null;
   notes: string | null;
   items?: OrderItem[];
   created_at: string;
@@ -147,7 +150,11 @@ export interface OrderSuccessSummary {
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   order_status: OrderStatus;
-  razorpay_order_id: string | null;
+  manual_payment_reference: string | null;
+  manual_payment_sender_name: string | null;
+  manual_payment_note: string | null;
+  manual_payment_verified_at: string | null;
+  manual_payment_rejected_reason: string | null;
   created_at: string;
 }
 

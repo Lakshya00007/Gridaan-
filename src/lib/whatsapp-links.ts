@@ -1,4 +1,5 @@
 import type { Order } from '@/types';
+import { formatPaymentMethod } from '@/lib/manual-payment';
 
 export function buildAdminOrderMessage(order: Order): string {
   const lines: string[] = [];
@@ -20,7 +21,10 @@ export function buildAdminOrderMessage(order: Order): string {
   if (order.shipping > 0) lines.push(`*Shipping:* Rs. ${order.shipping.toLocaleString('en-IN')}`);
   lines.push(`*Total:* Rs. ${order.total.toLocaleString('en-IN')}`);
   lines.push('');
-  lines.push(`*Payment:* ${order.payment_method.toUpperCase()} - ${order.payment_status}`);
+  lines.push(`*Payment:* ${formatPaymentMethod(order.payment_method)} - ${order.payment_status}`);
+  if (order.manual_payment_reference) {
+    lines.push(`*UTR / Reference:* ${order.manual_payment_reference}`);
+  }
   if (order.coupon_code) lines.push(`*Coupon:* ${order.coupon_code}`);
   if (order.notes) lines.push(`*Notes:* ${order.notes}`);
   return lines.join('\n');
@@ -38,7 +42,7 @@ export function buildCustomerOrderMessage(order: Order): string {
   lines.push('');
   lines.push(`*Order:* ${order.order_number}`);
   lines.push(`*Total:* Rs. ${order.total.toLocaleString('en-IN')}`);
-  lines.push(`*Payment:* ${order.payment_method.toUpperCase()} (${order.payment_status})`);
+  lines.push(`*Payment:* ${formatPaymentMethod(order.payment_method)} (${order.payment_status})`);
   lines.push('');
   lines.push("We'll notify you when your order ships. For any questions, reply to this message.");
   return lines.join('\n');

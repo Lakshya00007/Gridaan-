@@ -244,7 +244,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
           <div className="space-y-4">
             {[
               { icon: Truck, text: 'Free shipping on orders above ₹999' },
-              { icon: Shield, text: 'Secure payment with Razorpay & COD' },
+              { icon: Shield, text: 'COD and manually verified payment options' },
               { icon: RotateCcw, text: '7-day hassle-free return policy' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3">

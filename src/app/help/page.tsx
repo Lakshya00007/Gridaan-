@@ -25,8 +25,8 @@ export default function HelpPage() {
         {
           heading: 'Payments',
           body: [
-            'Gridaan supports secure online payments through Razorpay and Cash on Delivery where available.',
-            'If a payment attempt is interrupted, pending online orders can usually be retried from the order confirmation flow.',
+            'Gridaan supports Cash on Delivery and, when configured, manual UPI or bank transfer payments.',
+            'Manual payments remain pending until the Gridaan team verifies actual account credit. Keep your transaction reference and payment screenshot until confirmation.',
           ],
         },
         {

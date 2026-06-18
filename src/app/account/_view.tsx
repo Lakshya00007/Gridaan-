@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Package, Loader2, ChevronRight } from 'lucide-react';
 import { formatRupees, formatDate } from '@/lib/utils';
 import type { Order } from '@/types';
+import { formatPaymentMethod } from '@/lib/manual-payment';
 
 const statusColors: Record<string, string> = {
   placed: 'bg-amber-100 text-amber-700',
@@ -78,7 +79,7 @@ export default function AccountView() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-neutral-500">
-                  {order.items?.length ?? 0} item(s) · {order.payment_method.toUpperCase()}
+                  {order.items?.length ?? 0} item(s) · {formatPaymentMethod(order.payment_method)}
                 </span>
                 <span className="font-bold">{formatRupees(order.total)}</span>
               </div>
