@@ -139,15 +139,19 @@ export default function Header({ categories, user }: HeaderProps) {
               <Menu className="w-5 h-5" />
             </button>
 
-            <Link href="/" className="flex shrink-0 items-center" prefetch aria-label="Gridaan home">
+            <Link
+              href="/"
+              className="relative h-12 w-[120px] shrink-0 overflow-hidden sm:h-14 sm:w-[155px] md:w-[165px] lg:h-16 lg:w-[195px]"
+              prefetch
+              aria-label="Gridaan home"
+            >
               <Image
                 src="/logo.png"
                 alt="Gridaan"
-                width={220}
-                height={72}
+                fill
                 priority
-                sizes="(min-width: 1024px) 210px, (min-width: 640px) 160px, 150px"
-                className="h-[52px] w-[150px] object-contain object-left sm:w-[160px] md:h-16 lg:w-[210px]"
+                sizes="(min-width: 1024px) 195px, (min-width: 768px) 165px, (min-width: 640px) 155px, 120px"
+                className="scale-[1.35] object-cover object-[center_69%]"
               />
             </Link>
 
@@ -381,17 +385,16 @@ export default function Header({ categories, user }: HeaderProps) {
                   <Link
                     href="/"
                     onClick={() => setMobileOpen(false)}
-                    className="flex shrink-0 items-center"
+                    className="relative h-[52px] w-[135px] shrink-0 overflow-hidden"
                     aria-label="Gridaan home"
                   >
                     <Image
                       src="/logo.png"
                       alt="Gridaan"
-                      width={160}
-                      height={56}
+                      fill
                       priority
-                      sizes="150px"
-                      className="h-14 w-[150px] object-contain object-left"
+                      sizes="135px"
+                      className="scale-[1.35] object-cover object-[center_69%]"
                     />
                   </Link>
                   <button
