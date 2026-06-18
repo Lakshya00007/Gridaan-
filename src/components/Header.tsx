@@ -141,17 +141,17 @@ export default function Header({ categories, user }: HeaderProps) {
 
             <Link
               href="/"
-              className="relative h-12 w-[120px] shrink-0 overflow-hidden sm:h-14 sm:w-[155px] md:w-[165px] lg:h-16 lg:w-[195px]"
+              className="relative h-11 w-[125px] shrink-0 sm:h-12 sm:w-[155px] lg:h-[52px] lg:w-[175px]"
               prefetch
               aria-label="Gridaan home"
             >
               <Image
-                src="/logo.png"
+                src="/logo-header.png"
                 alt="Gridaan"
                 fill
                 priority
-                sizes="(min-width: 1024px) 195px, (min-width: 768px) 165px, (min-width: 640px) 155px, 120px"
-                className="scale-[1.35] object-cover object-[center_69%]"
+                sizes="(min-width: 1024px) 175px, (min-width: 640px) 155px, 125px"
+                className="object-contain object-left"
               />
             </Link>
 
@@ -385,16 +385,16 @@ export default function Header({ categories, user }: HeaderProps) {
                   <Link
                     href="/"
                     onClick={() => setMobileOpen(false)}
-                    className="relative h-[52px] w-[135px] shrink-0 overflow-hidden"
+                    className="relative h-11 w-[130px] shrink-0"
                     aria-label="Gridaan home"
                   >
                     <Image
-                      src="/logo.png"
+                      src="/logo-header.png"
                       alt="Gridaan"
                       fill
                       priority
-                      sizes="135px"
-                      className="scale-[1.35] object-cover object-[center_69%]"
+                      sizes="130px"
+                      className="object-contain object-left"
                     />
                   </Link>
                   <button
