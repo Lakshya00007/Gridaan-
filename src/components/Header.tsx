@@ -115,7 +115,7 @@ export default function Header({ categories, user }: HeaderProps) {
   return (
     <>
       {/* Announcement bar */}
-      <div className="bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 text-white text-center py-2 px-4 text-[11px] sm:text-xs font-medium tracking-[0.18em] uppercase">
+      <div className="bg-neutral-950 px-4 py-2 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-white sm:text-[11px]">
         <span>Premium-look fashion jewelry from ₹99</span>
         <span className="hidden sm:inline"> · </span>
         <span className="hidden sm:inline">COD available across India</span>
@@ -130,10 +130,10 @@ export default function Header({ categories, user }: HeaderProps) {
         )}
       >
         <div className="container">
-          <div className="flex items-center justify-between h-[4.5rem] md:h-[5.25rem]">
+          <div className="flex h-[4.25rem] items-center justify-between md:h-[4.75rem]">
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden flex h-11 w-11 items-center justify-center rounded-full border border-stone-200 bg-white/80 text-neutral-700 shadow-sm transition-all hover:border-gold-300 hover:text-neutral-900 hover:shadow"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-stone-100 hover:text-neutral-950 lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="w-5 h-5" />
@@ -141,7 +141,7 @@ export default function Header({ categories, user }: HeaderProps) {
 
             <Link
               href="/"
-              className="relative h-11 w-[125px] shrink-0 sm:h-12 sm:w-[155px] lg:h-[52px] lg:w-[175px]"
+              className="relative h-10 w-[122px] shrink-0 sm:h-11 sm:w-[145px] lg:h-12 lg:w-[162px]"
               prefetch
               aria-label="Gridaan home"
             >
@@ -150,12 +150,12 @@ export default function Header({ categories, user }: HeaderProps) {
                 alt="Gridaan"
                 fill
                 priority
-                sizes="(min-width: 1024px) 175px, (min-width: 640px) 155px, 125px"
+                sizes="(min-width: 1024px) 162px, (min-width: 640px) 145px, 122px"
                 className="object-contain object-left"
               />
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-1 rounded-full border border-stone-200/80 bg-white/85 px-2 py-2 shadow-[0_18px_44px_-36px_rgba(53,38,18,0.45)] backdrop-blur">
+            <nav className="hidden items-center gap-0.5 lg:flex">
               <HeaderNavLink href="/" label="Home" active={homeActive} />
               <HeaderNavLink href="/shop" label="Shop" active={shopActive} />
               <div
@@ -166,11 +166,12 @@ export default function Header({ categories, user }: HeaderProps) {
                 <button
                   type="button"
                   onFocus={() => setActiveMenu('women')}
+                  aria-expanded={activeMenu === 'women'}
                   className={navTriggerClass(womenActive || activeMenu === 'women')}
                 >
                   Women
                   <ChevronDown
-                    className={cn('h-4 w-4 transition-transform', activeMenu === 'women' && 'rotate-180')}
+                    className={cn('h-3.5 w-3.5 transition-transform', activeMenu === 'women' && 'rotate-180')}
                   />
                 </button>
                 <AnimatePresence>
@@ -191,11 +192,12 @@ export default function Header({ categories, user }: HeaderProps) {
                 <button
                   type="button"
                   onFocus={() => setActiveMenu('men')}
+                  aria-expanded={activeMenu === 'men'}
                   className={navTriggerClass(menActive || activeMenu === 'men')}
                 >
                   Men
                   <ChevronDown
-                    className={cn('h-4 w-4 transition-transform', activeMenu === 'men' && 'rotate-180')}
+                    className={cn('h-3.5 w-3.5 transition-transform', activeMenu === 'men' && 'rotate-180')}
                   />
                 </button>
                 <AnimatePresence>
@@ -217,20 +219,20 @@ export default function Header({ categories, user }: HeaderProps) {
               ) : null}
             </nav>
 
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-0.5 sm:gap-1">
               <button
                 onClick={() => setSearchOpen(!isSearchOpen)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white/70 text-neutral-600 transition-all hover:-translate-y-0.5 hover:border-stone-200 hover:bg-white hover:text-neutral-900 hover:shadow-sm"
+                className={headerIconClass}
                 aria-label="Search"
               >
-                <Search className="w-5 h-5" />
+                <Search className="h-[18px] w-[18px]" />
               </button>
               <Link
                 href="/wishlist"
-                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white/70 text-neutral-600 transition-all hover:-translate-y-0.5 hover:border-stone-200 hover:bg-white hover:text-neutral-900 hover:shadow-sm"
+                className={cn(headerIconClass, 'relative')}
                 aria-label="Wishlist"
               >
-                <Heart className={cn('w-5 h-5', wishlistCount > 0 && 'fill-red-500 text-red-500')} />
+                <Heart className={cn('h-[18px] w-[18px]', wishlistCount > 0 && 'fill-red-500 text-red-500')} />
                 {wishlistCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gradient-to-r from-red-500 to-red-400 text-white text-[10px] font-bold shadow-sm flex items-center justify-center">
                     {wishlistCount}
@@ -241,10 +243,10 @@ export default function Header({ categories, user }: HeaderProps) {
                 <button
                   onClick={() => setAccountOpen((v) => !v)}
                   onBlur={() => setTimeout(() => setAccountOpen(false), 150)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white/70 text-neutral-600 transition-all hover:-translate-y-0.5 hover:border-stone-200 hover:bg-white hover:text-neutral-900 hover:shadow-sm"
+                  className={headerIconClass}
                   aria-label="Account"
                 >
-                  <User className="w-5 h-5" />
+                  <User className="h-[18px] w-[18px]" />
                 </button>
                 <AnimatePresence>
                   {accountOpen && (
@@ -315,10 +317,10 @@ export default function Header({ categories, user }: HeaderProps) {
               </div>
               <button
                 onClick={() => setCartOpen(true)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white/70 text-neutral-600 transition-all hover:-translate-y-0.5 hover:border-stone-200 hover:bg-white hover:text-neutral-900 hover:shadow-sm"
+                className={cn(headerIconClass, 'relative')}
                 aria-label="Cart"
               >
-                <ShoppingBag className="w-5 h-5" />
+                <ShoppingBag className="h-[18px] w-[18px]" />
                 {cartCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gradient-to-r from-gold-600 to-gold-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center">
                     {cartCount}
@@ -378,14 +380,14 @@ export default function Header({ categories, user }: HeaderProps) {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-80 max-w-[88vw] bg-[#fbf7f1] z-50 lg:hidden flex flex-col shadow-[0_35px_70px_-42px_rgba(53,38,18,0.55)]"
+              className="fixed inset-y-0 left-0 z-50 flex w-[21rem] max-w-[90vw] flex-col bg-[#fcfaf7] shadow-[0_35px_70px_-42px_rgba(53,38,18,0.55)] lg:hidden"
             >
-              <div className="border-b border-stone-200/80 bg-white/70 px-5 py-4">
+              <div className="border-b border-stone-200/70 bg-white/80 px-5 py-4">
                 <div className="flex items-center justify-between">
                   <Link
                     href="/"
                     onClick={() => setMobileOpen(false)}
-                    className="relative h-11 w-[130px] shrink-0"
+                    className="relative h-10 w-[125px] shrink-0"
                     aria-label="Gridaan home"
                   >
                     <Image
@@ -393,26 +395,23 @@ export default function Header({ categories, user }: HeaderProps) {
                       alt="Gridaan"
                       fill
                       priority
-                      sizes="130px"
+                      sizes="125px"
                       className="object-contain object-left"
                     />
                   </Link>
                   <button
                     onClick={() => setMobileOpen(false)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white hover:bg-neutral-100"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-stone-100 hover:text-neutral-950"
                     aria-label="Close menu"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-neutral-500">
-                  Premium-look fashion jewellery for women and men, made for gifting, festive dressing, and daily wear.
-                </p>
-                <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <Link
                     href="/shop"
                     onClick={() => setMobileOpen(false)}
-                    className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white"
+                    className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-4 py-2.5 text-xs font-semibold text-white"
                   >
                     Shop All
                   </Link>
@@ -420,15 +419,15 @@ export default function Header({ categories, user }: HeaderProps) {
                     <Link
                       href={getCategoryPageHref(fullSetsLink.slug)}
                       onClick={() => setMobileOpen(false)}
-                      className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-800"
+                      className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-neutral-800"
                     >
                       Full Sets
                     </Link>
                   ) : null}
                 </div>
               </div>
-              <nav className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-                <div className="rounded-[1.5rem] border border-stone-200/80 bg-white/80 p-2 shadow-[0_18px_44px_-40px_rgba(53,38,18,0.45)]">
+              <nav className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+                <div className="grid grid-cols-2 gap-2 border-b border-stone-200/70 pb-5">
                   <Link
                     href="/"
                     onClick={() => setMobileOpen(false)}
@@ -446,7 +445,7 @@ export default function Header({ categories, user }: HeaderProps) {
                 </div>
                 <MobileCategorySection title="Women" links={womenLinks} onNavigate={() => setMobileOpen(false)} />
                 <MobileCategorySection title="Men" links={menLinks} onNavigate={() => setMobileOpen(false)} />
-                <div className="rounded-[1.5rem] border border-stone-200/80 bg-white/80 p-2 shadow-[0_18px_44px_-40px_rgba(53,38,18,0.45)]">
+                <div className="border-t border-stone-200/70 pt-4">
                   <Link
                     href="/account"
                     onClick={() => setMobileOpen(false)}
@@ -522,33 +521,41 @@ function DesktopMenuPanel({
   links: CategoryPageConfig[];
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.18 }}
-      className="absolute left-1/2 top-full mt-4 w-[34rem] -translate-x-1/2 rounded-[2rem] border border-stone-200/80 bg-white/95 p-5 shadow-[0_28px_70px_-42px_rgba(53,38,18,0.55)] backdrop-blur-xl"
-    >
-      <div className="mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-600">{title}</p>
-        <p className="mt-2 text-sm leading-relaxed text-neutral-500">{subtitle}</p>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {links.map((link) => (
+    <div className="absolute left-1/2 top-full z-[60] w-[46rem] max-w-[calc(100vw-3rem)] -translate-x-1/2 pt-3">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 8 }}
+        transition={{ duration: 0.18 }}
+        className="grid grid-cols-[0.72fr_1.28fr] gap-6 rounded-2xl border border-stone-200/80 bg-[#fffdf9] p-6 shadow-[0_24px_60px_-30px_rgba(42,30,17,0.28)]"
+      >
+        <div className="border-r border-stone-200/70 pr-6">
+          <p className="heading-display text-2xl text-neutral-950">{title}</p>
+          <p className="mt-2 text-sm leading-6 text-neutral-500">{subtitle}</p>
           <Link
-            key={link.slug}
-            href={getCategoryPageHref(link.slug)}
-            className="group rounded-[1.4rem] border border-stone-200/70 bg-gradient-to-br from-white via-[#fffdf9] to-[#f7efe5] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold-300 hover:shadow-[0_18px_40px_-30px_rgba(72,46,18,0.45)]"
+            href="/shop"
+            className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-gold-700 transition-colors hover:text-gold-900"
           >
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-neutral-900">{link.shortLabel}</p>
-              <span className="h-2 w-2 rounded-full bg-gold-500 transition-transform duration-300 group-hover:scale-125" />
-            </div>
-            <p className="mt-2 text-xs leading-5 text-neutral-500 line-clamp-2">{link.description}</p>
+            Shop all jewellery
+            <span aria-hidden>→</span>
           </Link>
-        ))}
-      </div>
-    </motion.div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-7 gap-y-1">
+          {links.map((link) => (
+            <Link
+              key={link.slug}
+              href={getCategoryPageHref(link.slug)}
+              className="group flex min-h-12 items-center justify-between gap-3 border-b border-stone-200/60 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-gold-300 hover:text-gold-800"
+            >
+              <span>{link.shortLabel}</span>
+              <span className="text-gold-500 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden>
+                →
+              </span>
+            </Link>
+          ))}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -562,15 +569,15 @@ function MobileCategorySection({
   onNavigate: () => void;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-stone-200/80 bg-white/80 p-4 shadow-[0_18px_44px_-40px_rgba(53,38,18,0.45)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-600">{title}</p>
-      <div className="mt-3 grid grid-cols-1 gap-2">
+    <div>
+      <p className="mb-2 text-xs font-semibold text-gold-700">{title}</p>
+      <div className="grid grid-cols-2 gap-x-4">
         {links.map((link) => (
           <Link
             key={link.slug}
             href={getCategoryPageHref(link.slug)}
             onClick={onNavigate}
-            className="rounded-[1rem] border border-stone-100 bg-white/90 px-4 py-3 text-sm font-medium text-neutral-700 transition-all hover:border-gold-200 hover:bg-cream-50"
+            className="border-b border-stone-200/70 py-2.5 text-sm text-neutral-700 transition-colors hover:text-gold-800"
           >
             {link.shortLabel}
           </Link>
@@ -582,16 +589,19 @@ function MobileCategorySection({
 
 function navTriggerClass(active: boolean) {
   return cn(
-    'inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all duration-300',
+    'inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200',
     active
-      ? 'bg-neutral-900 text-white shadow-[0_16px_34px_-24px_rgba(15,15,15,0.6)]'
-      : 'text-neutral-600 hover:bg-cream-50 hover:text-neutral-900'
+      ? 'bg-neutral-950 text-white'
+      : 'text-neutral-600 hover:bg-stone-100 hover:text-neutral-950'
   );
 }
 
 function mobileLinkClass(active: boolean) {
   return cn(
-    'block rounded-[1rem] px-4 py-3 text-sm font-medium transition-colors',
-    active ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-cream-50'
+    'block rounded-xl px-4 py-2.5 text-center text-sm font-medium transition-colors',
+    active ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-700 hover:bg-stone-100'
   );
 }
+
+const headerIconClass =
+  'flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-stone-100 hover:text-neutral-950';

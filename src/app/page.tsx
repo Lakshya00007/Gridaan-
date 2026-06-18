@@ -26,28 +26,24 @@ export default async function HomePage() {
   return (
     <>
       {/* HERO */}
-      <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center bg-gradient-to-br from-cream-50 via-white to-gold-50 overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -right-20 w-96 h-96 bg-gold-100/40 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 -left-20 w-80 h-80 bg-gold-200/30 rounded-full blur-3xl" />
-        </div>
-        <div className="container py-20 relative z-10">
+      <section className="relative flex min-h-[74vh] items-center overflow-hidden bg-gradient-to-br from-cream-50 via-white to-gold-50 md:min-h-[80vh]">
+        <div className="container relative z-10 py-14 md:py-16">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gold-100/60 rounded-full mb-6">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-gold-100/60 px-4 py-2">
                 <Sparkles className="w-4 h-4 text-gold-600" />
                 <span className="text-xs font-semibold text-gold-700 uppercase tracking-wider">
                   New Collection {new Date().getFullYear()}
                 </span>
               </div>
 
-              <h1 className="heading-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-neutral-900 mb-6">
+              <h1 className="heading-display mb-5 text-4xl text-neutral-900 sm:text-5xl md:text-6xl lg:text-7xl">
                 Affordable Indian
                 <br />
                 <span className="heading-italic text-gold-500">Fashion Jewelry</span>
               </h1>
 
-              <p className="text-neutral-500 text-base md:text-lg max-w-md mx-auto lg:mx-0 mb-8 leading-relaxed">
+              <p className="mx-auto mb-7 max-w-md text-base leading-relaxed text-neutral-500 md:text-lg lg:mx-0">
                 Premium-look earrings, necklace sets &amp; festive jewelry starting ₹99.
               </p>
 
@@ -64,7 +60,7 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className="flex items-center justify-center lg:justify-start gap-8 mt-12">
+              <div className="mt-10 flex items-center justify-center gap-6 lg:justify-start">
                 {[
                   { title: 'COD Available', detail: 'Easy checkout across India' },
                   { title: 'Premium Look', detail: 'Festive styles that feel elevated' },
@@ -120,15 +116,21 @@ export default async function HomePage() {
       </section>
 
       {/* CATEGORIES */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-white via-[#fdfaf6] to-[#faf4ec]">
+      <section className="bg-gradient-to-b from-white via-[#fdfaf6] to-[#faf4ec] py-12 md:py-16">
         <div className="container">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-gold-600 uppercase tracking-[0.2em] mb-3">Browse By</p>
-            <h2 className="heading-display text-3xl md:text-4xl text-neutral-900">
-              Women &amp; Men <span className="heading-italic text-gold-500">Categories</span>
-            </h2>
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div>
+              <p className="mb-2 text-xs font-semibold text-gold-700">Browse by category</p>
+              <h2 className="heading-display text-3xl md:text-4xl text-neutral-900">
+                Women &amp; Men <span className="heading-italic text-gold-500">Categories</span>
+              </h2>
+            </div>
+            <Link href="/shop" className="hidden items-center gap-2 text-sm font-medium text-neutral-600 transition-colors hover:text-gold-800 md:inline-flex">
+              Shop all
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x snap-mandatory md:grid md:grid-cols-4 xl:grid-cols-5 md:overflow-visible md:pb-0">
+          <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-4 md:overflow-visible md:pb-0 xl:grid-cols-5">
             {categories.map((cat) => {
               const categoryPage = getCategoryPageByFilterSlug(cat.slug);
               const categoryImage = cat.image_url ?? categoryPage?.imagePath ?? null;
@@ -138,34 +140,25 @@ export default async function HomePage() {
                 <Link
                   key={cat.id}
                   href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${cat.slug}`}
-                  className="snap-center flex-shrink-0 w-40 md:w-auto group"
+                  className="group w-40 flex-shrink-0 snap-center md:w-auto"
                   prefetch
                 >
-                  <div className="overflow-hidden rounded-[1.9rem] border border-stone-200/80 bg-white/85 p-3 shadow-[0_22px_56px_-44px_rgba(53,38,18,0.4)] transition-all duration-300 group-hover:-translate-y-1 group-hover:border-gold-300 group-hover:shadow-[0_26px_66px_-42px_rgba(53,38,18,0.48)]">
-                    <div className="relative aspect-square overflow-hidden rounded-[1.45rem] bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 ring-1 ring-black/5">
+                  <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-stone-200/70 bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 shadow-[0_18px_38px_-30px_rgba(53,38,18,0.3)] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-gold-300 group-hover:shadow-[0_22px_42px_-28px_rgba(53,38,18,0.38)]">
                     {categoryImage ? (
                       <Image
                         src={categoryImage}
                         alt={categoryLabel}
                         fill
                         sizes="(max-width: 768px) 144px, 200px"
-                        className="object-cover group-hover:scale-105 transition-transform duration-700"
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200" />
                     )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-transparent" />
-                      <div className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/88 text-gold-700 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-105">
-                        <ArrowRight className="h-4 w-4" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-start justify-between gap-3 px-1">
-                    <div>
-                      <p className="text-sm font-semibold text-neutral-900 group-hover:text-gold-700 transition-colors">
-                        {categoryLabel}
-                      </p>
-                      <span className="mt-2 block h-px w-10 bg-gradient-to-r from-gold-500 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
+                      <p className="text-sm font-semibold leading-5 text-white">{categoryLabel}</p>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-white/85 transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </div>
                 </Link>
@@ -189,7 +182,7 @@ export default async function HomePage() {
       />
 
       {/* WEDDING GUEST EDIT */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="bg-white py-12 md:py-16">
         <div className="container">
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-neutral-900 to-neutral-800 min-h-[400px] md:min-h-[500px] flex items-center">
             <div className="absolute inset-0">
@@ -203,7 +196,7 @@ export default async function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-r from-neutral-900/90 via-neutral-900/70 to-transparent" />
             </div>
             <div className="relative z-10 p-8 md:p-16 max-w-xl">
-              <p className="text-gold-400 text-xs font-semibold uppercase tracking-[0.3em] mb-4">
+              <p className="mb-3 text-xs font-semibold text-gold-400">
                 Wedding Guest Edit
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-white mb-4">
@@ -236,20 +229,20 @@ export default async function HomePage() {
       />
 
       {/* FULL JEWELLERY SETS */}
-      <section className="py-16 md:py-24 bg-warm-50">
+      <section className="bg-warm-50 py-12 md:py-16">
         <div className="container">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="aspect-[4/5] rounded-3xl overflow-hidden">
               <Image
                 src="/combo-pack-banner.webp"
-                alt="Combo packs collection"
+                alt="Full jewellery sets collection"
                 width={800}
                 height={1000}
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="md:pl-8">
-              <p className="text-gold-600 text-xs font-semibold uppercase tracking-[0.3em] mb-4">
+              <p className="mb-3 text-xs font-semibold text-gold-700">
                 Full Jewellery Sets
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-neutral-900 mb-6">
@@ -259,9 +252,9 @@ export default async function HomePage() {
                 Explore necklace-and-earring pairings, festive combos, and full-set looks that make
                 gifting and occasion styling feel polished without the guesswork.
               </p>
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                {featuredSets.length > 0 ? (
-                  featuredSets.map((p) => (
+              {featuredSets.length > 0 ? (
+                <div className="mb-8 grid grid-cols-2 gap-4">
+                  {featuredSets.map((p) => (
                     <Link key={p.id} href={`/product/${p.slug}`} className="text-left group" prefetch>
                       <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 mb-2">
                         <Image
@@ -275,11 +268,9 @@ export default async function HomePage() {
                       <p className="text-sm font-medium truncate">{p.name}</p>
                       <p className="text-sm font-bold text-gold-600">₹{p.price.toLocaleString('en-IN')}</p>
                     </Link>
-                  ))
-                ) : (
-                  <p className="text-sm text-neutral-400">Fresh jewellery sets are landing soon. Check back shortly.</p>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : null}
               <Link href={getCategoryPageHref('women-full-sets')} className="btn-primary">
                 Shop Full Jewellery Sets
                 <ArrowRight className="w-4 h-4" />
@@ -303,11 +294,11 @@ export default async function HomePage() {
       />
 
       {/* FESTIVAL SALE */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-gold-50 to-white">
+      <section className="bg-gradient-to-b from-gold-50 to-white py-12 md:py-16">
         <div className="container">
           <div className="relative rounded-3xl bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500 p-8 md:p-16 text-center overflow-hidden">
             <div className="relative z-10">
-              <p className="text-white/80 text-xs font-semibold uppercase tracking-[0.3em] mb-3">
+              <p className="mb-3 text-xs font-semibold text-white/80">
                 Launch Offer
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-white mb-4">
@@ -345,20 +336,21 @@ function Section({
   cta: { href: string; label: string };
   bg?: 'white' | 'warm';
 }) {
+  if (products.length === 0) {
+    return null;
+  }
+
   return (
     <section
       className={cn(
-        'relative overflow-hidden py-16 md:py-24',
+        'relative overflow-hidden py-12 md:py-16',
         bg === 'white' ? 'bg-white' : 'bg-gradient-to-b from-[#fdf9f4] to-[#f7efe5]'
       )}
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute right-8 top-6 h-28 w-28 rounded-full bg-gold-100/35 blur-3xl" />
-      </div>
       <div className="container relative">
-        <div className="mb-12 flex items-end justify-between gap-4">
+        <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-gold-600 uppercase tracking-[0.2em] mb-3">{eyebrow}</p>
+            <p className="mb-2 text-xs font-semibold text-gold-700">{eyebrow}</p>
             <h2 className="heading-display text-3xl md:text-4xl text-neutral-900">{title}</h2>
           </div>
           <Link
@@ -369,15 +361,11 @@ function Section({
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
-        {products.length === 0 ? (
-          <p className="text-center text-neutral-400 py-12">No products yet — add some from the admin panel.</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {products.map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
+          {products.map((p, i) => (
+            <ProductCard key={p.id} product={p} index={i} />
+          ))}
+        </div>
         <div className="md:hidden text-center mt-8">
           <Link href={cta.href} className="btn-outline text-sm">
             {cta.label} <ArrowRight className="w-4 h-4" />

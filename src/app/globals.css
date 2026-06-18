@@ -14,20 +14,21 @@
     -moz-osx-font-smoothing: grayscale;
   }
   body {
-    @apply bg-white text-neutral-900 antialiased;
+    @apply text-neutral-900 antialiased;
+    background-color: #fcfaf7;
   }
   ::selection {
     background-color: #edb96a;
     color: #1a1a1a;
   }
-  h1, h2, h3, h4 { @apply tracking-tight; }
+  h1, h2, h3, h4 { letter-spacing: 0; }
 }
 
 @layer components {
   .heading-display {
     font-family: var(--font-playfair), Georgia, serif;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1.15;
   }
   .heading-italic {
