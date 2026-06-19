@@ -21,7 +21,7 @@ type OrderLookupResponse = {
 export default function OrderSuccessView() {
   const sp = useSearchParams();
   const router = useRouter();
-  const lookupParam = sp.get('order') ?? sp.get('id');
+  const lookupParam = sp.get('order') ?? sp.get('orderId') ?? sp.get('id');
   const [order, setOrder] = useState<OrderSuccessSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,16 +101,21 @@ export default function OrderSuccessView() {
   }
 
   const isManual = isManualPaymentMethod(order.payment_method);
+  const isUpi = order.payment_method === 'manual_upi';
+  const isBankTransfer = order.payment_method === 'bank_transfer';
   const isManualPending = isManual && order.payment_status === 'pending';
   const isManualFailed = isManual && order.payment_status === 'failed';
   const supportHref = getPaymentSupportHref();
+  const paymentNote = `Gridaan Order ${order.order_number}`;
 
   const title = isManualPending
-    ? 'Order placed — payment under review'
+    ? 'Order placed — payment verification pending'
     : isManualFailed
       ? 'Payment verification was unsuccessful'
       : order.payment_status === 'paid'
-        ? 'Payment verified — order confirmed'
+        ? isManual
+          ? 'Payment confirmed'
+          : 'Payment verified — order confirmed'
         : 'Order placed!';
 
   return (
@@ -145,8 +150,9 @@ export default function OrderSuccessView() {
 
         {isManualPending ? (
           <p className="mx-auto mb-6 max-w-md text-sm leading-6 text-neutral-600">
-            We will verify your payment and confirm your order shortly. Your submitted reference is
-            awaiting a manual check against the actual account credit.
+            {isUpi
+              ? 'We have received your order. Please complete the UPI payment if you have not already. We will verify the payment against your order number before dispatch.'
+              : 'We have received your order. Please complete the bank transfer if you have not already. We will verify the payment against your order number before dispatch.'}
           </p>
         ) : null}
 
@@ -155,9 +161,15 @@ export default function OrderSuccessView() {
             <SummaryRow label="Order Number" value={order.order_number} />
             <SummaryRow label="Customer" value={order.customer_name} />
             <SummaryRow label="Amount" value={formatRupees(order.total)} />
-            <SummaryRow label="Payment Method" value={formatPaymentMethod(order.payment_method)} />
+            <SummaryRow
+              label="Payment Method"
+              value={isUpi ? 'UPI' : formatPaymentMethod(order.payment_method)}
+            />
+            {(isUpi || isBankTransfer) && (
+              <SummaryRow label="Payment Note" value={paymentNote} />
+            )}
             {isManual && order.manual_payment_reference ? (
-              <SummaryRow label="UTR / Reference" value={order.manual_payment_reference} />
+              <SummaryRow label="Payment Reference" value={order.manual_payment_reference} />
             ) : null}
             {isManual && order.manual_payment_sender_name ? (
               <SummaryRow label="Sender Name" value={order.manual_payment_sender_name} />
@@ -175,7 +187,11 @@ export default function OrderSuccessView() {
 
         {isManualPending ? (
           <div className="mb-5 space-y-2 rounded-xl border border-gold-200 bg-gold-50 p-4 text-left text-xs leading-5 text-gold-900">
-            <p>Please keep your payment screenshot until verification is complete.</p>
+            <p>
+              {isUpi
+                ? 'If the UPI app did not open or payment was not completed, complete payment using the order number as the note.'
+                : 'Use the order number above as the bank transfer payment note.'}
+            </p>
             <p>Orders are dispatched only after the payment is verified and the order is confirmed.</p>
           </div>
         ) : null}

@@ -22,6 +22,9 @@ export function buildAdminOrderMessage(order: Order): string {
   lines.push(`*Total:* Rs. ${order.total.toLocaleString('en-IN')}`);
   lines.push('');
   lines.push(`*Payment:* ${formatPaymentMethod(order.payment_method)} - ${order.payment_status}`);
+  if (order.payment_method === 'manual_upi' || order.payment_method === 'bank_transfer') {
+    lines.push(`*Payment Note:* Gridaan Order ${order.order_number}`);
+  }
   if (order.manual_payment_reference) {
     lines.push(`*UTR / Reference:* ${order.manual_payment_reference}`);
   }

@@ -54,12 +54,6 @@ export default function CheckoutView() {
   const [payment, setPayment] = useState<PaymentMethod>('cod');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState(false);
-  const [qrAvailable, setQrAvailable] = useState(true);
-  const [manualPayment, setManualPayment] = useState({
-    reference: '',
-    senderName: '',
-    note: '',
-  });
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -115,26 +109,8 @@ export default function CheckoutView() {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: '' }));
   }
 
-  function setManualField(key: keyof typeof manualPayment, value: string) {
-    setManualPayment((current) => ({ ...current, [key]: value }));
-    const errorKey =
-      key === 'reference'
-        ? 'manual_payment_reference'
-        : key === 'senderName'
-          ? 'manual_payment_sender_name'
-          : 'manual_payment_note';
-    if (errors[errorKey]) {
-      setErrors((current) => ({ ...current, [errorKey]: '' }));
-    }
-  }
-
   function selectPayment(method: PaymentMethod) {
     setPayment(method);
-    setErrors((current) => ({
-      ...current,
-      manual_payment_reference: '',
-      manual_payment_sender_name: '',
-    }));
   }
 
   function validate(): boolean {
@@ -146,15 +122,6 @@ export default function CheckoutView() {
     if (!form.city.trim()) e.city = 'City is required';
     if (!form.state) e.state = 'State is required';
     if (!form.pincode.match(/^\d{6}$/)) e.pincode = 'PIN must be 6 digits';
-    if (
-      (payment === 'manual_upi' || payment === 'bank_transfer') &&
-      !manualPayment.reference.trim()
-    ) {
-      e.manual_payment_reference = 'UPI Transaction ID / UTR is required';
-    }
-    if (payment === 'bank_transfer' && !manualPayment.senderName.trim()) {
-      e.manual_payment_sender_name = 'Sender name is required for bank transfer';
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -189,6 +156,7 @@ export default function CheckoutView() {
   }
 
   async function placeOrder() {
+    if (processing) return;
     if (!validate()) {
       toast.error('Please fix the highlighted fields');
       return;
@@ -219,12 +187,6 @@ export default function CheckoutView() {
             country: 'India',
           },
           payment_method: payment,
-          manual_payment_reference:
-            payment === 'cod' ? undefined : manualPayment.reference.trim(),
-          manual_payment_sender_name:
-            payment === 'cod' ? undefined : manualPayment.senderName.trim() || undefined,
-          manual_payment_note:
-            payment === 'cod' ? undefined : manualPayment.note.trim() || undefined,
           coupon_code: coupon?.code,
           notes: form.notes,
           items: guest.map((g) => ({ product_id: g.product.id, quantity: g.quantity })),
@@ -251,6 +213,14 @@ export default function CheckoutView() {
       clear();
       setSearchQuery('');
       startTransition(() => {
+        if (payment === 'manual_upi') {
+          router.push(`/payment/upi-redirect?order=${encodeURIComponent(order.id)}`);
+          return;
+        }
+        if (payment === 'bank_transfer') {
+          router.push(`/order-success?orderId=${encodeURIComponent(order.id)}&payment=pending`);
+          return;
+        }
         router.push(`/order-success?order=${encodeURIComponent(order.order_number)}`);
       });
     } catch (error) {
@@ -366,8 +336,8 @@ export default function CheckoutView() {
                     active={payment === 'manual_upi'}
                     onClick={() => selectPayment('manual_upi')}
                     icon={QrCode}
-                    title="Pay via UPI"
-                    desc="Pay by QR or UPI ID, then submit your transaction reference"
+                    title="Pay with any UPI app"
+                    desc="Paytm, PhonePe, Google Pay, BHIM and other UPI apps supported"
                   />
                 ) : null}
                 {bankTransferAvailable ? (
@@ -376,76 +346,27 @@ export default function CheckoutView() {
                     onClick={() => selectPayment('bank_transfer')}
                     icon={Building2}
                     title="Bank Transfer"
-                    desc="Transfer to our bank account, then submit your UTR"
+                    desc="Place the order, then transfer using the order number as payment note"
                   />
                 ) : null}
               </div>
 
               {payment === 'manual_upi' && manualUpiAvailable ? (
-                <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-50/60 p-5">
-                  <div className="grid gap-5 sm:grid-cols-[10rem_1fr] sm:items-start">
-                    {qrAvailable ? (
-                      <div className="rounded-xl border border-stone-200 bg-white p-2">
-                        {/* A missing deployment asset falls back to the configured UPI ID. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src="/payment/upi-qr.png"
-                          alt="Gridaan UPI payment QR code"
-                          className="aspect-square w-full object-contain"
-                          onError={() => setQrAvailable(false)}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-neutral-900">Manual UPI payment</p>
-                      <p className="mt-2 text-sm leading-6 text-neutral-600">
-                        Scan this QR or pay to the UPI ID. After payment, enter your UPI Transaction ID /
-                        UTR below. Orders are confirmed only after payment verification.
-                      </p>
-                      <div className="mt-4 space-y-2">
-                        {manualPaymentConfig.upiId ? (
-                          <PaymentDetail
-                            label="UPI ID"
-                            value={manualPaymentConfig.upiId}
-                            onCopy={() => copyValue(manualPaymentConfig.upiId!, 'UPI ID')}
-                          />
-                        ) : null}
-                        {manualPaymentConfig.upiName ? (
-                          <PaymentDetail label="Payee Name" value={manualPaymentConfig.upiName} />
-                        ) : null}
-                        <PaymentDetail label="Amount" value={formatRupees(total)} />
-                      </div>
+                <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-50/70 p-5">
+                  <div className="flex gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-gold-700 shadow-sm">
+                      <QrCode className="h-5 w-5" />
                     </div>
-                  </div>
-                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="UPI Transaction ID / UTR *"
-                      error={errors.manual_payment_reference}
-                      className="sm:col-span-2"
-                    >
-                      <input
-                        value={manualPayment.reference}
-                        onChange={(event) => setManualField('reference', event.target.value)}
-                        placeholder="Enter the transaction reference"
-                        className={inputCls(errors.manual_payment_reference)}
-                      />
-                    </Field>
-                    <Field label="Sender Name (optional)">
-                      <input
-                        value={manualPayment.senderName}
-                        onChange={(event) => setManualField('senderName', event.target.value)}
-                        placeholder="Name used for payment"
-                        className={inputCls()}
-                      />
-                    </Field>
-                    <Field label="Payment Note (optional)">
-                      <input
-                        value={manualPayment.note}
-                        onChange={(event) => setManualField('note', event.target.value)}
-                        placeholder="Any helpful payment detail"
-                        className={inputCls()}
-                      />
-                    </Field>
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900">Fast UPI redirect</p>
+                      <p className="mt-2 text-sm leading-6 text-neutral-600">
+                        We will create your pending order first, then open your UPI app with the exact
+                        amount and order number filled in. Payment is verified manually before dispatch.
+                      </p>
+                      <p className="mt-3 text-xs font-medium text-gold-900">
+                        Please do not close the page until your order number is saved.
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -454,8 +375,9 @@ export default function CheckoutView() {
                 <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-5">
                   <p className="text-sm font-semibold text-neutral-900">Bank transfer details</p>
                   <p className="mt-2 text-sm leading-6 text-neutral-600">
-                    Transfer the exact order total and enter the transaction reference below. Orders are
-                    confirmed only after the credit is verified in our bank account.
+                    Place the order first, then transfer the exact total. Use the order number shown on
+                    the next page as your payment note. Orders are confirmed only after bank credit is
+                    verified.
                   </p>
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {manualPaymentConfig.bankAccountName ? (
@@ -485,41 +407,18 @@ export default function CheckoutView() {
                     ) : null}
                     <PaymentDetail label="Amount" value={formatRupees(total)} />
                   </div>
-                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <Field label="Transaction Reference / UTR *" error={errors.manual_payment_reference}>
-                      <input
-                        value={manualPayment.reference}
-                        onChange={(event) => setManualField('reference', event.target.value)}
-                        placeholder="Enter the bank transaction reference"
-                        className={inputCls(errors.manual_payment_reference)}
-                      />
-                    </Field>
-                    <Field label="Sender Name *" error={errors.manual_payment_sender_name}>
-                      <input
-                        value={manualPayment.senderName}
-                        onChange={(event) => setManualField('senderName', event.target.value)}
-                        placeholder="Account holder / sender name"
-                        className={inputCls(errors.manual_payment_sender_name)}
-                      />
-                    </Field>
-                    <Field label="Payment Note (optional)" className="sm:col-span-2">
-                      <textarea
-                        value={manualPayment.note}
-                        onChange={(event) => setManualField('note', event.target.value)}
-                        placeholder="Any helpful payment detail"
-                        rows={2}
-                        className={cn(inputCls(), 'resize-none')}
-                      />
-                    </Field>
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                    Your order number becomes the payment note after checkout, for example:
+                    <span className="font-semibold"> Gridaan Order GR-0000001</span>.
                   </div>
                 </div>
               ) : null}
 
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                <p className="font-semibold">Please enter the correct UPI Transaction ID / UTR.</p>
+                <p className="font-semibold">Orders are confirmed only after payment verification.</p>
                 <p className="mt-1 text-xs leading-5 text-amber-800">
-                  Do not close the page until your order number is saved. A submitted reference does not
-                  mark an order paid; our team verifies actual account credit first.
+                  UPI and bank-transfer payments stay pending until our team verifies actual account
+                  credit. We never mark a manual payment as paid automatically.
                 </p>
                 {paymentSupportHref ? (
                   <a
@@ -605,7 +504,9 @@ export default function CheckoutView() {
                     Processing…
                   </span>
                 ) : (
-                  `${payment === 'cod' ? 'Place Order' : 'Submit Payment for Review'} — ${formatRupees(total)}`
+                  payment === 'manual_upi'
+                    ? `Pay ${formatRupees(total)} via UPI`
+                    : `${payment === 'cod' ? 'Place Order' : 'Place Bank Transfer Order'} — ${formatRupees(total)}`
                 )}
               </button>
 

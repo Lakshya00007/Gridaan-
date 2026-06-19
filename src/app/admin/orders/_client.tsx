@@ -205,7 +205,7 @@ export default function OrdersAdmin({
                         </span>
                         {isManualPaymentMethod(o.payment_method) && o.manual_payment_reference && (
                           <p className="max-w-40 truncate text-[11px] text-neutral-500">
-                            UTR: {o.manual_payment_reference}
+                            Ref: {o.manual_payment_reference}
                           </p>
                         )}
                       </div>
@@ -414,7 +414,7 @@ function OrderDrawer({
                       onChange={(event) => setRejectionReason(event.target.value)}
                       maxLength={500}
                       rows={3}
-                      placeholder="For example: reference could not be matched to an account credit"
+                      placeholder="For example: account credit could not be matched to this order"
                       className="w-full resize-none rounded-lg border border-neutral-200 bg-white p-2 text-xs outline-none focus:border-gold-400"
                     />
                     <button

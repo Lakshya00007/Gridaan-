@@ -21,12 +21,41 @@ export const bankTransferAvailable =
   manualPaymentConfig.enabled &&
   Boolean(manualPaymentConfig.bankAccountNumber && manualPaymentConfig.bankIfsc);
 
+export function buildUpiIntentUrl({
+  upiId,
+  payeeName,
+  amount,
+  orderNumber,
+}: {
+  upiId: string;
+  payeeName: string;
+  amount: number;
+  orderNumber: string;
+}): string {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error('UPI amount must be a positive number');
+  }
+
+  const params = [
+    ['pa', upiId],
+    ['pn', payeeName],
+    ['am', numericAmount.toFixed(2)],
+    ['cu', 'INR'],
+    ['tn', `Gridaan Order ${orderNumber}`],
+  ] as const;
+
+  return `upi://pay?${params
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&')}`;
+}
+
 export function formatPaymentMethod(method: string): string {
   switch (method) {
     case 'cod':
       return 'Cash on Delivery';
     case 'manual_upi':
-      return 'Manual UPI';
+      return 'UPI';
     case 'bank_transfer':
       return 'Bank Transfer';
     default:
