@@ -3,22 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  ArrowRight,
-  CheckCircle2,
-  Copy,
-  IndianRupee,
-  MessageCircle,
-  Smartphone,
-} from 'lucide-react';
+import { ArrowRight, CheckCircle2, Copy, IndianRupee, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatRupees } from '@/lib/utils';
 import type { OrderSuccessSummary } from '@/types';
-import {
-  buildUpiIntentUrl,
-  getPaymentSupportHref,
-  manualPaymentConfig,
-} from '@/lib/manual-payment';
+import { buildUpiIntentUrl, manualPaymentConfig } from '@/lib/manual-payment';
 
 type OrderLookupResponse = {
   order?: OrderSuccessSummary;
@@ -32,12 +20,12 @@ export default function UpiRedirectView() {
   const [order, setOrder] = useState<OrderSuccessSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [attemptedOpen, setAttemptedOpen] = useState(false);
-  const [returnedFromApp, setReturnedFromApp] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const [desktopFallback, setDesktopFallback] = useState(false);
   const [qrAvailable, setQrAvailable] = useState(true);
-  const attemptedRef = useRef(false);
+  const attemptedOpenRef = useRef(false);
   const leftPageRef = useRef(false);
-  const supportHref = getPaymentSupportHref();
+  const navigatedRef = useRef(false);
 
   useEffect(() => {
     if (!orderId) {
@@ -59,6 +47,8 @@ export default function UpiRedirectView() {
       .finally(() => setLoading(false));
   }, [orderId]);
 
+  const paymentNote = order ? `Gridaan Order ${order.order_number}` : '';
+
   const upiIntentUrl = useMemo(() => {
     if (!order || !manualPaymentConfig.upiId) return null;
     try {
@@ -73,51 +63,71 @@ export default function UpiRedirectView() {
     }
   }, [order]);
 
+  function goToOrderStatus() {
+    if (!order || navigatedRef.current) return;
+    navigatedRef.current = true;
+    router.push(`/order-success?orderId=${encodeURIComponent(order.id)}&payment=pending`);
+  }
+
+  function openUpiApp() {
+    if (!upiIntentUrl) {
+      toast.error('UPI payment is not available right now');
+      setShowFallback(true);
+      return;
+    }
+
+    attemptedOpenRef.current = true;
+    window.location.href = upiIntentUrl;
+  }
+
   useEffect(() => {
-    if (!order || !upiIntentUrl || attemptedRef.current) return;
+    if (!order || !upiIntentUrl || attemptedOpenRef.current) return;
 
-    attemptedRef.current = true;
-    const timeout = window.setTimeout(() => {
-      setAttemptedOpen(true);
-      window.location.href = upiIntentUrl;
-    }, 1100);
+    const openTimer = window.setTimeout(openUpiApp, 900);
+    const fallbackTimer = window.setTimeout(() => {
+      if (!leftPageRef.current && !navigatedRef.current) {
+        setDesktopFallback(true);
+        setShowFallback(true);
+      }
+    }, 4500);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(openTimer);
+      window.clearTimeout(fallbackTimer);
+    };
+    // openUpiApp intentionally reads the latest intent URL and order state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order, upiIntentUrl]);
 
   useEffect(() => {
+    function scheduleReturn() {
+      if (!leftPageRef.current || !attemptedOpenRef.current || navigatedRef.current) return;
+      window.setTimeout(goToOrderStatus, 900);
+    }
+
     function handleVisibilityChange() {
       if (document.hidden) {
         leftPageRef.current = true;
         return;
       }
-      if (leftPageRef.current && attemptedRef.current) {
-        setReturnedFromApp(true);
-      }
+      scheduleReturn();
     }
 
-    function handleFocus() {
-      if (leftPageRef.current && attemptedRef.current) {
-        setReturnedFromApp(true);
-      }
+    function handlePageHide() {
+      leftPageRef.current = true;
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', scheduleReturn);
+    window.addEventListener('pagehide', handlePageHide);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', scheduleReturn);
+      window.removeEventListener('pagehide', handlePageHide);
     };
-  }, []);
-
-  function openUpiApp() {
-    if (!upiIntentUrl) {
-      toast.error('UPI payment is not available right now');
-      return;
-    }
-    setAttemptedOpen(true);
-    window.location.href = upiIntentUrl;
-  }
+    // goToOrderStatus is stable enough for this page lifecycle listener.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
 
   async function copyValue(value: string, label: string) {
     try {
@@ -128,14 +138,9 @@ export default function UpiRedirectView() {
     }
   }
 
-  function goToOrderStatus() {
-    if (!order) return;
-    router.push(`/order-success?orderId=${encodeURIComponent(order.id)}&payment=pending`);
-  }
-
   if (loading) {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold-500 border-t-transparent" />
       </div>
     );
@@ -143,7 +148,7 @@ export default function UpiRedirectView() {
 
   if (error || !order) {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center bg-white px-4">
+      <div className="flex min-h-screen items-center justify-center bg-white px-4">
         <div className="max-w-md text-center">
           <h1 className="heading-display text-2xl text-neutral-950">Payment could not start</h1>
           <p className="mt-3 text-sm text-neutral-500">
@@ -159,7 +164,7 @@ export default function UpiRedirectView() {
 
   if (order.payment_method !== 'manual_upi') {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center bg-white px-4">
+      <div className="flex min-h-screen items-center justify-center bg-white px-4">
         <div className="max-w-md text-center">
           <h1 className="heading-display text-2xl text-neutral-950">This is not a UPI order</h1>
           <p className="mt-3 text-sm text-neutral-500">
@@ -173,11 +178,9 @@ export default function UpiRedirectView() {
     );
   }
 
-  const paymentNote = `Gridaan Order ${order.order_number}`;
-
   return (
-    <div className="min-h-screen bg-white px-4 py-10">
-      <div className="mx-auto flex min-h-[78vh] max-w-xl flex-col items-center justify-center text-center">
+    <main className="flex min-h-screen bg-white px-5 py-8">
+      <div className="mx-auto flex w-full max-w-md flex-col items-center justify-center text-center">
         <div className="relative mb-8">
           <div className="absolute inset-0 rounded-full bg-gold-100 blur-2xl" />
           <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-neutral-950 text-white shadow-xl">
@@ -191,145 +194,101 @@ export default function UpiRedirectView() {
         </div>
 
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold-700">
-          Order {order.order_number}
+          ORDER {order.order_number}
         </p>
         <h1 className="heading-display text-3xl text-neutral-950 md:text-4xl">
           Processing payment…
         </h1>
-        <p className="mt-4 max-w-sm text-sm leading-6 text-neutral-500">
-          Redirecting to your UPI App. Please do not press back button.
+        <p className="mt-4 max-w-xs text-sm leading-6 text-neutral-500">
+          Redirecting to your UPI app. Please do not press back.
         </p>
 
-        <div className="mt-7 w-full rounded-3xl border border-neutral-100 bg-[#fbfaf8] p-5 text-left shadow-sm">
-          <div className="flex items-center justify-between gap-4 text-sm">
-            <span className="text-neutral-500">Amount</span>
-            <span className="font-bold text-neutral-950">{formatRupees(order.total)}</span>
-          </div>
-          <div className="mt-3 flex items-start justify-between gap-4 text-sm">
-            <span className="text-neutral-500">Payment Note</span>
-            <span className="max-w-[60%] break-words text-right font-semibold text-neutral-950">
-              {paymentNote}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-6 grid w-full gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={openUpiApp}
-            disabled={!upiIntentUrl}
-            className="btn-primary justify-center py-3 text-sm disabled:opacity-50"
-          >
-            Open UPI App
-          </button>
-          <button
-            type="button"
-            onClick={goToOrderStatus}
-            className="btn-outline justify-center py-3 text-sm"
-          >
-            I have completed payment
-          </button>
-        </div>
-
-        {returnedFromApp || attemptedOpen ? (
-          <p className="mt-4 rounded-full bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
-            Payment app closed. Continue to order status when you are done.
-          </p>
-        ) : null}
-
-        <div className="mt-8 w-full rounded-3xl border border-neutral-100 bg-white p-5 shadow-sm md:hidden">
-          <p className="text-sm font-semibold text-neutral-950">Desktop or QR fallback</p>
-          <p className="mt-2 text-xs leading-5 text-neutral-500">
-            If your UPI app does not open, use this QR or copy the UPI ID.
-          </p>
-          {qrAvailable ? (
-            <div className="mx-auto mt-4 max-w-44 rounded-2xl border border-neutral-100 bg-white p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/payment/upi-qr.png"
-                alt="Gridaan UPI QR code"
-                className="aspect-square w-full object-contain"
-                onError={() => setQrAvailable(false)}
-              />
-            </div>
-          ) : null}
-          {manualPaymentConfig.upiId ? (
+        <div className="mt-12 w-full">
+          {!showFallback ? (
             <button
               type="button"
-              onClick={() => copyValue(manualPaymentConfig.upiId!, 'UPI ID')}
-              className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-[#fbfaf8] px-4 py-3 text-left"
+              onClick={() => setShowFallback(true)}
+              className="text-xs font-semibold text-neutral-400 underline underline-offset-4 transition-colors hover:text-neutral-900"
             >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                  UPI ID
-                </span>
-                <span className="block truncate text-sm font-semibold text-neutral-950">
-                  {manualPaymentConfig.upiId}
-                </span>
-              </span>
-              <Copy className="h-4 w-4 shrink-0 text-neutral-500" />
+              UPI app not opening?
             </button>
-          ) : null}
-        </div>
+          ) : (
+            <div className="rounded-3xl border border-neutral-100 bg-[#fbfaf8] p-4 text-left shadow-sm">
+              {desktopFallback ? (
+                <p className="mb-3 rounded-full bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+                  Using desktop? Scan QR to pay.
+                </p>
+              ) : null}
+              <p className="text-sm font-semibold text-neutral-950">Pay another way</p>
+              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                Scan the QR or copy the UPI ID. Your order will be verified manually.
+              </p>
 
-        <div className="mt-8 hidden w-full rounded-3xl border border-neutral-100 bg-white p-5 shadow-sm md:block">
-          <p className="text-sm font-semibold text-neutral-950">Desktop fallback</p>
-          <p className="mt-2 text-xs leading-5 text-neutral-500">
-            UPI app redirects work best on mobile. On desktop, scan the QR or copy the UPI ID
-            and use the payment note above.
-          </p>
-          <div className="mt-4 grid items-center gap-5 sm:grid-cols-[9rem_1fr]">
-            {qrAvailable ? (
-              <div className="rounded-2xl border border-neutral-100 bg-white p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/payment/upi-qr.png"
-                  alt="Gridaan UPI QR code"
-                  className="aspect-square w-full object-contain"
-                  onError={() => setQrAvailable(false)}
+              <button
+                type="button"
+                onClick={openUpiApp}
+                disabled={!upiIntentUrl}
+                className="btn-primary mt-4 w-full justify-center py-3 text-sm disabled:opacity-50"
+              >
+                Open UPI App
+              </button>
+
+              {qrAvailable ? (
+                <div className="mx-auto mt-4 max-w-40 rounded-2xl border border-neutral-100 bg-white p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/payment/upi-qr.png"
+                    alt="Gridaan UPI QR code"
+                    className="aspect-square w-full object-contain"
+                    onError={() => setQrAvailable(false)}
+                  />
+                </div>
+              ) : null}
+
+              <div className="mt-4 space-y-2">
+                {manualPaymentConfig.upiId ? (
+                  <FallbackCopyButton
+                    label="UPI ID"
+                    value={manualPaymentConfig.upiId}
+                    onCopy={() => copyValue(manualPaymentConfig.upiId!, 'UPI ID')}
+                  />
+                ) : null}
+                <FallbackCopyButton
+                  label="Payment Note"
+                  value={paymentNote}
+                  onCopy={() => copyValue(paymentNote, 'Payment note')}
                 />
               </div>
-            ) : null}
-            <div className="space-y-3">
-              {manualPaymentConfig.upiId ? (
-                <button
-                  type="button"
-                  onClick={() => copyValue(manualPaymentConfig.upiId!, 'UPI ID')}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-[#fbfaf8] px-4 py-3 text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                      UPI ID
-                    </span>
-                    <span className="block truncate text-sm font-semibold text-neutral-950">
-                      {manualPaymentConfig.upiId}
-                    </span>
-                  </span>
-                  <Copy className="h-4 w-4 shrink-0 text-neutral-500" />
-                </button>
-              ) : null}
-              <div className="rounded-2xl border border-neutral-100 bg-[#fbfaf8] px-4 py-3 text-left">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                  Payment Note
-                </span>
-                <span className="block text-sm font-semibold text-neutral-950">{paymentNote}</span>
-              </div>
             </div>
-          </div>
+          )}
         </div>
-
-        {supportHref ? (
-          <a
-            href={supportHref}
-            target={supportHref.startsWith('https://') ? '_blank' : undefined}
-            rel={supportHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
-            className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-neutral-500 underline underline-offset-4 hover:text-neutral-900"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Need help with payment?
-          </a>
-        ) : null}
       </div>
-    </div>
+    </main>
+  );
+}
+
+function FallbackCopyButton({
+  label,
+  value,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  onCopy: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3 text-left"
+    >
+      <span className="min-w-0">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+          {label}
+        </span>
+        <span className="block truncate text-sm font-semibold text-neutral-950">{value}</span>
+      </span>
+      <Copy className="h-4 w-4 shrink-0 text-neutral-500" />
+    </button>
   );
 }
