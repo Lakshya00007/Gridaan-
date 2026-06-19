@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!config) {
     return buildPageMetadata({
       title: 'Category Not Found',
-      description: 'This jewelry category is not available.',
+      description: 'This fashion jewellery category is not available.',
       path: '/shop',
       robots: { index: false, follow: false },
     });
@@ -37,9 +37,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     keywords: [
       config.fullLabel,
       'Gridaan',
-      'fashion jewelry',
-      'affordable Indian fashion jewelry',
-      'premium-look jewelry',
+      'artificial jewellery',
+      'imitation jewellery',
+      'fashion jewellery',
+      'affordable Indian fashion jewellery',
+      'premium-look fashion jewellery',
     ],
   });
 }

@@ -116,7 +116,7 @@ export default function Header({ categories, user }: HeaderProps) {
     <>
       {/* Announcement bar */}
       <div className="bg-neutral-950 px-4 py-2 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-white sm:text-[11px]">
-        <span>Premium-look fashion jewelry from ₹99</span>
+        <span>Artificial fashion jewellery from ₹99</span>
         <span className="hidden sm:inline"> · </span>
         <span className="hidden sm:inline">COD available across India</span>
       </div>

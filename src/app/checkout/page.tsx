@@ -3,7 +3,7 @@ import { buildNoIndexMetadata } from '@/lib/seo';
 
 export const metadata = buildNoIndexMetadata(
   'Checkout',
-  'Complete your Gridaan jewelry order securely.'
+  'Complete your Gridaan artificial fashion jewellery order.'
 );
 
 export default function CheckoutPage() {

@@ -1,4 +1,5 @@
 import InfoPage from '@/components/InfoPage';
+import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
 import { safeJsonLd } from '@/lib/safe-json';
 import { buildPageMetadata, absoluteUrl } from '@/lib/seo';
 
@@ -6,7 +7,7 @@ const faqs = [
   {
     question: 'What does Gridaan sell?',
     answer:
-      "Gridaan sells affordable Indian fashion and imitation jewelry including women's earrings, necklaces, bangles, bracelets, rings, anklets, hair jewellery, full sets, and men's chains, pendants, kadas, bracelets, rings, and ear studs.",
+      "Gridaan sells affordable Indian artificial, imitation, and fashion jewellery including women's earrings, necklaces, bangles, bracelets, rings, anklets, hair jewellery, full sets, and men's chains, pendants, kadas, bracelets, rings, and ear studs.",
   },
   {
     question: 'Is Cash on Delivery available?',
@@ -16,12 +17,11 @@ const faqs = [
   {
     question: 'How long does delivery take?',
     answer:
-      'Delivery timing can vary by location, courier reach, holidays, and sale periods. Orders are usually processed before dispatch and then delivered within a standard shipping window.',
+      'Orders are usually processed within 1–2 business days. Standard delivery is generally estimated at 3–7 business days after dispatch depending on location, courier reach, holidays, and PIN code serviceability.',
   },
   {
     question: 'Are products real gold?',
-    answer:
-      'No. Gridaan currently focuses on fashion and imitation jewelry, not certified real gold or diamond jewelry, unless clearly stated otherwise on a specific product in the future.',
+    answer: `No. ${JEWELLERY_COMPLIANCE_DISCLAIMER}`,
   },
   {
     question: 'How do I track my order?',
@@ -29,9 +29,9 @@ const faqs = [
       'You can check your order progress through the account and order confirmation flow where available, or contact support with your order number for help.',
   },
   {
-    question: 'Can I return or exchange jewelry?',
+    question: 'Can I return or exchange jewellery?',
     answer:
-      'If you receive a damaged, incorrect, or clearly problematic item, contact support quickly with your order number and photos so the team can review the issue.',
+      'Return or exchange eligibility depends on the Return & Refund Policy. If you receive a damaged or wrong item, contact support quickly with your order number, photos, and an unboxing video where available so the team can review the issue.',
   },
   {
     question: 'How do I contact support?',
@@ -39,16 +39,16 @@ const faqs = [
       'Visit the Contact page for current support options. WhatsApp support may be available when configured on the storefront.',
   },
   {
-    question: 'How should I care for fashion jewelry?',
+    question: 'How should I care for fashion jewellery?',
     answer:
-      'Keep jewelry away from water, perfume, and direct moisture. Store it in a dry place and wipe it gently after use to help preserve its finish.',
+      'Keep jewellery away from water, perfume, and direct moisture. Store it in a dry place and wipe it gently after use to help preserve its finish.',
   },
 ];
 
 export const metadata = buildPageMetadata({
   title: 'FAQs | Gridaan Jewelry',
   description:
-    'Find answers to common questions about Gridaan jewelry, orders, payments, shipping, COD, returns, and product care.',
+    'Find answers to common questions about Gridaan artificial and imitation jewellery, orders, payments, shipping, COD, returns, and product care.',
   path: '/faq',
 });
 
@@ -71,7 +71,7 @@ export default function FaqPage() {
       <InfoPage
         eyebrow="FAQs"
         title="Frequently Asked Questions"
-        description="Answers to common questions about Gridaan jewelry, orders, delivery, COD availability, returns, and product care."
+        description="Answers to common questions about Gridaan artificial and imitation jewellery, orders, delivery, COD availability, returns, and product care."
         sections={faqs.map((item) => ({
           heading: item.question,
           body: [item.answer],

@@ -4,7 +4,7 @@ import { buildPageMetadata } from '@/lib/seo';
 export const metadata = buildPageMetadata({
   title: 'Help Center | Gridaan',
   description:
-    'Get help with orders, payments, shipping, returns, cancellations, and jewelry care at Gridaan.',
+    'Get help with orders, payments, shipping, returns, cancellations, and fashion jewellery care at Gridaan.',
   path: '/help',
 });
 
@@ -13,7 +13,7 @@ export default function HelpPage() {
     <InfoPage
       eyebrow="Help"
       title="Help Center"
-      description="Everything customers usually need before or after placing a Gridaan order, from payment questions to shipping and jewelry care guidance."
+      description="Everything customers usually need before or after placing a Gridaan order, from payment questions to shipping and fashion jewellery care guidance."
       sections={[
         {
           heading: 'Orders',
@@ -46,7 +46,7 @@ export default function HelpPage() {
         {
           heading: 'Product care',
           body: [
-            'Fashion and imitation jewelry should be stored in a dry place and kept away from water, perfume, lotion, and direct moisture to help preserve finish and shine.',
+            'Fashion and imitation jewellery should be stored in a dry place and kept away from water, perfume, lotion, and direct moisture to help preserve finish and shine.',
             'Wipe pieces gently after use and store them separately to reduce tangling, scratches, and plating wear over time.',
           ],
         },

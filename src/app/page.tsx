@@ -40,11 +40,11 @@ export default async function HomePage() {
               <h1 className="heading-display mb-5 text-4xl text-neutral-900 sm:text-5xl md:text-6xl lg:text-7xl">
                 Affordable Indian
                 <br />
-                <span className="heading-italic text-gold-500">Fashion Jewelry</span>
+                <span className="heading-italic text-gold-500">Fashion Jewellery</span>
               </h1>
 
               <p className="mx-auto mb-7 max-w-md text-base leading-relaxed text-neutral-500 md:text-lg lg:mx-0">
-                Premium-look earrings, necklace sets &amp; festive jewelry starting ₹99.
+                Artificial and imitation earrings, necklace sets &amp; festive fashion jewellery starting ₹99.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
@@ -79,7 +79,7 @@ export default async function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-gold-200/30 to-gold-100/20 rounded-[3rem] rotate-6" />
                 <Image
                   src="/hero-jewelry.webp"
-                  alt="Premium jewelry collection"
+                  alt="Premium-look artificial fashion jewellery collection"
                   fill
                   priority
                   sizes="(max-width: 1024px) 100vw, 50vw"
@@ -188,7 +188,7 @@ export default async function HomePage() {
             <div className="absolute inset-0">
               <Image
                 src="/wedding-guest-banner.webp"
-                alt="Wedding guest jewelry edit"
+                alt="Wedding guest fashion jewellery edit"
                 fill
                 sizes="100vw"
                 className="object-cover opacity-40"
@@ -302,7 +302,7 @@ export default async function HomePage() {
                 Launch Offer
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-white mb-4">
-                Festive jewelry that looks premium, priced for repeat wear
+                Festive fashion jewellery that looks premium, priced for repeat wear
               </h2>
               <p className="text-white/80 max-w-lg mx-auto mb-8">
                 Explore women earrings, jewellery sets, and everyday gifting picks without stretching your

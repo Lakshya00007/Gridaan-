@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 
 export const siteConfig = {
   name: 'Gridaan',
-  title: 'Gridaan | Affordable Indian Fashion Jewellery',
+  title: 'Gridaan | Artificial & Fashion Jewellery Online',
   description:
-    "Shop affordable Indian fashion jewellery online at Gridaan. Explore women’s earrings, necklaces, full jewellery sets, men’s chains, bracelets, rings, and festive gifting styles.",
+    "Shop affordable artificial, imitation, and fashion jewellery online at Gridaan. Explore women’s earrings, necklaces, full jewellery sets, men’s chains, bracelets, rings, and festive gifting styles.",
   url: 'https://www.gridaan.com',
   logo: 'https://www.gridaan.com/logo-search.png',
   icon: 'https://www.gridaan.com/icon.png',
@@ -38,6 +38,8 @@ export function buildMetadata(overrides: Partial<Metadata> = {}): Metadata {
     },
     keywords: [
       'fashion jewellery',
+      'artificial jewellery',
+      'imitation jewellery',
       'Indian fashion jewellery',
       'women earrings',
       'women necklaces',

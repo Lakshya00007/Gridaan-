@@ -10,6 +10,8 @@ const staticRoutes = [
   '/help',
   '/contact',
   '/shipping',
+  '/return-refund-policy',
+  '/cancellation-policy',
   '/faq',
   '/privacy',
   '/terms',

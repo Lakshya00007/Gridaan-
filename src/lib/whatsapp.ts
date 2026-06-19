@@ -40,7 +40,7 @@ export function buildStorefrontWhatsAppLink(): string | null {
     warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Storefront WhatsApp button is disabled.');
     return null;
   }
-  const message = encodeURIComponent('Hi! I want to know more about your jewelry collection.');
+  const message = encodeURIComponent('Hi! I want to know more about your fashion jewellery collection.');
   return `https://wa.me/${serverEnv.WHATSAPP_ADMIN_NUMBER}?text=${message}`;
 }
 

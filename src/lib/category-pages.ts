@@ -114,10 +114,10 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     heading: 'Men Chains',
     seoTitle: 'Men Chains | Cuban, Rope and Box Chains | Gridaan',
     description:
-      'Cuban chains, rope chains, box chains and gold/silver plated chain styles.',
+      'Cuban chains, rope chains, box-style chains and gold-tone or silver-tone fashion chain styles.',
     intro:
       'Explore statement and everyday men chain styles designed for easy gifting and bold styling at accessible prices.',
-    highlights: ['Cuban', 'Rope', 'Box Style', 'Gold/Silver Plated'],
+    highlights: ['Cuban', 'Rope', 'Box Style', 'Gold-Tone / Silver-Tone'],
   },
   {
     slug: 'men-pendants',

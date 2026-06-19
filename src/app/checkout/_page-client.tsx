@@ -18,7 +18,7 @@ export default function CheckoutPageClient() {
         <div className="text-center">
           <p className="text-5xl mb-4">🛒</p>
           <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
-          <p className="text-sm text-neutral-500 mb-6">Add some beautiful jewelry first!</p>
+          <p className="text-sm text-neutral-500 mb-6">Add some beautiful fashion jewellery first!</p>
           <Link href="/shop" className="btn-primary">
             Shop Now
           </Link>

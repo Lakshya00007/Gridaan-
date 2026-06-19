@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import type { Product } from '@/types';
 import { useRouter } from 'next/navigation';
 import { getWishlistState, toggleWishlist as toggleWishlistItem } from '@/lib/wishlist-client';
+import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
 
 export default function ProductPageClient({ product }: { product: Product }) {
   const [selected, setSelected] = useState(0);
@@ -163,6 +164,13 @@ export default function ProductPageClient({ product }: { product: Product }) {
 
           <p className="text-sm text-neutral-500 leading-relaxed mb-8">{product.description}</p>
 
+          <div className="mb-6 rounded-2xl border border-gold-100 bg-gold-50/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-700">
+              Fashion jewellery disclosure
+            </p>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">{JEWELLERY_COMPLIANCE_DISCLAIMER}</p>
+          </div>
+
           <div className="mb-6">
             {isOut ? (
               <span className="text-sm text-red-500 font-medium">Out of Stock</span>
@@ -245,7 +253,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
             {[
               { icon: Truck, text: 'Free shipping on orders above ₹999' },
               { icon: Shield, text: 'COD and manually verified payment options' },
-              { icon: RotateCcw, text: '7-day hassle-free return policy' },
+              { icon: RotateCcw, text: 'Return support for damaged or wrong items' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3">
                 <Icon className="w-5 h-5 text-gold-500" />

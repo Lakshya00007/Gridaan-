@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { MessageCircle, ShieldCheck, WalletCards, Truck } from 'lucide-react';
 import { getCategoryPageHref } from '@/lib/category-pages';
+import { BUSINESS_CATEGORY, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
 
 interface FooterProps {
   whatsappHref?: string | null;
@@ -17,11 +18,11 @@ export default function Footer({ whatsappHref }: FooterProps) {
                 Gridaan Launch Edit
               </p>
               <h3 className="heading-display text-2xl md:text-3xl mb-3">
-                Premium-look jewelry at everyday prices
+                Premium-look fashion jewellery at everyday prices
               </h3>
               <p className="text-sm text-neutral-400 leading-relaxed">
-                Shop women earrings, necklaces, bangles, full jewellery sets, and men&apos;s accessories
-                made for festive looks and everyday gifting without the heavy price tag.
+                Shop artificial and imitation jewellery for women&apos;s earrings, necklaces, bangles,
+                full jewellery sets, and men&apos;s accessories made for festive looks and everyday gifting.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -48,9 +49,13 @@ export default function Footer({ whatsappHref }: FooterProps) {
           <div>
             <span className="heading-display text-xl">Gridaan</span>
             <p className="mt-4 text-sm leading-relaxed text-neutral-400 max-w-sm">
-              Affordable Indian fashion jewelry with a premium look for gifting, festive dressing, and
-              everyday styling.
+              Affordable Indian artificial and imitation fashion jewellery with a premium look for gifting,
+              festive dressing, and everyday styling.
             </p>
+            <p className="mt-4 text-xs leading-6 text-neutral-500">
+              {JEWELLERY_COMPLIANCE_DISCLAIMER}
+            </p>
+            <p className="mt-2 text-xs leading-6 text-neutral-500">{BUSINESS_CATEGORY}</p>
           </div>
 
           <FooterColumn
@@ -70,6 +75,8 @@ export default function Footer({ whatsappHref }: FooterProps) {
             items={[
               { label: 'Contact Us', href: '/contact' },
               { label: 'Shipping', href: '/shipping' },
+              { label: 'Return & Refund Policy', href: '/return-refund-policy' },
+              { label: 'Cancellation Policy', href: '/cancellation-policy' },
               { label: 'FAQ', href: '/faq' },
               { label: 'Privacy Policy', href: '/privacy' },
               { label: 'Terms of Service', href: '/terms' },
@@ -122,7 +129,9 @@ export default function Footer({ whatsappHref }: FooterProps) {
           <p className="text-xs text-neutral-500">
             © {new Date().getFullYear()} Gridaan. All rights reserved.
           </p>
-          <p className="text-[10px] text-neutral-600">Affordable Indian fashion jewelry with a premium look.</p>
+          <p className="text-[10px] text-neutral-600">
+            Artificial, imitation & fashion jewellery only. Manual payment verification before dispatch.
+          </p>
         </div>
       </div>
     </footer>

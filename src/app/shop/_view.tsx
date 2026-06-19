@@ -28,26 +28,48 @@ type ShopHeroCard = {
   image: string;
 };
 
-export default function ShopView() {
+interface ShopViewProps {
+  initialProducts: Product[];
+  initialCount: number;
+  initialCategories: Category[];
+  initialQueryString: string;
+}
+
+export default function ShopView({
+  initialProducts,
+  initialCount,
+  initialCategories,
+  initialQueryString,
+}: ShopViewProps) {
   const sp = useSearchParams();
   const router = useRouter();
-  const { searchQuery, setSearchQuery } = useUI();
+  const { setSearchQuery } = useUI();
   const [, startTransition] = useTransition();
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [count, setCount] = useState(initialCount);
+  const [loading, setLoading] = useState(false);
 
+  const queryString = sp.toString();
   const category = sp.get('category') || 'all';
   const sort = (sp.get('sort') as Sort) || 'featured';
-  const q = sp.get('q') || searchQuery || '';
-  const maxPrice = Number(sp.get('max') || 5000);
+  const q = sp.get('q') || '';
+  const maxParam = sp.get('max');
+  const maxPrice = maxParam ? Number(maxParam) : null;
 
   useEffect(() => {
+    if (queryString === initialQueryString) {
+      setProducts(initialProducts);
+      setCount(initialCount);
+      setCategories(initialCategories);
+      setLoading(false);
+      return;
+    }
+
     let alive = true;
     setLoading(true);
-    fetch('/api/products?' + sp.toString())
+    fetch(queryString ? `/api/products?${queryString}` : '/api/products')
       .then((r) => r.json())
       .then((data) => {
         if (!alive) return;
@@ -59,7 +81,7 @@ export default function ShopView() {
     return () => {
       alive = false;
     };
-  }, [sp]);
+  }, [initialCategories, initialCount, initialProducts, initialQueryString, queryString]);
 
   const currentCategory = categories.find((c) => c.slug === category);
   const currentCategoryPage = category !== 'all' ? getCategoryPageByFilterSlug(category) : null;
@@ -84,7 +106,9 @@ export default function ShopView() {
 
   const filtered = useMemo(() => {
     let result = [...products];
-    if (maxPrice) result = result.filter((p) => p.price <= maxPrice);
+    if (maxPrice != null && Number.isFinite(maxPrice)) {
+      result = result.filter((p) => p.price <= maxPrice);
+    }
     return result;
   }, [products, maxPrice]);
 
@@ -94,7 +118,8 @@ export default function ShopView() {
       if (v === null || v === '') next.delete(k);
       else next.set(k, v);
     }
-    startTransition(() => router.push(`/shop?${next.toString()}`));
+    const query = next.toString();
+    startTransition(() => router.push(query ? `/shop?${query}` : '/shop'));
   }
 
   return (
@@ -106,7 +131,11 @@ export default function ShopView() {
               <div className="flex items-center gap-3 text-xs text-neutral-500">
                 <span className="font-semibold text-gold-700">{heroEyebrow}</span>
                 <span className="h-px w-8 bg-gold-300" />
-                <span>{count} {count === 1 ? 'product' : 'products'}</span>
+                <span>
+                  {loading && products.length === 0
+                    ? 'Loading products…'
+                    : `${count} ${count === 1 ? 'product' : 'products'}`}
+                </span>
               </div>
               <h1 className="heading-display mt-4 text-4xl text-neutral-950 md:text-5xl">
                 {heroTitle}
@@ -291,7 +320,7 @@ function FilterButton({ onOpen: _onOpen }: { onOpen: () => void }) {
   const [open, setOpen] = useState(false);
   const sp = useSearchParams();
   const router = useRouter();
-  const max = Number(sp.get('max') || 5000);
+  const max = Number(sp.get('max') || 10000);
 
   return (
     <>
@@ -337,7 +366,8 @@ function FilterButton({ onOpen: _onOpen }: { onOpen: () => void }) {
                     onChange={(e) => {
                       const next = new URLSearchParams(sp);
                       next.set('max', e.target.value);
-                      router.replace(`/shop?${next.toString()}`, { scroll: false });
+                      const query = next.toString();
+                      router.replace(query ? `/shop?${query}` : '/shop', { scroll: false });
                     }}
                     className="w-full accent-gold-500"
                   />
