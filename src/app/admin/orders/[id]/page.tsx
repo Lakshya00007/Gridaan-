@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { CreditCard, FileDown, IndianRupee, MessageCircle, PackageCheck, Printer, RefreshCcw, Truck } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../../_components/ui';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatPaymentMethod } from '@/lib/manual-payment';
 import { buildCustomerOrderLink, buildStatusUpdateLink } from '@/lib/whatsapp-links';
 import { getAdminOrderDetail } from '@/server/admin';
@@ -27,7 +27,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdminPermission('orders.read');
+  await requireAdminPagePermission('orders.read');
   const parsed = paramsSchema.safeParse(await params);
   if (!parsed.success) notFound();
 

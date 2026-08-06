@@ -1,14 +1,14 @@
 import { Star } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { getReviewsPageData } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Reviews · Admin' };
 
 export default async function ReviewsPage() {
-  await requireAdminPermission('reviews.read');
+  await requireAdminPagePermission('reviews.read');
   const { reviews } = await getReviewsPageData();
 
   return (

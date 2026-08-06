@@ -2,14 +2,14 @@ import { Gift } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { createServiceClient } from '@/lib/supabase/server';
 import { safeAdminQuery } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Loyalty Program · Admin' };
 
 export default async function LoyaltyPage() {
-  await requireAdminPermission('loyalty.read');
+  await requireAdminPagePermission('loyalty.read');
   const supabase = createServiceClient();
   const [accounts, transactions] = await Promise.all([
     safeAdminQuery<

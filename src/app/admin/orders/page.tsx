@@ -1,6 +1,6 @@
 import OrdersAdmin from './_client';
 import { createServiceClient } from '@/lib/supabase/server';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { getAdminWhatsAppNumber } from '@/lib/whatsapp';
 import type { Order } from '@/types';
 
@@ -16,18 +16,19 @@ interface PageProps {
 }
 
 export default async function Page({ searchParams }: PageProps) {
-  await requireAdminPermission('orders.read');
+  await requireAdminPagePermission('orders.read');
   const supabase = createServiceClient();
   const { page } = await searchParams;
   const pageNumber = Math.max(1, Number.parseInt(page ?? '1', 10) || 1);
   const from = (pageNumber - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
-  const { data: orders, count } = await supabase
+  const { data: orders, count, error } = await supabase
     .from('orders')
     .select('*, items:order_items(*)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to);
+  if (error) throw new Error('Order data could not be loaded');
 
   return (
     <OrdersAdmin

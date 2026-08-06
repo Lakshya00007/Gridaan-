@@ -2,27 +2,41 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Archive, Copy, Plus, Pencil, Search, Star, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTime, formatRupees, cn } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 import ProductForm from './_form';
+import { AdminPageHeader, EmptyState } from '../_components/ui';
+import { AdminConfirmDialog } from '../_components/confirm-dialog';
 
 export default function ProductsAdmin({
   products,
   count,
   categories,
+  page,
+  pageSize,
+  hasMore,
 }: {
   products: (Product & { category: Category | null })[];
   count: number;
   categories: Category[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }) {
   const [list, setList] = useState(products);
   const [selected, setSelected] = useState<string[]>([]);
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
   const [open, setOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    { type: 'delete'; product: Product } | { type: 'bulk_archive' } | null
+  >(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   const filtered = list.filter((p) =>
     [p.name, p.slug, p.sku, p.category?.name].join(' ').toLowerCase().includes(q.toLowerCase())
@@ -31,7 +45,6 @@ export default function ProductsAdmin({
   const selectedProducts = list.filter((product) => selected.includes(product.id));
 
   async function handleDelete(id: string) {
-    if (!confirm('Permanently delete this product? Archiving is safer if this product has historical orders.')) return;
     const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       toast.error('Failed to delete');
@@ -88,7 +101,6 @@ export default function ProductsAdmin({
 
   async function bulkArchive() {
     if (selectedProducts.length === 0) return;
-    if (!confirm(`Archive ${selectedProducts.length} selected products?`)) return;
     for (const product of selectedProducts) {
       await handleSave({ ...product, is_active: false, archived_at: new Date().toISOString() });
     }
@@ -98,42 +110,42 @@ export default function ProductsAdmin({
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Products</h1>
-          <p className="text-sm text-neutral-500">{count.toLocaleString('en-IN')} total products</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditing({
-              in_stock: true,
-              is_active: true,
-              is_new_arrival: true,
-              images: [],
-              image_metadata: [],
-              tags: [],
-              stock_count: 0,
-              reserved_stock: 0,
-              low_stock_threshold: 5,
-              reorder_level: 0,
-              price: 0,
-              original_price: 0,
-              return_eligible: true,
-              cod_eligible: false,
-            });
-            setOpen(true);
-          }}
-          className="btn-primary"
-        >
-          <Plus className="w-4 h-4" /> Add product
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Products"
+        description={`${count.toLocaleString('en-IN')} products in the catalog.`}
+        action={
+          <button
+            onClick={() => {
+              setEditing({
+                in_stock: true,
+                is_active: true,
+                is_new_arrival: true,
+                images: [],
+                image_metadata: [],
+                tags: [],
+                stock_count: 0,
+                reserved_stock: 0,
+                low_stock_threshold: 5,
+                reorder_level: 0,
+                price: 0,
+                original_price: 0,
+                return_eligible: true,
+                cod_eligible: false,
+              });
+              setOpen(true);
+            }}
+            className="btn-primary min-h-11"
+          >
+            <Plus className="w-4 h-4" /> Add product
+          </button>
+        }
+      />
 
       {selected.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold-200 bg-gold-50 p-3">
           <p className="text-sm font-semibold text-gold-900">{selected.length} selected</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={bulkArchive} className="rounded-lg bg-neutral-950 px-3 py-2 text-xs font-semibold text-white">
+            <button type="button" onClick={() => setPendingAction({ type: 'bulk_archive' })} className="min-h-11 rounded-lg bg-neutral-950 px-3 py-2 text-xs font-semibold text-white">
               Bulk archive
             </button>
             <button type="button" onClick={() => setSelected([])} className="rounded-lg border border-gold-200 bg-white px-3 py-2 text-xs font-semibold text-gold-800">
@@ -146,6 +158,7 @@ export default function ProductsAdmin({
       <div className="mb-4 relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
         <input
+          aria-label="Search products on this page"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search products…"
@@ -153,12 +166,37 @@ export default function ProductsAdmin({
         />
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-neutral-500">
+          Showing {(page - 1) * pageSize + (list.length ? 1 : 0)}–{(page - 1) * pageSize + list.length} of {count.toLocaleString('en-IN')}
+        </p>
+        <div className="flex items-center gap-2" aria-label="Product pagination">
+          <button
+            type="button"
+            onClick={() => router.push(`/admin/products?page=${page - 1}`)}
+            disabled={page <= 1}
+            className="min-h-11 rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-neutral-500">Page {page}</span>
+          <button
+            type="button"
+            onClick={() => router.push(`/admin/products?page=${page + 1}`)}
+            disabled={!hasMore}
+            className="min-h-11 rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-12 text-center text-neutral-400">No products found.</div>
+          <EmptyState title="No matching products" description="Adjust the search or move to another catalog page." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[86rem]" aria-label="Products">
               <thead>
                 <tr className="border-b border-neutral-100 text-left bg-neutral-50">
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Product</th>
@@ -243,7 +281,7 @@ export default function ProductsAdmin({
                     <td className="px-4 py-3 text-xs text-neutral-500">{formatDateTime(p.updated_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        <Link href={`/product/${p.slug}`} target="_blank" className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg">
+                        <Link href={`/product/${p.slug}`} target="_blank" aria-label={`View ${p.name} on storefront`} className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg">
                           <Eye className="w-4 h-4" />
                         </Link>
                         <button
@@ -279,8 +317,9 @@ export default function ProductsAdmin({
                           <Archive className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(p.id)}
+                          onClick={() => setPendingAction({ type: 'delete', product: p })}
                           className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -302,6 +341,33 @@ export default function ProductsAdmin({
           onSave={handleSave}
         />
       )}
+
+      <AdminConfirmDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !confirmBusy) setPendingAction(null);
+        }}
+        title={pendingAction?.type === 'delete' ? 'Delete product permanently?' : 'Archive selected products?'}
+        description={
+          pendingAction?.type === 'delete'
+            ? `${pendingAction.product.name} will be permanently deleted. Archive it instead when historical orders reference this product.`
+            : `${selectedProducts.length} selected products will be hidden from the active catalog.`
+        }
+        confirmLabel={pendingAction?.type === 'delete' ? 'Delete product' : 'Archive products'}
+        destructive={pendingAction?.type === 'delete'}
+        busy={confirmBusy}
+        onConfirm={() => {
+          if (!pendingAction) return;
+          setConfirmBusy(true);
+          const action = pendingAction.type === 'delete'
+            ? handleDelete(pendingAction.product.id)
+            : bulkArchive();
+          void action.finally(() => {
+            setConfirmBusy(false);
+            setPendingAction(null);
+          });
+        }}
+      />
     </div>
   );
 }

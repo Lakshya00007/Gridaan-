@@ -1,7 +1,7 @@
 import { Settings } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { getSettingsPageData } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,7 @@ const plannedSections = [
 ];
 
 export default async function SettingsPage() {
-  await requireAdminPermission('settings.read');
+  await requireAdminPagePermission('settings.read');
   const { settings } = await getSettingsPageData();
   const visibleSettings = settings.filter((setting) => !setting.is_secret);
 

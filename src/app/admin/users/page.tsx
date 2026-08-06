@@ -1,14 +1,14 @@
 import { UserCog } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { getAdminUsersPageData } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin Users & Roles · Admin' };
 
 export default async function AdminUsersPage() {
-  await requireAdminPermission('admin_users.read');
+  await requireAdminPagePermission('admin_users.read');
   const { users } = await getAdminUsersPageData();
 
   return (

@@ -1,13 +1,18 @@
 'use client';
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, X, Loader2 } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { slugify } from '@/lib/utils';
 import type { Category } from '@/types';
+import { AdminPageHeader, EmptyState } from '../_components/ui';
+import { AdminConfirmDialog } from '../_components/confirm-dialog';
 
 export default function CategoriesAdmin({ categories: initial }: { categories: Category[] }) {
   const [list, setList] = useState(initial);
   const [editing, setEditing] = useState<Partial<Category> | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleSave(cat: Partial<Category>) {
     const isUpdate = !!cat.id;
@@ -29,7 +34,6 @@ export default function CategoriesAdmin({ categories: initial }: { categories: C
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this category?')) return;
     const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       toast.error('Failed to delete');
@@ -41,22 +45,22 @@ export default function CategoriesAdmin({ categories: initial }: { categories: C
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Categories</h1>
-          <p className="text-sm text-neutral-500">{list.length} total</p>
-        </div>
-        <button
-          onClick={() => setEditing({ is_active: true, sort_order: list.length + 1 })}
-          className="btn-primary"
-        >
-          <Plus className="w-4 h-4" /> Add category
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Categories"
+        description={`${list.length.toLocaleString('en-IN')} catalog categories.`}
+        action={
+          <button
+            onClick={() => setEditing({ is_active: true, sort_order: list.length + 1 })}
+            className="btn-primary min-h-11"
+          >
+            <Plus className="w-4 h-4" /> Add category
+          </button>
+        }
+      />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {list.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((c) => (
-          <div key={c.id} className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-100">
+          <div key={c.id} className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gold-50 flex items-center justify-center text-xl">
@@ -80,21 +84,42 @@ export default function CategoriesAdmin({ categories: initial }: { categories: C
               <button
                 onClick={() => setEditing(c)}
                 className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                aria-label={`Edit ${c.name}`}
               >
                 <Pencil className="w-4 h-4" />
               </button>
               <button
-                onClick={() => handleDelete(c.id)}
+                onClick={() => setPendingDelete(c)}
                 className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                aria-label={`Delete ${c.name}`}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
         ))}
-      </div>
+      </div> : <EmptyState title="No categories" description="Create a category to organise the product catalog." />}
 
       {editing && <CategoryForm category={editing} onClose={() => setEditing(null)} onSave={handleSave} />}
+      <AdminConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+        title="Delete category?"
+        description={pendingDelete ? `${pendingDelete.name} will be permanently deleted. The server will reject deletion when products still reference it.` : ''}
+        confirmLabel="Delete category"
+        destructive
+        busy={deleting}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          setDeleting(true);
+          void handleDelete(pendingDelete.id).finally(() => {
+            setDeleting(false);
+            setPendingDelete(null);
+          });
+        }}
+      />
     </div>
   );
 }
@@ -131,13 +156,18 @@ function CategoryForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-8 p-6">
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg bg-white p-6 shadow-2xl outline-none focus-visible:ring-4 focus-visible:ring-gold-200">
+      <form onSubmit={handleSubmit}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{category.id ? 'Edit' : 'New'} category</h2>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-neutral-100 rounded-lg">
+          <Dialog.Title className="text-lg font-semibold">{category.id ? 'Edit' : 'New'} category</Dialog.Title>
+          <Dialog.Close asChild>
+          <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-neutral-100" aria-label="Close category form">
             <X className="w-5 h-5" />
           </button>
+          </Dialog.Close>
         </div>
         <div className="space-y-3">
           <Field label="Name *">
@@ -176,15 +206,17 @@ function CategoryForm({
           .input:focus { border-color: #d4882e; box-shadow: 0 0 0 2px #faecd5; }
         `}</style>
       </form>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="text-xs font-medium text-neutral-500 mb-1.5 block">{label}</label>
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium text-neutral-500">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }

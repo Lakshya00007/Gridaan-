@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createServiceClient } from '@/lib/supabase/server';
+import { getVerifiedPlacedOrders } from '@/lib/admin/metrics';
 import { formatDate } from '@/lib/utils';
 import type { Order, OrderStatusHistory, PaymentRecord, Product, RefundRecord } from '@/types';
 
@@ -63,6 +64,9 @@ export type AdminPaymentDetail = {
 };
 
 export type DashboardData = {
+  generatedAt: string;
+  range: DashboardRange;
+  rangeLabel: string;
   metrics: {
     grossRevenue: number;
     netRevenue: number;
@@ -92,13 +96,27 @@ export type DashboardData = {
   recentActivities: { id: string; action: string; entity: string; created_at: string }[];
 };
 
+export type DashboardRange = '24h' | '7d' | '30d';
+
 async function safeQuery<T>(label: string, query: PromiseLike<{ data: unknown; error: { message: string } | null }>, fallback: T): Promise<T> {
   const { data, error } = await query;
   if (error) {
     console.warn(`[admin-data] ${label} failed`, error.message);
-    return fallback;
+    throw new Error('Admin data could not be loaded');
   }
   return (data as T) ?? fallback;
+}
+
+async function safeCount(
+  label: string,
+  query: PromiseLike<{ count: number | null; error: { message: string } | null }>
+) {
+  const { count, error } = await query;
+  if (error) {
+    console.warn(`[admin-data] ${label} failed`, error.message);
+    throw new Error('Admin metric could not be loaded');
+  }
+  return count ?? 0;
 }
 
 function numberValue(value: unknown) {
@@ -108,10 +126,13 @@ function numberValue(value: unknown) {
 function groupByDay(rows: { created_at: string; total?: number }[], valueKey?: 'total') {
   const map = new Map<string, number>();
   for (const row of rows) {
-    const label = formatDate(row.created_at);
-    map.set(label, (map.get(label) ?? 0) + (valueKey ? numberValue(row[valueKey]) : 1));
+    const dateKey = row.created_at.slice(0, 10);
+    map.set(dateKey, (map.get(dateKey) ?? 0) + (valueKey ? numberValue(row[valueKey]) : 1));
   }
-  return Array.from(map.entries()).map(([label, value]) => ({ label, value })).slice(-14);
+  return Array.from(map.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(-14)
+    .map(([date, value]) => ({ label: formatDate(date), value }));
 }
 
 function groupBy(rows: Record<string, unknown>[], key: string) {
@@ -123,36 +144,46 @@ function groupBy(rows: Record<string, unknown>[], key: string) {
   return Array.from(map.entries()).map(([label, value]) => ({ label, value }));
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+function getDashboardRange(range: DashboardRange) {
+  const durationHours = range === '24h' ? 24 : range === '7d' ? 24 * 7 : 24 * 30;
+  return {
+    start: new Date(Date.now() - durationHours * 60 * 60 * 1000).toISOString(),
+    label: range === '24h' ? 'Last 24 hours' : range === '7d' ? 'Last 7 days' : 'Last 30 days',
+  };
+}
+
+export async function getDashboardData(range: DashboardRange = '30d'): Promise<DashboardData> {
   const supabase = createServiceClient();
-  const [orders, products, profiles, payments, refunds, activities] = await Promise.all([
+  const selectedRange = getDashboardRange(range);
+  const [orders, products, profiles, payments, refunds, activities, totalCustomers, newCustomers] = await Promise.all([
     safeQuery<Order[]>(
       'orders',
       supabase
         .from('orders')
         .select('*, items:order_items(*)')
+        .gte('created_at', selectedRange.start)
         .order('created_at', { ascending: false })
-        .limit(200),
+        .limit(1000),
       []
     ),
     safeQuery<Product[]>(
       'products',
-      supabase.from('products').select('*, category:categories(*)').order('updated_at', { ascending: false }).limit(200),
+      supabase.from('products').select('*, category:categories(*)').order('updated_at', { ascending: false }).limit(500),
       []
     ),
     safeQuery<{ id: string; full_name: string | null; email: string | null; phone: string | null; created_at: string }[]>(
       'profiles',
-      supabase.from('profiles').select('id, full_name, email, phone, created_at').order('created_at', { ascending: false }).limit(50),
+      supabase.from('profiles').select('id, full_name, email, phone, created_at').gte('created_at', selectedRange.start).order('created_at', { ascending: false }).limit(50),
       []
     ),
     safeQuery<PaymentRecord[]>(
       'payments',
-      supabase.from('payments').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('payments').select('*').gte('created_at', selectedRange.start).order('created_at', { ascending: false }).limit(500),
       []
     ),
     safeQuery<RefundRecord[]>(
       'refunds',
-      supabase.from('refunds').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('refunds').select('*').gte('created_at', selectedRange.start).order('created_at', { ascending: false }).limit(500),
       []
     ),
     safeQuery<{ id: string; action: string; entity: string; created_at: string }[]>(
@@ -160,14 +191,19 @@ export async function getDashboardData(): Promise<DashboardData> {
       supabase.from('admin_audit_logs').select('id, action, entity, created_at').order('created_at', { ascending: false }).limit(12),
       []
     ),
+    safeCount('profiles-count', supabase.from('profiles').select('id', { count: 'exact', head: true })),
+    safeCount(
+      'new-profiles-count',
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', selectedRange.start)
+    ),
   ]);
 
   const analyticsOrders = orders.filter((order) => order.is_test !== true);
-  const placedOrders = analyticsOrders.filter((order) => order.payment_status === 'captured' && order.order_status !== 'pending_payment' && order.order_status !== 'payment_processing');
+  const placedOrders = getVerifiedPlacedOrders(analyticsOrders);
   const paidOrders = placedOrders;
   const grossRevenue = paidOrders.reduce((sum, order) => sum + numberValue(order.gross_amount ?? order.subtotal + order.discount), 0);
   const refundAmount = refunds
-    .filter((refund) => refund.status === 'processed' || refund.status === 'processing')
+    .filter((refund) => refund.status === 'processed')
     .reduce((sum, refund) => sum + numberValue(refund.approved_amount_paise ?? refund.requested_amount_paise) / 100, 0);
   const netRevenue = paidOrders.reduce((sum, order) => sum + numberValue(order.final_amount ?? order.total), 0) - refundAmount;
   const activeProducts = products.filter((product) => product.is_active !== false && !product.archived_at).length;
@@ -178,13 +214,16 @@ export async function getDashboardData(): Promise<DashboardData> {
     return stock - reserved > 0 && stock - reserved <= threshold;
   });
   const outOfStockProducts = products.filter((product) => !product.in_stock || numberValue(product.stock_count) <= 0);
-  const orderItems = analyticsOrders.flatMap((order) => order.items ?? []);
+  const orderItems = paidOrders.flatMap((order) => order.items ?? []);
   const productSales = new Map<string, number>();
   for (const item of orderItems) {
     productSales.set(item.product_name, (productSales.get(item.product_name) ?? 0) + item.quantity);
   }
 
   return {
+    generatedAt: new Date().toISOString(),
+    range,
+    rangeLabel: selectedRange.label,
     metrics: {
       grossRevenue,
       netRevenue: Math.max(0, netRevenue),
@@ -193,8 +232,8 @@ export async function getDashboardData(): Promise<DashboardData> {
       pendingPayments: analyticsOrders.filter((order) => order.payment_status === 'pending' || order.payment_status === 'authorised').length,
       cancelledOrders: analyticsOrders.filter((order) => order.order_status === 'cancelled').length,
       refundAmount,
-      totalCustomers: profiles.length,
-      newCustomers: profiles.filter((profile) => Date.now() - new Date(profile.created_at).getTime() <= 30 * 24 * 60 * 60 * 1000).length,
+      totalCustomers,
+      newCustomers,
       activeProducts,
       lowStockProducts: lowStockProducts.length,
       outOfStockProducts: outOfStockProducts.length,

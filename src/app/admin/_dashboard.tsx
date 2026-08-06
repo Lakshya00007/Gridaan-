@@ -1,6 +1,3 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -16,19 +13,22 @@ import {
   Users,
 } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, MiniBarChart, StatusBadge } from './_components/ui';
-import { cn, formatDateTime, formatRupees } from '@/lib/utils';
+import { formatDateTime, formatRupees } from '@/lib/utils';
+import { maskAdminPhone } from '@/lib/admin/privacy';
 import type { DashboardData } from '@/server/admin';
 
-const dateFilters = ['Today', 'Yesterday', 'Last 7 days', 'Last 30 days', 'This month', 'Last month', 'Custom range'];
+const dateFilters = [
+  { label: 'Last 24 hours', value: '24h' },
+  { label: 'Last 7 days', value: '7d' },
+  { label: 'Last 30 days', value: '30d' },
+] as const;
 
 export default function AdminDashboard({ data }: { data: DashboardData }) {
-  const [dateFilter, setDateFilter] = useState('Last 30 days');
-
   const metrics = [
     { label: 'Gross revenue', value: formatRupees(data.metrics.grossRevenue), icon: IndianRupee, tone: 'green' as const },
     { label: 'Net revenue', value: formatRupees(data.metrics.netRevenue), icon: ReceiptIndianRupee, tone: 'gold' as const },
     { label: 'Total orders', value: data.metrics.totalOrders.toLocaleString('en-IN'), icon: ShoppingCart, tone: 'blue' as const },
-    { label: 'Captured online orders', value: data.metrics.paidOrders.toLocaleString('en-IN'), icon: CreditCard, tone: 'green' as const },
+    { label: 'Verified placed orders', value: data.metrics.paidOrders.toLocaleString('en-IN'), icon: CreditCard, tone: 'green' as const },
     { label: 'Pending payments', value: data.metrics.pendingPayments.toLocaleString('en-IN'), icon: AlertTriangle, tone: 'amber' as const },
     { label: 'Cancelled orders', value: data.metrics.cancelledOrders.toLocaleString('en-IN'), icon: PackageX, tone: 'red' as const },
     { label: 'Refund amount', value: formatRupees(data.metrics.refundAmount), icon: RotateCcw, tone: 'red' as const },
@@ -44,29 +44,28 @@ export default function AdminDashboard({ data }: { data: DashboardData }) {
     <div className="p-4 sm:p-6 lg:p-8">
       <AdminPageHeader
         title="Dashboard"
-        description="Operational overview for orders, revenue, payments, inventory, customers, and admin activity."
+        description={`Verified commerce activity for ${data.rangeLabel.toLowerCase()}. Test records and unverified payments are excluded from sales.`}
         action={
-          <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-stone-200 bg-white p-1">
+          <div className="flex max-w-full gap-1 overflow-x-auto rounded-lg border border-stone-200 bg-white p-1" aria-label="Dashboard date range">
             {dateFilters.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setDateFilter(filter)}
-                className={cn(
-                  'whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition',
-                  dateFilter === filter ? 'bg-neutral-950 text-white' : 'text-neutral-500 hover:bg-stone-50 hover:text-neutral-950'
-                )}
+              <Link
+                key={filter.value}
+                href={`/admin?range=${filter.value}`}
+                aria-current={data.range === filter.value ? 'page' : undefined}
+                className={`whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold transition ${
+                  data.range === filter.value
+                    ? 'bg-neutral-950 text-white'
+                    : 'text-neutral-500 hover:bg-stone-50 hover:text-neutral-950'
+                }`}
               >
-                {filter}
-              </button>
+                {filter.label}
+              </Link>
             ))}
           </div>
         }
       />
 
-      <div className="mb-6 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3 text-sm text-gold-900">
-        Conversion metrics are shown only when a reliable storefront analytics source is connected.
-      </div>
+      <p className="mb-4 text-right text-xs text-neutral-500">Updated {formatDateTime(data.generatedAt)}</p>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         {metrics.map((metric) => (
@@ -78,7 +77,7 @@ export default function AdminDashboard({ data }: { data: DashboardData }) {
         <AdminSection title="Revenue over time" description="Paid and captured order totals. Test orders are hidden when classified.">
           <MiniBarChart data={data.revenueOverTime} valuePrefix="inr" />
         </AdminSection>
-        <AdminSection title="Orders over time" description="Order volume by creation date.">
+        <AdminSection title="Orders over time" description="Verified placed orders by creation date.">
           <MiniBarChart data={data.ordersOverTime} />
         </AdminSection>
         <AdminSection title="Payment method distribution">
@@ -123,7 +122,7 @@ export default function AdminDashboard({ data }: { data: DashboardData }) {
               ))}
             </div>
           ) : (
-            <EmptyState title="No audit activity yet" description="Admin actions will be logged once the new audit table is active." />
+            <EmptyState title="No admin activity in this period" description="Recorded admin actions will appear here." />
           )}
         </AdminSection>
       </div>
@@ -175,7 +174,7 @@ export default function AdminDashboard({ data }: { data: DashboardData }) {
               {data.recentCustomers.map((customer) => (
                 <div key={customer.id} className="rounded-lg border border-stone-100 p-3">
                   <p className="truncate text-sm font-semibold">{customer.full_name ?? customer.email ?? customer.phone ?? 'Customer'}</p>
-                  <p className="truncate text-xs text-neutral-500">{customer.email ?? customer.phone ?? 'No contact saved'}</p>
+                  <p className="truncate text-xs text-neutral-500">{customer.email ?? maskAdminPhone(customer.phone)}</p>
                 </div>
               ))}
             </div>
