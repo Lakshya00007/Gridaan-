@@ -19,7 +19,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Women Earrings',
     fullLabel: 'Women Earrings',
     heading: 'Women Earrings',
-    seoTitle: 'Women Earrings | Jhumkas, Studs, Hoops & Chandbalis | Gridaan',
+    seoTitle: 'Women Earrings | Jhumkas, Studs, Hoops & Chandbalis',
     description:
       'Jhumkas, studs, hoops, chandbali earrings and ear cuffs for daily, festive and wedding looks.',
     intro:
@@ -33,7 +33,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Women Necklaces',
     fullLabel: 'Women Necklaces',
     heading: 'Women Necklaces',
-    seoTitle: 'Women Necklaces | Chokers, Pendants & Kundan-Look Styles | Gridaan',
+    seoTitle: 'Women Necklaces | Chokers, Pendants & Kundan-Look Styles',
     description:
       'Chokers, pendant sets, layered necklaces and kundan-look necklace styles.',
     intro:
@@ -47,7 +47,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Bangles & Bracelets',
     fullLabel: 'Bangles & Bracelets',
     heading: 'Bangles & Bracelets',
-    seoTitle: 'Bangles & Bracelets | Lac, Metal & Charm Styles | Gridaan',
+    seoTitle: 'Bangles & Bracelets | Lac, Metal & Charm Styles',
     description:
       'Lac bangles, metal bangles, charm bracelets and ethnic bracelet styles.',
     intro:
@@ -60,7 +60,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Women Rings',
     fullLabel: 'Women Rings',
     heading: 'Women Rings',
-    seoTitle: 'Women Rings | Cocktail, Adjustable & Stackable Rings | Gridaan',
+    seoTitle: 'Women Rings | Cocktail, Adjustable & Stackable Rings',
     description:
       'Cocktail rings, adjustable rings, stackable rings and fashion rings.',
     intro:
@@ -73,7 +73,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Anklets & Toe Rings',
     fullLabel: 'Anklets & Toe Rings',
     heading: 'Anklets & Toe Rings',
-    seoTitle: 'Anklets & Toe Rings | Payal and Bichiya Styles | Gridaan',
+    seoTitle: 'Anklets & Toe Rings | Payal and Bichiya Styles',
     description:
       'Payal, bichiya, anklets and toe rings for ethnic and festive styling.',
     intro:
@@ -86,7 +86,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Maang Tikka & Hair Jewellery',
     fullLabel: 'Maang Tikka & Hair Jewellery',
     heading: 'Maang Tikka & Hair Jewellery',
-    seoTitle: 'Maang Tikka & Hair Jewellery | Festive Hair Accessories | Gridaan',
+    seoTitle: 'Maang Tikka & Hair Jewellery | Festive Hair Accessories',
     description:
       'Maang tikka, matha patti, hair chains and traditional hair jewellery.',
     intro:
@@ -99,7 +99,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Full Jewellery Sets',
     fullLabel: 'Full Jewellery Sets',
     heading: 'Full Jewellery Sets',
-    seoTitle: 'Full Jewellery Sets | Necklace, Earring & Festive Sets | Gridaan',
+    seoTitle: 'Full Jewellery Sets | Necklace, Earring & Festive Sets',
     description:
       'Necklace and earring combos, bridal-look sets and festive jewellery sets.',
     intro:
@@ -112,7 +112,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Men Chains',
     fullLabel: 'Men Chains',
     heading: 'Men Chains',
-    seoTitle: 'Men Chains | Cuban, Rope and Box Chains | Gridaan',
+    seoTitle: 'Men Chains | Cuban, Rope and Box Chains',
     description:
       'Cuban chains, rope chains, box-style chains and gold-tone or silver-tone fashion chain styles.',
     intro:
@@ -126,7 +126,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Men Pendants',
     fullLabel: 'Men Pendants',
     heading: 'Men Pendants',
-    seoTitle: 'Men Pendants | Om, Evil Eye & Statement Styles | Gridaan',
+    seoTitle: 'Men Pendants | Om, Evil Eye & Statement Styles',
     description:
       'Om pendants, skull pendants, initials, evil eye and statement pendants.',
     intro:
@@ -139,7 +139,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Men Kadas',
     fullLabel: 'Men Kadas',
     heading: 'Men Kadas',
-    seoTitle: 'Men Kadas | Metal and Steel-Finish Wristwear | Gridaan',
+    seoTitle: 'Men Kadas | Metal and Steel-Finish Wristwear',
     description:
       'Metal kadas, steel-finish kadas and bold everyday wristwear.',
     intro:
@@ -152,7 +152,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Men Bracelets',
     fullLabel: 'Men Bracelets',
     heading: 'Men Bracelets',
-    seoTitle: 'Men Bracelets | Rudraksha, Beaded & Leather-Metal Styles | Gridaan',
+    seoTitle: 'Men Bracelets | Rudraksha, Beaded & Leather-Metal Styles',
     description:
       'Rudraksha bracelets, lava stone bracelets, beaded bracelets and leather-metal styles.',
     intro:
@@ -166,7 +166,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Men Rings',
     fullLabel: 'Men Rings',
     heading: 'Men Rings',
-    seoTitle: 'Men Rings | Band, Signet and Stone-Look Styles | Gridaan',
+    seoTitle: 'Men Rings | Band, Signet and Stone-Look Styles',
     description:
       'Band rings, signet rings, stone-look rings and masculine fashion rings.',
     intro:
@@ -179,7 +179,7 @@ export const categoryPageConfigs: CategoryPageConfig[] = [
     shortLabel: 'Men Ear Studs',
     fullLabel: 'Men Ear Studs',
     heading: 'Men Ear Studs',
-    seoTitle: 'Men Ear Studs | Minimal Studs and Hoops | Gridaan',
+    seoTitle: 'Men Ear Studs | Minimal Studs and Hoops',
     description:
       'Small studs, hoops and minimal earrings for men.',
     intro:

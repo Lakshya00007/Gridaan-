@@ -10,13 +10,6 @@ const publicSchema = z.object({
     .default('false')
     .transform((value) => value === 'true'),
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().trim().optional(),
-  NEXT_PUBLIC_PAYMENT_SUPPORT_PHONE: z.string().trim().min(8).optional(),
-  NEXT_PUBLIC_PAYMENT_SUPPORT_EMAIL: z.string().email().optional(),
-  NEXT_PUBLIC_SUPPORT_PHONE: z.string().trim().min(8).optional(),
-  NEXT_PUBLIC_SUPPORT_EMAIL: z.string().email().optional(),
-  NEXT_PUBLIC_BUSINESS_NAME: z.string().trim().min(2).optional(),
-  NEXT_PUBLIC_BUSINESS_ADDRESS: z.string().trim().min(5).optional(),
-  NEXT_PUBLIC_RETURN_ADDRESS: z.string().trim().min(5).optional(),
 });
 
 function formatIssues(prefix: string, issues: z.ZodIssue[]) {
@@ -30,13 +23,6 @@ export const publicEnv = (() => {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED: process.env.NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED,
     NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || undefined,
-    NEXT_PUBLIC_PAYMENT_SUPPORT_PHONE: process.env.NEXT_PUBLIC_PAYMENT_SUPPORT_PHONE || undefined,
-    NEXT_PUBLIC_PAYMENT_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_PAYMENT_SUPPORT_EMAIL || undefined,
-    NEXT_PUBLIC_SUPPORT_PHONE: process.env.NEXT_PUBLIC_SUPPORT_PHONE || undefined,
-    NEXT_PUBLIC_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || undefined,
-    NEXT_PUBLIC_BUSINESS_NAME: process.env.NEXT_PUBLIC_BUSINESS_NAME || undefined,
-    NEXT_PUBLIC_BUSINESS_ADDRESS: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS || undefined,
-    NEXT_PUBLIC_RETURN_ADDRESS: process.env.NEXT_PUBLIC_RETURN_ADDRESS || undefined,
   });
 
   if (!parsed.success) {

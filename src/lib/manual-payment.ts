@@ -15,11 +15,11 @@ export function formatPaymentMethod(method: string): string {
     case 'emi':
       return 'EMI';
     case 'cod':
-      return 'Cash on Delivery (Unavailable)';
+      return 'Legacy payment method';
     case 'manual_upi':
-      return 'Legacy Manual UPI (Disabled)';
+      return 'Legacy payment method';
     case 'bank_transfer':
-      return 'Legacy Bank Transfer (Disabled)';
+      return 'Legacy payment method';
     default:
       return 'Online Payment';
   }
@@ -33,7 +33,7 @@ export function formatAdminPaymentLabel(method: string, status: PaymentStatus): 
   if (status === 'partially_refunded') return 'Partially refunded';
   if (status === 'refunded') return 'Refunded';
   if (method === 'manual_upi' || method === 'bank_transfer') return 'Legacy disabled';
-  if (method === 'cod') return 'COD unavailable';
+  if (method === 'cod') return 'Legacy disabled';
   return status.replace(/_/g, ' ');
 }
 

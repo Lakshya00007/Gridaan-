@@ -12,7 +12,6 @@ export interface ProductFilter {
     | 'price_asc'
     | 'price_desc'
     | 'newest'
-    | 'rating'
     | 'trending'
     | 'featured';
   limit?: number;

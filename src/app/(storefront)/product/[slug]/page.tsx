@@ -52,7 +52,8 @@ export default async function ProductPage({ params }: PageProps) {
   const productImages = (product.images ?? []).map((image) => toAbsoluteAssetUrl(image));
   const schemaImages = productImages.length > 0 ? productImages : [siteConfig.icon];
   const productUrl = `${siteConfig.url}/product/${product.slug}`;
-  const productSku = typeof product.metadata?.sku === 'string' ? product.metadata.sku : undefined;
+  const productSku =
+    product.sku ?? (typeof product.metadata?.sku === 'string' ? product.metadata.sku : undefined);
 
   const ldJson: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -76,6 +77,13 @@ export default async function ProductPage({ params }: PageProps) {
   };
   if (productSku) {
     ldJson.sku = productSku;
+  }
+  if (product.review_count > 0 && product.rating > 0) {
+    ldJson.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: product.rating,
+      reviewCount: product.review_count,
+    };
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([

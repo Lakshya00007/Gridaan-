@@ -12,7 +12,7 @@ export const getActiveCategories = unstable_cache(
       .order('sort_order', { ascending: true });
 
     if (error) {
-      console.error('[categories] failed to load', error);
+      console.error('[categories] failed to load', { code: error.code });
       return [];
     }
 

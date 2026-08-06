@@ -1,9 +1,13 @@
 import InfoPage from '@/components/InfoPage';
-import { BUSINESS_CATEGORY, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import {
+  BRAND_POSITIONING,
+  BUSINESS_CATEGORY,
+  JEWELLERY_COMPLIANCE_DISCLAIMER,
+} from '@/lib/business-info';
 import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata = buildPageMetadata({
-  title: 'About Gridaan | Affordable Artificial Fashion Jewellery',
+  title: 'About',
   description:
     "Learn about Gridaan, an Indian artificial and imitation fashion jewellery brand offering premium-look women's earrings, necklaces, full jewellery sets, men's accessories, and secure online payment.",
   path: '/about',
@@ -14,7 +18,7 @@ export default function AboutPage() {
     <InfoPage
       eyebrow="About"
       title="About Gridaan"
-      description="Gridaan is built for shoppers who want affordable Indian artificial and imitation fashion jewellery with a premium look for festive dressing, gifting, and everyday styling."
+      description={BRAND_POSITIONING}
       sections={[
         {
           heading: 'What Gridaan offers',
@@ -34,13 +38,13 @@ export default function AboutPage() {
           heading: 'Artificial and imitation jewellery only',
           body: [
             JEWELLERY_COMPLIANCE_DISCLAIMER,
-            BUSINESS_CATEGORY,
+            `Business category: ${BUSINESS_CATEGORY}.`,
           ],
         },
         {
           heading: 'Customer-first shopping experience',
           body: [
-            'Gridaan is built to keep shopping straightforward with clean product browsing and secure online payment through Razorpay.',
+            'Gridaan is built to keep shopping straightforward with clear product information and secure online payments powered by Razorpay.',
             'We want customers to feel confident before and after they place an order, from product selection to delivery updates and support.',
           ],
         },

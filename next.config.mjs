@@ -35,6 +35,26 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: '/privacy-policy',
+        destination: '/privacy',
+        permanent: true,
+      },
+      {
+        source: '/terms-and-conditions',
+        destination: '/terms',
+        permanent: true,
+      },
+      {
+        source: '/return-policy',
+        destination: '/return-refund-policy',
+        permanent: true,
+      },
+      {
+        source: '/refund-policy',
+        destination: '/return-refund-policy',
+        permanent: true,
+      },
+      {
         source: '/:path*',
         has: [
           {
@@ -107,6 +127,15 @@ const nextConfig = {
       .trim();
 
     return [
+      {
+        source: '/admin/:path*',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow, noarchive',
+          },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [

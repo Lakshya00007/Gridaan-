@@ -6,13 +6,14 @@ import { Mail, Lock, User, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { getSafeAuthRedirect } from '@/lib/auth-navigation';
 
 type Mode = 'login' | 'signup';
 
 export default function LoginView() {
   const router = useRouter();
   const sp = useSearchParams();
-  const next = sp.get('next') || '/';
+  const next = getSafeAuthRedirect(sp.get('next'));
   const initialMode: Mode = sp.get('mode') === 'signup' ? 'signup' : 'login';
 
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -33,7 +34,7 @@ export default function LoginView() {
           password: form.password,
         });
         if (e1) {
-          setError(e1.message);
+          setError('Email or password is incorrect.');
           setLoading(false);
           return;
         }
@@ -60,7 +61,7 @@ export default function LoginView() {
           },
         });
         if (e2) {
-          setError(e2.message);
+          setError('Could not create the account. Check the details and try again.');
           setLoading(false);
           return;
         }
@@ -86,7 +87,7 @@ export default function LoginView() {
         },
       });
       if (error) {
-        setError(error.message);
+        setError('Google sign-in could not be completed.');
         setGoogleLoading(false);
       }
     } catch {

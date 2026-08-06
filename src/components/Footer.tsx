@@ -1,13 +1,21 @@
 import Link from 'next/link';
 import { MessageCircle, ShieldCheck, WalletCards, Truck } from 'lucide-react';
 import { getCategoryPageHref } from '@/lib/category-pages';
-import { BUSINESS_CATEGORY, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import {
+  BRAND_POSITIONING,
+  BUSINESS_CATEGORY,
+  JEWELLERY_COMPLIANCE_DISCLAIMER,
+  buildBusinessPhoneHref,
+  buildSupportEmailHref,
+} from '@/lib/business-info';
+import type { PublishedBusinessInfo } from '@/lib/business-info.server';
 
 interface FooterProps {
   whatsappHref?: string | null;
+  business: PublishedBusinessInfo;
 }
 
-export default function Footer({ whatsappHref }: FooterProps) {
+export default function Footer({ whatsappHref, business }: FooterProps) {
   return (
     <footer className="bg-neutral-900 text-white mt-16">
       <div className="border-b border-neutral-800">
@@ -15,14 +23,13 @@ export default function Footer({ whatsappHref }: FooterProps) {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400 mb-3">
-                Gridaan Launch Edit
+                Gridaan Jewellery Edit
               </p>
               <h3 className="heading-display text-2xl md:text-3xl mb-3">
                 Premium-look fashion jewellery at everyday prices
               </h3>
               <p className="text-sm text-neutral-400 leading-relaxed">
-                Shop artificial and imitation jewellery for women&apos;s earrings, necklaces, bangles,
-                full jewellery sets, and men&apos;s accessories made for festive looks and everyday gifting.
+                {BRAND_POSITIONING}
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -49,13 +56,34 @@ export default function Footer({ whatsappHref }: FooterProps) {
           <div>
             <span className="heading-display text-xl">Gridaan</span>
             <p className="mt-4 text-sm leading-relaxed text-neutral-400 max-w-sm">
-              Affordable Indian artificial and imitation fashion jewellery with a premium look for gifting,
-              festive dressing, and everyday styling.
+              {BRAND_POSITIONING}
             </p>
             <p className="mt-4 text-xs leading-6 text-neutral-500">
               {JEWELLERY_COMPLIANCE_DISCLAIMER}
             </p>
             <p className="mt-2 text-xs leading-6 text-neutral-500">{BUSINESS_CATEGORY}</p>
+            <div className="mt-5 border-t border-neutral-800 pt-4 text-xs leading-6 text-neutral-400">
+              <p className="font-semibold text-neutral-200">{business.legalName}</p>
+              <address className="not-italic">
+                {business.address.line1}<br />
+                {business.address.line2}<br />
+                {business.address.stateAndPostcode}, {business.address.country}
+              </address>
+              <p>Udyam Registration Number: {business.udyamRegistrationNumber}</p>
+              {business.gstin ? <p>GSTIN: {business.gstin}</p> : null}
+              <p>
+                <a href={buildBusinessPhoneHref()} className="hover:text-gold-300">
+                  +91 {business.businessPhone.slice(0, 5)} {business.businessPhone.slice(5)}
+                </a>
+              </p>
+              {business.supportEmail ? (
+                <p>
+                  <a href={buildSupportEmailHref(business.supportEmail)} className="break-all hover:text-gold-300">
+                    {business.supportEmail.toLowerCase()}
+                  </a>
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <FooterColumn
@@ -100,7 +128,7 @@ export default function Footer({ whatsappHref }: FooterProps) {
               </li>
               <li className="flex items-start gap-2.5">
                 <Truck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <span>Secure online payment and careful packing for gifting.</span>
+                <span>Secure online payments powered by Razorpay.</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />

@@ -45,8 +45,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         });
       });
     }
-  } catch (error) {
-    console.error('[sitemap] Failed to fetch products:', error);
+  } catch {
+    console.error('[sitemap] Failed to fetch products');
   }
 
   return routes;

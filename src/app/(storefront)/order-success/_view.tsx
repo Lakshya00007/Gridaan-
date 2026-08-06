@@ -7,6 +7,7 @@ import { AlertCircle, Check, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatRupees } from '@/lib/utils';
 import type { OrderSuccessSummary } from '@/types';
+import { buildBusinessPhoneHref, businessInfo } from '@/lib/business-info';
 
 type OrderLookupResponse = {
   order?: OrderSuccessSummary;
@@ -135,6 +136,13 @@ export default function OrderSuccessView() {
             Continue Shopping
           </Link>
         </div>
+        <p className="mt-5 text-xs leading-5 text-neutral-500">
+          Need order help? Contact {businessInfo.legalName} at{' '}
+          <a href={buildBusinessPhoneHref()} className="font-medium text-gold-700 hover:text-gold-800">
+            +91 {businessInfo.businessPhone}
+          </a>{' '}
+          and quote your order number.
+        </p>
       </motion.div>
     </div>
   );

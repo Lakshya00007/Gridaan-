@@ -136,7 +136,7 @@ export interface Product {
   updated_at: string;
 }
 
-export type ProductSort = 'featured' | 'newest' | 'trending' | 'price_asc' | 'price_desc' | 'rating';
+export type ProductSort = 'featured' | 'newest' | 'trending' | 'price_asc' | 'price_desc';
 
 export interface ProductFilter {
   category?: string;

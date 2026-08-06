@@ -44,7 +44,7 @@ export default async function HomePage() {
               </h1>
 
               <p className="mx-auto mb-7 max-w-md text-base leading-relaxed text-neutral-500 md:text-lg lg:mx-0">
-                Artificial and imitation earrings, necklace sets &amp; festive fashion jewellery starting ₹99.
+                Affordable artificial and imitation earrings, necklace sets &amp; festive fashion jewellery for everyday styling, gifting, and celebrations.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
@@ -62,9 +62,12 @@ export default async function HomePage() {
 
               <div className="mt-10 flex items-center justify-center gap-6 lg:justify-start">
                 {[
-                  { title: 'Secure Online Payment', detail: 'UPI, cards, net banking and wallets' },
+                  {
+                    title: 'Secure Online Payment',
+                    detail: 'UPI, cards, net banking and other Razorpay-supported methods',
+                  },
                   { title: 'Premium Look', detail: 'Festive styles that feel elevated' },
-                  { title: 'Affordable Prices', detail: 'Launch picks starting at ₹99' },
+                  { title: 'Affordable Prices', detail: 'Clear pricing across the collection' },
                 ].map((stat) => (
                   <div key={stat.title} className="text-center max-w-[8.5rem]">
                     <p className="text-sm md:text-base font-semibold text-neutral-900">{stat.title}</p>
@@ -98,8 +101,8 @@ export default async function HomePage() {
             {[
               { icon: Truck, title: 'Online Payment', desc: 'Secure Razorpay checkout' },
               { icon: Shield, title: 'Premium Look', desc: 'Polished festive-ready styles' },
-              { icon: RotateCcw, title: 'Affordable Prices', desc: 'Statement pieces from ₹99' },
-              { icon: Sparkles, title: 'Launch Picks', desc: 'Earrings, sets, combos & more' },
+              { icon: RotateCcw, title: 'Affordable Prices', desc: 'Accessible fashion jewellery' },
+              { icon: Sparkles, title: 'Collection Highlights', desc: 'Earrings, sets, combos & more' },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex items-center gap-3 justify-center">
                 <div className="w-10 h-10 rounded-full bg-gold-50 flex items-center justify-center flex-shrink-0">
@@ -299,7 +302,7 @@ export default async function HomePage() {
           <div className="relative rounded-3xl bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500 p-8 md:p-16 text-center overflow-hidden">
             <div className="relative z-10">
               <p className="mb-3 text-xs font-semibold text-white/80">
-                Launch Offer
+                Festive Edit
               </p>
               <h2 className="heading-display text-3xl md:text-5xl text-white mb-4">
                 Festive fashion jewellery that looks premium, priced for repeat wear

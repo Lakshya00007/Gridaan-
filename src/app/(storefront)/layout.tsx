@@ -16,6 +16,7 @@ import {
   isPreviewHost,
 } from '@/lib/seo';
 import { safeJsonLd } from '@/lib/safe-json';
+import { getPublishedBusinessInfo } from '@/lib/business-info.server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const host = (await headers()).get('host') ?? '';
@@ -31,9 +32,10 @@ export default async function StorefrontLayout({ children }: { children: React.R
     data: { user },
   } = await supabase.auth.getUser();
   const [profile, categories] = await Promise.all([getProfile(), getActiveCategories()]);
+  const publishedBusiness = getPublishedBusinessInfo();
   const globalJsonLd = {
     '@context': 'https://schema.org',
-    '@graph': [buildOrganizationJsonLd(), buildWebsiteJsonLd()],
+    '@graph': [buildOrganizationJsonLd(publishedBusiness), buildWebsiteJsonLd()],
   };
 
   return (
@@ -46,7 +48,6 @@ export default async function StorefrontLayout({ children }: { children: React.R
                 id: user.id,
                 email: user.email ?? null,
                 full_name: profile?.full_name ?? null,
-                is_admin: profile?.is_admin ?? false,
               }
             : null
         }
@@ -54,7 +55,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <main id="main" className="min-h-[60vh]">
         {children}
       </main>
-      <Footer whatsappHref={buildStorefrontWhatsAppLink()} />
+      <Footer whatsappHref={buildStorefrontWhatsAppLink()} business={publishedBusiness} />
       <CartDrawer />
       <WhatsAppButton />
       <script
