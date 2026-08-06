@@ -1,72 +1,75 @@
 import InfoPage from '@/components/InfoPage';
-import { BUSINESS_CATEGORY, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import { getPublishedBusinessInfo } from '@/lib/business-info.server';
+import { BUSINESS_CATEGORY, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business-info';
 import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata = buildPageMetadata({
-  title: 'Terms of Service | Gridaan',
+  title: 'Terms of Service',
   description:
-    'Read Gridaan’s terms of service for using the website, placing orders, payments, shipping, returns, and customer responsibilities.',
+    'Read Gridaan’s terms for website use, product information, orders, secure payment, shipping, cancellations, and returns.',
   path: '/terms',
 });
 
 export default function TermsPage() {
+  const business = getPublishedBusinessInfo();
+
   return (
     <InfoPage
       eyebrow="Terms"
       title="Terms of Service"
-      description="These terms outline the basic conditions for using the Gridaan website and placing orders for artificial and imitation fashion jewellery."
+      description="Conditions for using the Gridaan storefront and ordering artificial and imitation fashion jewellery."
       sections={[
         {
-          heading: 'Business category and product nature',
+          heading: 'Business identity and product category',
           body: [
-            BUSINESS_CATEGORY,
+            `${business.legalName}, Udyam Registration Number ${business.udyamRegistrationNumber}.`,
+            `Business category: ${BUSINESS_CATEGORY}.`,
             JEWELLERY_COMPLIANCE_DISCLAIMER,
           ],
         },
         {
           heading: 'Products and pricing',
           body: [
-            'Product listings, pricing, offers, and availability may change without prior notice.',
-            'Product photos are intended to represent the design as accurately as possible, but slight variations in color, finish, size perception, or detailing may appear because of lighting, screens, and handcrafted variation.',
-            'Words such as gold-tone, silver-tone, kundan-look, pearl-look, stone-look, oxidised-look, or premium-look describe fashion styling and finish only. They do not mean real precious metals, diamonds, certified gemstones, bullion, or investment products.',
+            'Product listings, prices, offers, and availability may change before an order is placed.',
+            'Photographs aim to represent each design accurately, but lighting and screen settings can affect colour and finish appearance. Product-specific details shown on the product page form part of the listing.',
+            'Terms such as gold-tone, silver-tone, kundan-look, pearl-look, stone-look, oxidised-look, or premium-look describe fashion styling or finish only.',
           ],
         },
         {
-          heading: 'Orders and cancellations',
+          heading: 'Orders',
           body: [
-            'Orders are subject to stock availability, successful Razorpay payment capture, and basic order verification checks.',
-            'If a product becomes unavailable, appears incorrectly priced, or cannot be fulfilled for a valid reason, Gridaan may cancel the order and inform the customer.',
-            'Cancellation handling is explained in the Cancellation Policy, and return or refund eligibility is explained in the Return & Refund Policy.',
+            'The server validates products, current prices, quantities, stock, discounts, and shipping before payment is initialized.',
+            'A checkout attempt is not a placed order. An order is placed only after the expected Razorpay payment is securely verified as captured.',
+            'Gridaan may cancel or decline fulfilment for unavailable stock, an incorrect listing price, suspected fraud or abuse, an invalid delivery address, or another legitimate operational reason. Any captured amount subject to an approved cancellation follows the refund process.',
+          ],
+        },
+        {
+          heading: 'Secure payment',
+          body: [
+            'Secure online payments powered by Razorpay.',
+            'Pay securely using UPI, cards, net banking and other payment methods supported by Razorpay.',
+            'Never send Gridaan your card number, CVV, UPI PIN, OTP, or banking password. Frontend success alone does not confirm an order.',
           ],
         },
         {
           heading: 'Customer responsibilities',
           body: [
-            'Customers are responsible for providing accurate shipping details, contact information, and any delivery instructions needed to complete an order successfully.',
-            'Incorrect address or contact details may lead to delays, failed delivery attempts, or cancellation outcomes that are outside our control.',
+            'Provide accurate recipient, mobile, address, PIN code, and delivery information and remain reachable for delivery.',
+            'Review the final amount before authorising payment and use the Contact page promptly if an order detail needs correction.',
           ],
         },
         {
-          heading: 'Online payment only',
+          heading: 'Shipping, cancellation, and returns',
           body: [
-            'Gridaan accepts online payments through Razorpay. Supported methods can include UPI, cards, net banking, and wallets where Razorpay enables them.',
-            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
-            'A checkout attempt is not a placed order. An order is placed only after the server verifies the Razorpay payment and confirms captured payment for the expected amount and currency.',
+            'The Shipping page states the configured region, charges, and any verified operational estimates.',
+            'Cancellation requests are governed by the Cancellation Policy. Return eligibility, request windows, inspection, shipping treatment, and refund handling are governed by the Return & Refund Policy.',
           ],
         },
         {
-          heading: 'Shipping and delivery',
+          heading: 'Website availability and applicable rights',
           body: [
-            'Shipping timelines, tracking, charges, and online payment confirmation are explained in the Shipping & Delivery Policy.',
-            'Customers are responsible for being reachable at the provided phone number and for accepting delivery within the courier partner’s delivery attempts.',
-          ],
-        },
-        {
-          heading: 'Liability and use of the website',
-          body: [
-            'Gridaan aims to keep product, pricing, and checkout information accurate, but the website is provided on a reasonable-effort basis and may occasionally contain temporary errors or interruptions.',
-            'To the extent reasonably permitted, Gridaan is not responsible for indirect losses arising from delay, courier disruption, Razorpay/payment-provider delay, third-party service interruption, or customer-provided information errors.',
-            'Gridaan may cancel, hold, or refuse orders where fraud, abuse, suspicious payment activity, unavailable stock, incorrect pricing, or delivery risk is identified.',
+            'The website can occasionally be interrupted by maintenance or third-party service availability. Gridaan will take reasonable steps to keep customer-facing information accurate and services available.',
+            'Nothing in these terms limits consumer rights that cannot lawfully be excluded. The registered/correspondence address and verified support channels are listed on the Contact page.',
           ],
         },
       ]}

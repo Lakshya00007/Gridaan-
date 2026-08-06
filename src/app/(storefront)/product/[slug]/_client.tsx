@@ -9,7 +9,22 @@ import { toast } from 'sonner';
 import type { Product } from '@/types';
 import { useRouter } from 'next/navigation';
 import { getWishlistState, toggleWishlist as toggleWishlistItem } from '@/lib/wishlist-client';
-import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import { businessInfo, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business-info';
+
+function metadataValue(metadata: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    if (Array.isArray(value)) {
+      const items = value.filter(
+        (item): item is string => typeof item === 'string' && Boolean(item.trim()),
+      );
+      if (items.length > 0) return items.join(', ');
+    }
+  }
+  return null;
+}
 
 export default function ProductPageClient({ product }: { product: Product }) {
   const [selected, setSelected] = useState(0);
@@ -20,6 +35,35 @@ export default function ProductPageClient({ product }: { product: Product }) {
   const router = useRouter();
 
   const isOut = !product.in_stock || product.stock_count <= 0;
+  const metadata = product.metadata ?? {};
+  const comboCount = metadataValue(metadata, 'combo_count');
+  const includedPieces =
+    metadataValue(metadata, 'included_pieces', 'pieces_included') ??
+    (comboCount ? `${comboCount} pieces` : null);
+  const productDetails = [
+    { label: 'SKU', value: product.sku ?? metadataValue(metadata, 'sku') },
+    { label: 'Material', value: product.material ?? metadataValue(metadata, 'material') },
+    { label: 'Finish / plating', value: metadataValue(metadata, 'finish', 'plating') },
+    { label: 'Colour', value: product.colour ?? metadataValue(metadata, 'colour', 'color') },
+    { label: 'Size / dimensions', value: product.size ?? metadataValue(metadata, 'dimensions') },
+    { label: 'Weight', value: product.weight_grams ? `${product.weight_grams} g` : null },
+    { label: 'Included pieces', value: includedPieces },
+    {
+      label: 'Jewellery type',
+      value: product.jewellery_type ?? metadataValue(metadata, 'jewellery_type'),
+    },
+    { label: 'Country of origin', value: metadataValue(metadata, 'country_of_origin') },
+    { label: 'Care instructions', value: metadataValue(metadata, 'care_instructions', 'care') },
+    {
+      label: 'Return eligibility',
+      value:
+        typeof product.return_eligible === 'boolean'
+          ? product.return_eligible
+            ? 'Eligible under the published return policy'
+            : 'Not eligible for change-of-mind return'
+          : null,
+    },
+  ].filter((detail): detail is { label: string; value: string } => Boolean(detail.value));
 
   useEffect(() => {
     let active = true;
@@ -129,7 +173,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
           </p>
           <h1 className="heading-display text-2xl md:text-3xl text-neutral-900 mb-4">{product.name}</h1>
 
-          {product.rating > 0 && (
+          {product.review_count > 0 && product.rating > 0 && (
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center gap-1">
                 {[...Array(5)].map((_, i) => (
@@ -170,6 +214,22 @@ export default function ProductPageClient({ product }: { product: Product }) {
             </p>
             <p className="mt-2 text-sm leading-6 text-neutral-600">{JEWELLERY_COMPLIANCE_DISCLAIMER}</p>
           </div>
+
+          {productDetails.length > 0 ? (
+            <section className="mb-8 border-y border-neutral-100 py-6" aria-labelledby="product-details-heading">
+              <h2 id="product-details-heading" className="mb-4 text-sm font-semibold text-neutral-900">
+                Product information
+              </h2>
+              <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                {productDetails.map((detail) => (
+                  <div key={detail.label} className="grid grid-cols-[minmax(7rem,0.8fr)_1.2fr] gap-3 text-sm sm:block">
+                    <dt className="text-neutral-500">{detail.label}</dt>
+                    <dd className="mt-0.5 text-neutral-900 sm:mt-1">{detail.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
 
           <div className="mb-6">
             {isOut ? (
@@ -251,9 +311,12 @@ export default function ProductPageClient({ product }: { product: Product }) {
 
           <div className="space-y-4">
             {[
-              { icon: Truck, text: 'Free shipping on orders above ₹999' },
-              { icon: Shield, text: 'Secure Razorpay online payment' },
-              { icon: RotateCcw, text: 'Return support for damaged or wrong items' },
+              {
+                icon: Truck,
+                text: `Free shipping on eligible subtotals of ${formatRupees(businessInfo.shipping.freeShippingThresholdRupees)} or more`,
+              },
+              { icon: Shield, text: 'Secure online payments powered by Razorpay' },
+              { icon: RotateCcw, text: '7-day return request for eligible unused products' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3">
                 <Icon className="w-5 h-5 text-gold-500" />

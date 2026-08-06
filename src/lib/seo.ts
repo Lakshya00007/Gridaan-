@@ -1,14 +1,18 @@
 import type { Metadata } from 'next';
+import {
+  BRAND_POSITIONING,
+  BUSINESS_CATEGORY,
+  businessInfo,
+} from '@/lib/business-info';
 
 export const siteConfig = {
   name: 'Gridaan',
-  title: 'Gridaan | Artificial & Fashion Jewellery Online',
-  description:
-    "Shop affordable artificial, imitation, and fashion jewellery online at Gridaan. Explore women’s earrings, necklaces, full jewellery sets, men’s chains, bracelets, rings, and festive gifting styles.",
-  url: 'https://www.gridaan.com',
-  logo: 'https://www.gridaan.com/logo-search.png',
-  icon: 'https://www.gridaan.com/icon.png',
-  ogImage: 'https://www.gridaan.com/og-card.png',
+  title: 'Artificial & Imitation Fashion Jewellery | Gridaan',
+  description: BRAND_POSITIONING,
+  url: businessInfo.canonicalWebsite,
+  logo: `${businessInfo.canonicalWebsite}/logo-search.png`,
+  icon: `${businessInfo.canonicalWebsite}/icon.png`,
+  ogImage: `${businessInfo.canonicalWebsite}/og-card.png`,
   locale: 'en_IN',
   twitterHandle: undefined as string | undefined,
   socialLinks: [] as string[],
@@ -17,6 +21,15 @@ export const siteConfig = {
     email?: string;
   },
 };
+
+export function stripGridaanTitleSuffix(title: string) {
+  return title.replace(/\s*\|\s*Gridaan\s*$/i, '').trim();
+}
+
+function buildSocialTitle(title: string) {
+  const normalized = stripGridaanTitleSuffix(title);
+  return `${normalized} | Gridaan`;
+}
 
 export function absoluteUrl(path: string) {
   return `${siteConfig.url}${path.startsWith('/') ? path : `/${path}`}`;
@@ -97,9 +110,11 @@ export function buildPageMetadata({
   openGraphImage?: string;
 }): Metadata {
   const url = absoluteUrl(path);
+  const normalizedTitle = stripGridaanTitleSuffix(title);
+  const socialTitle = buildSocialTitle(normalizedTitle);
 
   return buildMetadata({
-    title,
+    title: normalizedTitle,
     description,
     keywords,
     robots,
@@ -107,14 +122,14 @@ export function buildPageMetadata({
     openGraph: {
       type: 'website',
       url,
-      title,
+      title: socialTitle,
       description,
       siteName: siteConfig.name,
-      images: [{ url: openGraphImage ?? siteConfig.ogImage, width: 1200, height: 630, alt: title }],
+      images: [{ url: openGraphImage ?? siteConfig.ogImage, width: 1200, height: 630, alt: normalizedTitle }],
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: socialTitle,
       description,
       images: [openGraphImage ?? siteConfig.ogImage],
       ...(siteConfig.twitterHandle ? { creator: siteConfig.twitterHandle } : {}),
@@ -152,15 +167,41 @@ export function buildBreadcrumbJsonLd(items: Array<{ name: string; url: string }
   };
 }
 
-export function buildOrganizationJsonLd() {
+export function buildOrganizationJsonLd(
+  published?: {
+    supportEmail?: string | null;
+    gstin?: string | null;
+  }
+) {
   const organization = {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    '@type': 'OnlineStore',
     name: siteConfig.name,
+    legalName: businessInfo.legalName,
     url: siteConfig.url,
     logo: siteConfig.logo,
     description: siteConfig.description,
+    telephone: businessInfo.businessPhoneE164,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: `${businessInfo.address.line1}, ${businessInfo.address.line2}`,
+      addressLocality: businessInfo.address.locality,
+      addressRegion: businessInfo.address.region,
+      postalCode: businessInfo.address.postalCode,
+      addressCountry: businessInfo.address.countryCode,
+    },
+    identifier: {
+      '@type': 'PropertyValue',
+      name: 'Udyam Registration Number',
+      value: businessInfo.udyamRegistrationNumber,
+    },
+    knowsAbout: BUSINESS_CATEGORY,
   } as Record<string, unknown>;
+
+  if (published?.supportEmail) organization.email = published.supportEmail;
+  if (published?.gstin) {
+    organization.taxID = published.gstin;
+  }
 
   if (siteConfig.socialLinks.length > 0) {
     organization.sameAs = siteConfig.socialLinks;

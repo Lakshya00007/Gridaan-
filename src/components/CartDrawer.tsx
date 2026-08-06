@@ -176,7 +176,7 @@ export default function CartDrawer() {
                   <span className="text-lg font-semibold">{formatRupees(total)}</span>
                 </div>
                 <p className="text-xs text-neutral-400">
-                  Shipping & taxes calculated at checkout
+                  Final shipping charge is shown at checkout
                 </p>
                 <Link
                   href="/checkout"

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 import { getCategoryImagePath, getCategoryPageByFilterSlug } from '@/lib/category-pages';
 
-type Sort = 'featured' | 'newest' | 'trending' | 'price_asc' | 'price_desc' | 'rating';
+type Sort = 'featured' | 'newest' | 'trending' | 'price_asc' | 'price_desc';
 
 const shopHighlightSlugs = [
   'women-earrings',
@@ -271,7 +271,6 @@ export default function ShopView({
                 <option value="trending">Trending</option>
                 <option value="price_asc">Price: Low to High</option>
                 <option value="price_desc">Price: High to Low</option>
-                <option value="rating">Top Rated</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
             </div>

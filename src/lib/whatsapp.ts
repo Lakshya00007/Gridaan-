@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { serverEnv } from './env.server';
+import { buildBusinessWhatsAppHref, businessInfo } from './business-info';
 import {
   buildAdminOrderMessage,
   buildAdminOrderLink as buildAdminOrderLinkWithPhone,
@@ -20,28 +21,17 @@ function warnMissingWhatsAppConfig(reason: string) {
 }
 
 export function buildAdminOrderLink(order: Order): string {
-  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
-    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Admin WhatsApp links are disabled.');
-    return '';
-  }
-  return buildAdminOrderLinkWithPhone(order, serverEnv.WHATSAPP_ADMIN_NUMBER);
+  return buildAdminOrderLinkWithPhone(order, businessInfo.whatsappNumber);
 }
 
 export function getAdminWhatsAppNumber(): string | null {
-  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
-    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Admin WhatsApp links are disabled.');
-    return null;
-  }
-  return serverEnv.WHATSAPP_ADMIN_NUMBER;
+  return businessInfo.whatsappNumber;
 }
 
 export function buildStorefrontWhatsAppLink(): string | null {
-  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
-    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Storefront WhatsApp button is disabled.');
-    return null;
-  }
-  const message = encodeURIComponent('Hi! I want to know more about your fashion jewellery collection.');
-  return `https://wa.me/${serverEnv.WHATSAPP_ADMIN_NUMBER}?text=${message}`;
+  return buildBusinessWhatsAppHref(
+    'Hi! I want to know more about your fashion jewellery collection.'
+  );
 }
 
 /**
@@ -50,10 +40,6 @@ export function buildStorefrontWhatsAppLink(): string | null {
  * deep-links; this exists for automation.
  */
 export async function sendWhatsApp(to: string, body: string): Promise<boolean> {
-  if (!serverEnv.WHATSAPP_ADMIN_NUMBER) {
-    warnMissingWhatsAppConfig('WHATSAPP_ADMIN_NUMBER is not configured. Skipping WhatsApp send.');
-    return false;
-  }
   if (!serverEnv.WHATSAPP_API_TOKEN) {
     warnMissingWhatsAppConfig('WHATSAPP_API_TOKEN is not configured. Skipping WhatsApp send.');
     return false;

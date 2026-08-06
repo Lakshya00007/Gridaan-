@@ -1,53 +1,63 @@
 import InfoPage from '@/components/InfoPage';
-import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import { getPublishedBusinessInfo } from '@/lib/business-info.server';
+import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business-info';
 import { buildPageMetadata } from '@/lib/seo';
+import { formatRupees } from '@/lib/utils';
 
 export const metadata = buildPageMetadata({
-  title: 'Shipping & Delivery | Gridaan',
+  title: 'Shipping & Delivery',
   description:
-    'Read Gridaan’s shipping and delivery policy for affordable artificial and imitation fashion jewellery orders.',
+    'Read Gridaan’s shipping charges, service region, dispatch information, and delivery guidance.',
   path: '/shipping',
 });
 
 export default function ShippingPage() {
+  const business = getPublishedBusinessInfo();
+  const deliveryDetails = [
+    business.operations.dispatchEstimate
+      ? `Configured dispatch estimate: ${business.operations.dispatchEstimate}.`
+      : 'The dispatch estimate is shown when Gridaan has a verified operational timeline. Contact support with an order number for the current dispatch status.',
+    business.operations.deliveryEstimate
+      ? `Configured normal-area delivery estimate: ${business.operations.deliveryEstimate}.`
+      : 'Delivery timing depends on destination serviceability and the assigned carrier; no fixed delivery window is promised where an estimate is not configured.',
+    ...(business.operations.remoteAreaEstimate
+      ? [`Configured remote-area estimate: ${business.operations.remoteAreaEstimate}.`]
+      : []),
+  ];
+
   return (
     <InfoPage
       eyebrow="Shipping"
       title="Shipping & Delivery"
-      description="A simple overview of how Gridaan handles processing timelines, shipping charges, delivery estimates, tracking, and online payment confirmation."
+      description="Current service region, shipping charges, delivery information, tracking, and secure-payment requirements."
       sections={[
         {
           heading: 'Product category note',
           body: [JEWELLERY_COMPLIANCE_DISCLAIMER],
         },
         {
-          heading: 'Shipping across India',
+          heading: `Shipping within ${business.shipping.supportedRegion}`,
           body: [
-            'Gridaan ships artificial and imitation fashion jewellery orders across India using delivery partners selected for reach and reliability.',
-            'Serviceability can vary by PIN code, so final delivery options are confirmed during checkout.',
+            `Gridaan currently accepts delivery addresses within ${business.shipping.supportedRegion}. Serviceability depends on the delivery PIN code and carrier coverage.`,
+            `Standard shipping is ${formatRupees(business.shipping.feeRupees)}. Shipping is free when the eligible cart subtotal is at least ${formatRupees(business.shipping.freeShippingThresholdRupees)}. The checkout total is the final source for the charge applied to an order.`,
           ],
         },
         {
-          heading: 'Processing and delivery timeline',
+          heading: 'Dispatch and delivery estimates',
+          body: deliveryDetails,
+        },
+        {
+          heading: 'Payment confirmation',
           body: [
-            'Orders are usually processed within 1–2 business days after Razorpay confirms captured online payment.',
-            'Standard delivery is generally estimated at 3–7 business days after dispatch depending on the destination, courier reach, PIN code serviceability, holidays, and operational conditions.',
-            'Occasional delays may happen due to courier capacity, remote locations, weather, public holidays, or incorrect customer contact/address details.',
+            'Secure online payments powered by Razorpay.',
+            'An order is placed only after the payment is securely verified as captured. A failed, cancelled, abandoned, or unverified checkout attempt does not create a placed order.',
           ],
         },
         {
-          heading: 'Payment and charges',
+          heading: 'Tracking and delivery issues',
           body: [
-            'Cash on Delivery is not available. Orders are placed only after successful online payment.',
-            'Shipping charges and free-shipping eligibility are shown during checkout before payment.',
-            'If payment fails, is cancelled, or cannot be verified, no order number is generated.',
-          ],
-        },
-        {
-          heading: 'Tracking and delivery updates',
-          body: [
-            'Once an order is dispatched, tracking details are shared through the order flow or support channels when courier tracking is available.',
-            'If you need an update, contact support with your order number so the team can help check delivery progress.',
+            'Tracking details are shared when the assigned carrier makes them available.',
+            'Contact support with your order number for a status check. Report an incorrect, damaged, or missing item within 48 hours of delivery under the Return & Refund Policy.',
           ],
         },
       ]}

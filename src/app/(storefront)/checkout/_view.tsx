@@ -7,7 +7,6 @@ import Image from 'next/image';
 import {
   ArrowRight,
   ArrowLeft,
-  Banknote,
   Building2,
   Check,
   CreditCard,
@@ -629,7 +628,7 @@ export default function CheckoutView() {
                             onChange={(event) =>
                               setField('phone', sanitizePhoneFieldValue(event.target.value))
                             }
-                            placeholder="98765 43210"
+                            placeholder="10-digit mobile number"
                             aria-invalid={Boolean(errors.phone)}
                             aria-describedby={fieldDescriptionIds(
                               'checkout-phone',
@@ -696,7 +695,7 @@ export default function CheckoutView() {
                           disabled={processing}
                           value={form.line1}
                           onChange={(event) => setField('line1', event.target.value)}
-                          placeholder="e.g. Flat 12, Gulmohar Residency, C-Scheme"
+                          placeholder="e.g. House or flat, building, street and area"
                           aria-invalid={Boolean(errors.line1)}
                           aria-describedby={errorId('checkout-line1', errors.line1)}
                           className={cn(inputCls(errors.line1), 'resize-none py-3')}
@@ -740,7 +739,7 @@ export default function CheckoutView() {
                           disabled={processing}
                           value={form.city}
                           onChange={(event) => setField('city', event.target.value)}
-                          placeholder="e.g. Jaipur"
+                          placeholder="e.g. Khurja"
                           aria-invalid={Boolean(errors.city)}
                           aria-describedby={errorId('checkout-city', errors.city)}
                           className={inputCls(errors.city)}
@@ -787,7 +786,7 @@ export default function CheckoutView() {
                           onChange={(event) =>
                             setField('pincode', sanitizePincode(event.target.value))
                           }
-                          placeholder="e.g. 302001"
+                          placeholder="e.g. 203131"
                           aria-invalid={Boolean(errors.pincode)}
                           aria-describedby={errorId('checkout-pincode', errors.pincode)}
                           className={inputCls(errors.pincode)}
@@ -841,14 +840,8 @@ export default function CheckoutView() {
                   <PaymentMethodRow
                     active
                     icon={CreditCard}
-                    title="Online Payment — UPI, Cards, Net Banking and Wallets"
-                    description="Secure payment powered by Razorpay"
-                  />
-                  <PaymentMethodRow
-                    disabled
-                    icon={Banknote}
-                    title="Cash on Delivery — Unavailable"
-                    description="Gridaan is an online-payment-only store"
+                    title="Online payment"
+                    description="UPI, cards, net banking and other payment methods supported by Razorpay"
                   />
                 </div>
 
@@ -859,7 +852,7 @@ export default function CheckoutView() {
                   <div>
                     <p className="text-sm font-semibold text-neutral-900">Secure online payment</p>
                     <p className="mt-1 text-xs leading-5 text-neutral-500">
-                      Powered by Razorpay. Pay using UPI, cards, net banking, wallets, and other supported methods.
+                      Secure online payments powered by Razorpay.
                     </p>
                   </div>
                 </div>
@@ -973,7 +966,7 @@ export default function CheckoutView() {
                 <div className="flex items-end justify-between border-t border-stone-200/80 pt-5">
                   <div>
                     <p className="text-sm font-semibold text-neutral-950">Total</p>
-                    <p className="mt-0.5 text-xs text-neutral-400">Inclusive of applicable taxes</p>
+                    <p className="mt-0.5 text-xs text-neutral-400">Final amount shown before payment</p>
                   </div>
                   <p className="text-2xl font-bold tabular-nums text-neutral-950">
                     {formatRupees(total)}
@@ -1091,24 +1084,20 @@ function Field({
 
 function PaymentMethodRow({
   active = false,
-  disabled = false,
   icon: Icon,
   title,
   description,
 }: {
   active?: boolean;
-  disabled?: boolean;
   icon: LucideIcon;
   title: string;
   description: string;
 }) {
   return (
     <div
-      aria-disabled={disabled || undefined}
       className={cn(
         'flex min-h-[72px] items-center gap-3.5 rounded-xl border px-4 py-3.5',
-        active && 'border-gold-300 bg-gold-50/60',
-        disabled && 'border-stone-200 bg-stone-50 text-neutral-400'
+        active && 'border-gold-300 bg-gold-50/60'
       )}
     >
       <span
@@ -1120,9 +1109,7 @@ function PaymentMethodRow({
         <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className={cn('text-sm font-semibold leading-5', disabled ? 'text-neutral-500' : 'text-neutral-900')}>
-          {title}
-        </p>
+        <p className="text-sm font-semibold leading-5 text-neutral-900">{title}</p>
         <p className="mt-0.5 text-xs leading-5 text-neutral-500">{description}</p>
       </div>
       {active && (

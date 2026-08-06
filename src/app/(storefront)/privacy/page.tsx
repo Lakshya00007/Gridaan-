@@ -1,11 +1,11 @@
 import InfoPage from '@/components/InfoPage';
-import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business-info';
 import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata = buildPageMetadata({
-  title: 'Privacy Policy | Gridaan',
+  title: 'Privacy Policy',
   description:
-    'Read how Gridaan collects, uses, and protects customer information for orders, payments, delivery, and support.',
+    'Read how Gridaan uses customer information for orders, secure payment, delivery, account features, and support.',
   path: '/privacy',
 });
 
@@ -14,48 +14,46 @@ export default function PrivacyPage() {
     <InfoPage
       eyebrow="Privacy"
       title="Privacy Policy"
-      description="This page explains the practical ways Gridaan uses customer information to process jewellery orders, support shoppers, and operate the storefront."
+      description="How Gridaan handles information needed to operate the storefront, fulfil paid orders, and support customers."
       sections={[
         {
           heading: 'Product category note',
           body: [JEWELLERY_COMPLIANCE_DISCLAIMER],
         },
         {
-          heading: 'Customer information',
+          heading: 'Information collected',
           body: [
-            'When you place an order, create an account, or contact support, Gridaan may collect information such as your name, delivery address, mobile number, optional email address, and order details.',
-            'We may also store account-related details like saved profile information and wishlist activity when those features are used.',
+            'When you create an account, place an order, or contact support, Gridaan may collect your name, mobile number, email when supplied, delivery address, account identifiers, cart details, and order history.',
+            'Technical records such as session, security, request, device, and basic analytics information may be processed to keep the storefront working, prevent abuse, and diagnose errors.',
           ],
         },
         {
-          heading: 'Order and payment data',
+          heading: 'Orders and secure payment',
           body: [
-            'Order information is used to confirm purchases, arrange delivery, help with support requests, and maintain basic order history.',
-            'Online payments are processed through Razorpay. Gridaan may store safe payment metadata such as internal payment IDs, Razorpay order/payment IDs, payment status, amount, currency, method, webhook event IDs, and failure reasons for fulfilment, reconciliation, refund, and support workflows.',
-            'Gridaan does not store card numbers, CVV, UPI PINs, banking passwords, raw payment secrets, or screenshot-based payment proofs through the storefront.',
-            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
-          ],
-        },
-        {
-          heading: 'Cookies and analytics',
-          body: [
-            'The website may use cookies or similar technologies for authentication, session handling, cart continuity, security, and general performance measurement.',
-            'Basic analytics or operational logs may be used to understand store usage, identify errors, and reduce abuse.',
-          ],
-        },
-        {
-          heading: 'Contact and support data',
-          body: [
-            'Messages sent through support channels may be used to respond to order questions, resolve delivery concerns, and improve customer experience.',
-            'Support communication may happen through WhatsApp, phone, email, or other configured customer-support channels.',
-            'We keep support information only as needed for service, troubleshooting, and reasonable record-keeping.',
+            'Secure online payments powered by Razorpay. Razorpay processes the payment interaction and may handle payment information under its own privacy terms.',
+            'Gridaan stores only the payment and reconciliation metadata needed for order placement, fulfilment, support, fraud checks, webhook idempotency, and refunds, such as payment identifiers, amount, currency, status, method category, and safe failure information.',
+            'Gridaan does not ask customers to provide card numbers, CVV, UPI PINs, OTPs, or banking passwords to the storefront or support team.',
           ],
         },
         {
           heading: 'How information is used',
           body: [
-            'Gridaan uses customer information for order fulfilment, delivery coordination, support, online payment verification, fraud prevention, website security, analytics, and reasonable legal or accounting recordkeeping.',
-            'No website can promise absolute security, but we work to limit unnecessary exposure and use trusted service providers for core functions.',
+            'Information is used to validate and fulfil orders, reserve and commit stock, arrange delivery, provide support, maintain account features, reconcile payments, handle approved returns or refunds, prevent fraud, secure the service, and meet applicable record-keeping obligations.',
+            'Gridaan does not sell sensitive payment credentials because it does not collect them.',
+          ],
+        },
+        {
+          heading: 'Service providers and retention',
+          body: [
+            'Necessary information may be shared with providers that support hosting, database, authentication, payments, messaging, analytics, and delivery, limited to their operational purpose.',
+            'Records are retained only as reasonably needed for account operation, fulfilment, support, security, disputes, refunds, and applicable legal or accounting obligations.',
+          ],
+        },
+        {
+          heading: 'Cookies, choices, and contact',
+          body: [
+            'Cookies or browser storage may support authentication, cart continuity, preferences, security, and performance measurement. Blocking essential storage can prevent account or checkout features from working.',
+            'Use the Contact page to request access, correction, or deletion where applicable. A request may require identity verification and may be limited by records Gridaan must retain lawfully.',
           ],
         },
       ]}

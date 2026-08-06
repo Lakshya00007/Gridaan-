@@ -4,4 +4,4 @@
  */
 export const FREE_SHIPPING_THRESHOLD = 999;
 export const SHIPPING_COST = 79;
-export const TAX_PERCENT = 0; // Adjust if you must collect GST
+export const TAX_PERCENT = 0; // Current pricing rules do not add a separate tax amount.

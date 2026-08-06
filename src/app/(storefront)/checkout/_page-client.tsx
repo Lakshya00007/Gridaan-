@@ -15,10 +15,12 @@ export default function CheckoutPageClient() {
   if (guest.length === 0) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
+        <div className="w-full min-w-0 max-w-md text-center">
           <p className="text-5xl mb-4">🛒</p>
           <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
-          <p className="text-sm text-neutral-500 mb-6">Add some beautiful fashion jewellery first!</p>
+          <p className="mb-6 text-sm leading-6 text-neutral-500">
+            Add fashion jewellery to your bag before checkout.
+          </p>
           <Link href="/shop" className="btn-primary">
             Shop Now
           </Link>

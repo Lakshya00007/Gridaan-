@@ -183,7 +183,7 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
               </>
             ) : null}
           </div>
-          {product.rating > 0 ? (
+          {product.review_count > 0 && product.rating > 0 ? (
             <div className="mt-2 flex items-center gap-1.5">
               {[...Array(5)].map((_, i) => (
                 <span

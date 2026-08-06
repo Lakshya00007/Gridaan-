@@ -7,7 +7,7 @@ import type { ProductSort } from '@/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata = buildPageMetadata({
-  title: 'Shop Artificial & Fashion Jewellery Online | Gridaan',
+  title: 'Shop Artificial & Fashion Jewellery Online',
   description:
     "Shop affordable artificial and imitation fashion jewellery online at Gridaan. Explore women's earrings, necklaces, bangles, full jewellery sets, and men's chains, bracelets, rings, and pendants.",
   path: '/shop',
@@ -19,7 +19,6 @@ const productSorts = new Set<ProductSort>([
   'trending',
   'price_asc',
   'price_desc',
-  'rating',
 ]);
 
 type ShopSearchParams = Record<string, string | string[] | undefined>;

@@ -11,7 +11,6 @@ import {
   User,
   LogOut,
   Package,
-  Shield,
   Store,
   ChevronDown,
 } from 'lucide-react';
@@ -32,7 +31,6 @@ interface HeaderProps {
     id: string;
     email: string | null;
     full_name: string | null;
-    is_admin: boolean;
   } | null;
 }
 
@@ -122,7 +120,7 @@ export default function Header({ categories, user }: HeaderProps) {
     <>
       {/* Announcement bar */}
       <div className="bg-neutral-950 px-4 py-2 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-white sm:text-[11px]">
-        <span>Artificial fashion jewellery from ₹99</span>
+        <span>Artificial &amp; imitation fashion jewellery</span>
         <span className="hidden sm:inline"> · </span>
         <span className="hidden sm:inline">Secure online payment with Razorpay</span>
       </div>
@@ -283,15 +281,6 @@ export default function Header({ categories, user }: HeaderProps) {
                           >
                             <Heart className="w-4 h-4" /> Wishlist
                           </Link>
-                          {user.is_admin && (
-                            <Link
-                              href="/admin"
-                              className="flex items-center gap-2 px-4 py-2.5 text-sm text-gold-700 hover:bg-gold-50"
-                              onClick={() => setAccountOpen(false)}
-                            >
-                              <Shield className="w-4 h-4" /> Admin Panel
-                            </Link>
-                          )}
                           <button
                             onClick={handleSignOut}
                             className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
@@ -482,15 +471,6 @@ export default function Header({ categories, user }: HeaderProps) {
                       Sign in
                     </Link>
                   )}
-                  {user?.is_admin ? (
-                    <Link
-                      href="/admin"
-                      onClick={() => setMobileOpen(false)}
-                      className="block mt-2 px-4 py-3 rounded-[1rem] text-sm font-medium text-gold-700 bg-gold-50 hover:bg-gold-100"
-                    >
-                      Admin Panel
-                    </Link>
-                  ) : null}
                 </div>
               </nav>
             </motion.div>

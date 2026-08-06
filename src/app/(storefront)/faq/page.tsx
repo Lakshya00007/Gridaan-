@@ -1,58 +1,61 @@
+import Link from 'next/link';
 import InfoPage from '@/components/InfoPage';
-import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business';
+import { getPublishedBusinessInfo } from '@/lib/business-info.server';
+import { JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business-info';
 import { safeJsonLd } from '@/lib/safe-json';
-import { buildPageMetadata, absoluteUrl } from '@/lib/seo';
-
-const faqs = [
-  {
-    question: 'What does Gridaan sell?',
-    answer:
-      "Gridaan sells affordable Indian artificial, imitation, and fashion jewellery including women's earrings, necklaces, bangles, bracelets, rings, anklets, hair jewellery, full sets, and men's chains, pendants, kadas, bracelets, rings, and ear studs.",
-  },
-  {
-    question: 'Is Cash on Delivery available?',
-    answer:
-      'No. Gridaan is online-payment-only. Orders are placed only after successful Razorpay payment.',
-  },
-  {
-    question: 'How long does delivery take?',
-    answer:
-      'Orders are usually processed within 1–2 business days. Standard delivery is generally estimated at 3–7 business days after dispatch depending on location, courier reach, holidays, and PIN code serviceability.',
-  },
-  {
-    question: 'Are products real gold?',
-    answer: `No. ${JEWELLERY_COMPLIANCE_DISCLAIMER}`,
-  },
-  {
-    question: 'How do I track my order?',
-    answer:
-      'You can check your order progress through the account and order confirmation flow where available, or contact support with your order number for help.',
-  },
-  {
-    question: 'Can I return or exchange jewellery?',
-    answer:
-      'Return or exchange eligibility depends on the Return & Refund Policy. If you receive a damaged or wrong item, contact support quickly with your order number, photos, and an unboxing video where available so the team can review the issue.',
-  },
-  {
-    question: 'How do I contact support?',
-    answer:
-      'Visit the Contact page for current support options. WhatsApp support may be available when configured on the storefront.',
-  },
-  {
-    question: 'How should I care for fashion jewellery?',
-    answer:
-      'Keep jewellery away from water, perfume, and direct moisture. Store it in a dry place and wipe it gently after use to help preserve its finish.',
-  },
-];
+import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata = buildPageMetadata({
-  title: 'FAQs | Gridaan Jewelry',
+  title: 'Frequently Asked Questions',
   description:
-    'Find answers to common questions about Gridaan artificial and imitation jewellery, orders, online payments, shipping, returns, and product care.',
+    'Answers about Gridaan artificial and imitation jewellery, secure online payments, shipping, returns, and product care.',
   path: '/faq',
 });
 
 export default function FaqPage() {
+  const business = getPublishedBusinessInfo();
+  const deliveryAnswer = business.operations.deliveryEstimate
+    ? `The configured normal-area delivery estimate is ${business.operations.deliveryEstimate}. Destination serviceability and carrier conditions can affect an estimate.`
+    : 'Delivery timing depends on destination serviceability and the assigned carrier. Contact support with an order number for the current dispatch or delivery status.';
+  const faqs = [
+    {
+      question: 'What does Gridaan sell?',
+      answer:
+        "Gridaan sells affordable Indian artificial, imitation, and fashion jewellery, including women's earrings, necklaces, bangles, bracelets, rings, anklets, hair jewellery, full sets, and men's fashion accessories.",
+    },
+    {
+      question: 'How can I pay?',
+      answer:
+        'Secure online payments powered by Razorpay. Pay securely using UPI, cards, net banking and other payment methods supported by Razorpay. An order is placed only after captured payment is verified.',
+    },
+    {
+      question: 'How long does delivery take?',
+      answer: deliveryAnswer,
+    },
+    {
+      question: 'Are products real gold?',
+      answer: `No. ${JEWELLERY_COMPLIANCE_DISCLAIMER}`,
+    },
+    {
+      question: 'How do I track my order?',
+      answer:
+        'Use the order confirmation or account area where tracking is available, or contact support with your order number for help.',
+    },
+    {
+      question: 'Can I return jewellery?',
+      answer:
+        'A product marked return-eligible may be requested for return within 7 calendar days of delivery if it is unused and in original packaging. Report a damaged, incorrect, or missing item within 48 hours with the order number and clear photographs. See the Return & Refund Policy for the complete terms.',
+    },
+    {
+      question: 'How do I contact support?',
+      answer: `Use the Contact page for verified contact options. Include your order number when available. The business mobile is +91 ${business.businessPhone}.`,
+    },
+    {
+      question: 'How should I care for fashion jewellery?',
+      answer:
+        'Follow the care instructions shown for the product when available. In general, avoid moisture, perfume, and abrasive contact, and store pieces separately in a dry place.',
+    },
+  ];
   const faqJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -71,16 +74,17 @@ export default function FaqPage() {
       <InfoPage
         eyebrow="FAQs"
         title="Frequently Asked Questions"
-        description="Answers to common questions about Gridaan artificial and imitation jewellery, orders, delivery, online payments, returns, and product care."
-        sections={faqs.map((item) => ({
-          heading: item.question,
-          body: [item.answer],
-        }))}
+        description="Answers about Gridaan artificial and imitation jewellery, orders, delivery, secure online payment, returns, and care."
+        sections={faqs.map((item) => ({ heading: item.question, body: [item.answer] }))}
       >
         <div className="rounded-2xl bg-warm-50 p-5">
-          <p className="text-sm font-semibold text-neutral-900 mb-2">Still need help?</p>
+          <p className="mb-2 text-sm font-semibold text-neutral-900">Still need help?</p>
           <p className="text-sm text-neutral-600">
-            Visit <a href={absoluteUrl('/contact')} className="text-gold-700 hover:text-gold-800">Contact Gridaan</a> if your question is not covered here.
+            Visit{' '}
+            <Link href="/contact" className="text-gold-700 hover:text-gold-800">
+              Contact Gridaan
+            </Link>{' '}
+            if your question is not covered here.
           </p>
         </div>
       </InfoPage>

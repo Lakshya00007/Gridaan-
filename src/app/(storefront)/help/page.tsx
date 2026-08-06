@@ -2,9 +2,9 @@ import InfoPage from '@/components/InfoPage';
 import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata = buildPageMetadata({
-  title: 'Help Center | Gridaan',
+  title: 'Help Center',
   description:
-    'Get help with orders, payments, shipping, returns, cancellations, and fashion jewellery care at Gridaan.',
+    'Get help with Gridaan orders, secure payment, shipping, cancellations, returns, and fashion jewellery care.',
   path: '/help',
 });
 
@@ -13,48 +13,48 @@ export default function HelpPage() {
     <InfoPage
       eyebrow="Help"
       title="Help Center"
-      description="Everything customers usually need before or after placing a Gridaan order, from payment questions to shipping and fashion jewellery care guidance."
+      description="Practical guidance for ordering Gridaan artificial and imitation fashion jewellery."
       sections={[
         {
           heading: 'Orders',
           body: [
-            'Use your order confirmation page and account area to review recent orders, payment status, and order progress after checkout.',
-            'If something looks incorrect after placing an order, contact support as early as possible with your order number so the team can review it before dispatch.',
+            'Use your order confirmation or account area to review paid orders and status updates where available.',
+            'An order is placed only after the expected payment is securely verified as captured. Include the order number whenever you contact support about a placed order.',
           ],
         },
         {
           heading: 'Payments',
           body: [
-            'Gridaan accepts online payments through Razorpay, including UPI, cards, net banking, and wallets where Razorpay supports them.',
-            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
+            'Secure online payments powered by Razorpay.',
+            'Pay securely using UPI, cards, net banking and other payment methods supported by Razorpay.',
+            'Do not send anyone your card number, CVV, UPI PIN, OTP, or banking password.',
           ],
         },
         {
           heading: 'Shipping',
           body: [
-            'Orders are shipped across India, and dispatch timelines may vary slightly during high-volume sale periods, festive seasons, or public holidays.',
-            'Shipping charges and free-shipping eligibility, if any, are shown during the shopping and checkout flow.',
+            'Current shipping charges, service region, and any verified operational estimates are published on the Shipping page.',
+            'Contact support with an order number if you need help with an active delivery.',
           ],
         },
         {
-          heading: 'Returns',
+          heading: 'Cancellations and returns',
           body: [
-            'If an item arrives damaged, incorrect, or has a clear issue, contact support promptly with photos and your order number for review.',
-            'Return, replacement, or exchange decisions can depend on product condition, category, and the nature of the issue reported.',
+            'Contact support as early as possible for a cancellation request. Dispatch can limit the available options.',
+            'Return-eligible unused products have a 7-calendar-day request window. Report damaged, incorrect, or missing items within 48 hours of delivery. Read the complete policies before submitting a request.',
           ],
         },
         {
           heading: 'Product care',
           body: [
-            'Fashion and imitation jewellery should be stored in a dry place and kept away from water, perfume, lotion, and direct moisture to help preserve finish and shine.',
-            'Wipe pieces gently after use and store them separately to reduce tangling, scratches, and plating wear over time.',
+            'Follow product-specific care instructions when shown. Keep fashion jewellery dry, avoid perfume and abrasive contact, and store pieces separately to reduce wear.',
           ],
         },
         {
           heading: 'Contact support',
           body: [
-            'For order help, shipping questions, payment concerns, or product queries, use the contact options listed on the Contact page.',
-            'Sharing your order number whenever possible helps the support team respond faster.',
+            'Use only the verified phone, WhatsApp, address, and optional email shown on the Contact page.',
+            'Include the order number and a concise description of the issue. Never include sensitive payment credentials.',
           ],
         },
       ]}

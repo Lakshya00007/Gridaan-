@@ -1,66 +1,62 @@
 import InfoPage from '@/components/InfoPage';
-import { publicBusinessConfig } from '@/lib/business';
+import { getPublishedBusinessInfo } from '@/lib/business-info.server';
 import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata = buildPageMetadata({
-  title: 'Cancellation Policy | Gridaan',
+  title: 'Cancellation Policy',
   description:
-    'Read Gridaan’s cancellation policy for online-paid artificial fashion jewellery orders.',
+    'Read Gridaan’s cancellation policy for securely paid artificial fashion jewellery orders.',
   path: '/cancellation-policy',
 });
 
 export default function CancellationPolicyPage() {
+  const business = getPublishedBusinessInfo();
+  const refundTiming = business.operations.refundInitiationEstimate
+    ? `For an approved paid-order cancellation, Gridaan aims to initiate the refund ${business.operations.refundInitiationEstimate}. Provider and bank processing times vary.`
+    : 'For an approved paid-order cancellation, support will communicate the expected refund-initiation timeline. Provider and bank processing times vary.';
+
   return (
     <InfoPage
       eyebrow="Policy"
       title="Cancellation Policy"
-      description="How order cancellation requests are handled before dispatch, after dispatch, and after successful online payment."
+      description="How cancellation requests are handled before dispatch, after dispatch, and after verified online payment."
       sections={[
         {
-          heading: 'Cancellation before dispatch',
+          heading: 'Before dispatch',
           body: [
-            'Customers may request cancellation before the order is dispatched by contacting support with the order number.',
-            'If the order has not been packed, handed to the courier, or otherwise processed for dispatch, Gridaan will try to cancel it and update the customer.',
+            'Request cancellation as early as possible through the verified Contact page and include the order number and reason.',
+            'Gridaan will try to stop an order that has not been packed or handed to a delivery partner, but a request does not guarantee cancellation until support confirms it.',
           ],
         },
         {
-          heading: 'Cancellation after dispatch',
+          heading: 'After dispatch',
           body: [
-            'Once an order has been dispatched, cancellation may not be possible through support. The customer may need to follow the delivery or return process depending on the situation.',
-            'Shipping charges or courier costs may be considered where applicable and where permitted by the policy shown at checkout or on the website.',
+            'An order generally cannot be cancelled after dispatch. Any eligible next step is handled under the Return & Refund Policy after delivery.',
+            'Shipping and return-shipping treatment follows the published policies and applicable consumer rights.',
           ],
         },
         {
-          heading: 'Online payment confirmation',
+          heading: 'Payment and order status',
           body: [
-            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
-            'If Razorpay payment fails, is cancelled, or cannot be verified as captured, no final order number is generated and the order is not placed.',
+            'Secure online payments powered by Razorpay.',
+            'A failed, cancelled, abandoned, or unverified checkout attempt does not create a placed order or final order number.',
+            'A paid order is placed only after the expected payment is securely verified as captured.',
           ],
         },
         {
-          heading: 'Paid-order cancellation',
+          heading: 'Approved refund',
           body: [
-            'Orders are confirmed for dispatch only after Razorpay verifies successful captured payment.',
-            'If a customer requests cancellation before dispatch and the paid order is approved for cancellation, any approved refund is processed through the payment/refund flow supported by Gridaan and Razorpay.',
+            'An approved cancellation refund is sent to the original payment method where supported and cannot exceed the captured amount.',
+            refundTiming,
           ],
         },
         {
-          heading: 'Refund timeline',
+          heading: 'Contact',
           body: [
-            'Approved cancellation refunds are usually initiated within 5–7 business days after cancellation approval and verification of payment/customer details.',
-            'Banking, UPI, or internal processing delays may occasionally extend the time taken for the amount to reflect in the customer account.',
-          ],
-        },
-        {
-          heading: 'How to request cancellation',
-          body: [
-            'Contact support as early as possible with your order number and cancellation reason.',
-            publicBusinessConfig.supportEmail
-              ? `Email support: ${publicBusinessConfig.supportEmail}.`
-              : 'Use the Contact page for the currently configured support channel.',
-            publicBusinessConfig.supportPhone
-              ? `Support phone/WhatsApp: ${publicBusinessConfig.supportPhone}.`
-              : 'Please include your order number for faster assistance.',
+            business.supportEmail
+              ? `Use ${business.supportEmail} or another verified option on the Contact page.`
+              : `Use the Contact page or business mobile +91 ${business.businessPhone}.`,
+            'Never send a card number, CVV, UPI PIN, OTP, or banking password with a cancellation request.',
           ],
         },
       ]}
