@@ -30,12 +30,13 @@ const nextConfig = {
   async headers() {
     const ContentSecurityPolicy = `
       default-src 'self';
-      script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''};
+      script-src 'self' 'unsafe-inline' https://checkout.razorpay.com${isDev ? " 'unsafe-eval'" : ''};
+      script-src-elem 'self' 'unsafe-inline' https://checkout.razorpay.com${isDev ? " 'unsafe-eval'" : ''};
       style-src 'self' 'unsafe-inline';
-      img-src 'self' data: blob: https://*.supabase.co https://images.pexels.com https://res.cloudinary.com https://lh3.googleusercontent.com;
+      img-src 'self' data: blob: https://*.supabase.co https://images.pexels.com https://res.cloudinary.com https://lh3.googleusercontent.com https://*.razorpay.com;
       font-src 'self' data: https://fonts.gstatic.com;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co;
-      frame-src 'self';
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://*.razorpay.com;
+      frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://*.razorpay.com;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
