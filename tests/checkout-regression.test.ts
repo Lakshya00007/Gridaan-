@@ -21,6 +21,7 @@ import {
   checkoutFailureLog,
 } from '@/lib/payments/checkout-errors';
 import { checkoutSchema, type CheckoutInput } from '@/lib/validators';
+import { INDIAN_PHONE_ERROR, normalizeIndianPhone } from '@/lib/phone';
 import type { Product } from '@/types';
 
 const PRODUCT_ID = '11111111-1111-4111-8111-111111111111';
@@ -55,6 +56,66 @@ const product = {
 } as Product;
 
 describe('checkout schema regression', () => {
+  it.each([
+    '9876543210',
+    '+919876543210',
+    '919876543210',
+    '09876543210',
+    '+91 98765 43210',
+    '98765-43210',
+    '98765 43210',
+  ])('normalizes accepted Indian phone input %s', (phone) => {
+    expect(normalizeIndianPhone(phone)).toBe('9876543210');
+  });
+
+  it.each([
+    '1234567890',
+    '5876543210',
+    '987654321',
+    '98765432100',
+    'abcdefghij',
+    '',
+    '+91',
+  ])('rejects invalid Indian phone input %s', (phone) => {
+    expect(normalizeIndianPhone(phone)).toBeNull();
+  });
+
+  it('accepts a plain 10-digit customer phone in the API schema', () => {
+    const parsed = checkoutSchema.parse({
+      ...checkoutInput,
+      customer_phone: '9876543210',
+    });
+
+    expect(parsed.customer_phone).toBe('9876543210');
+    expect(parsed.shipping_address.phone).toBe('9876543210');
+  });
+
+  it('normalizes formatted phone values before payment processing', () => {
+    const parsed = checkoutSchema.parse({
+      ...checkoutInput,
+      customer_phone: '+91 98765 43210',
+      shipping_address: {
+        ...checkoutInput.shipping_address,
+        phone: '09876543210',
+      },
+    });
+
+    expect(parsed.customer_phone).toBe('9876543210');
+    expect(parsed.shipping_address.phone).toBe('9876543210');
+  });
+
+  it('returns a useful customer phone validation message', () => {
+    const result = checkoutSchema.safeParse({
+      ...checkoutInput,
+      customer_phone: '1234567890',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.customer_phone).toContain(INDIAN_PHONE_ERROR);
+    }
+  });
+
   it('uses the exact remote order_items columns', () => {
     const [row] = buildOrderItemRows({
       orderId: ORDER_ID,

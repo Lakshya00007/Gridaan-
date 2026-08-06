@@ -21,6 +21,7 @@ import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from '@/lib/config';
 import type { Coupon, OrderSuccessSummary } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { publicEnv } from '@/lib/env.public';
+import { INDIAN_PHONE_ERROR, normalizeIndianPhone } from '@/lib/phone';
 
 type OrderApiResponse = {
   checkout?: RazorpayCheckoutPayload;
@@ -182,7 +183,7 @@ export default function CheckoutView() {
   function validate(): boolean {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Name is required';
-    if (!form.phone.match(/^[6-9]\d{9}$/)) e.phone = 'Valid 10-digit Indian mobile required';
+    if (!normalizeIndianPhone(form.phone)) e.phone = INDIAN_PHONE_ERROR;
     if (form.email && !form.email.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) e.email = 'Invalid email';
     if (!form.line1.trim()) e.line1 = 'Address is required';
     if (!form.city.trim()) e.city = 'City is required';
@@ -439,6 +440,12 @@ export default function CheckoutView() {
       toast.error('Your cart is empty');
       return;
     }
+    const normalizedPhone = normalizeIndianPhone(form.phone);
+    if (!normalizedPhone) {
+      setErrors((current) => ({ ...current, phone: INDIAN_PHONE_ERROR }));
+      toast.error(INDIAN_PHONE_ERROR);
+      return;
+    }
     setProcessing(true);
     try {
       if (pendingCheckout) {
@@ -458,10 +465,10 @@ export default function CheckoutView() {
         body: JSON.stringify({
           customer_name: form.name,
           customer_email: form.email,
-          customer_phone: form.phone,
+          customer_phone: normalizedPhone,
           shipping_address: {
             full_name: form.name,
-            phone: form.phone,
+            phone: normalizedPhone,
             line1: form.line1,
             line2: form.line2 || undefined,
             city: form.city,
@@ -529,9 +536,12 @@ export default function CheckoutView() {
                 <Field label="Mobile Number *" error={errors.phone}>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    maxLength={18}
                     value={form.phone}
-                    onChange={(e) => setField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="10-digit mobile"
+                    onChange={(e) => setField('phone', e.target.value)}
+                    placeholder="98765 43210"
                     className={inputCls(errors.phone)}
                   />
                 </Field>

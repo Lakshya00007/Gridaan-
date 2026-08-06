@@ -1,4 +1,19 @@
 import { z } from 'zod';
+import { INDIAN_PHONE_ERROR, normalizeIndianPhone } from '@/lib/phone';
+
+export const customerPhoneSchema = z.string().transform((value, ctx) => {
+  const normalized = normalizeIndianPhone(value);
+
+  if (!normalized) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: INDIAN_PHONE_ERROR,
+    });
+    return z.NEVER;
+  }
+
+  return normalized;
+});
 
 /* ---------- Auth ---------- */
 export const loginSchema = z.object({
@@ -21,11 +36,7 @@ export type SignupInput = z.infer<typeof signupSchema>;
 /* ---------- Address ---------- */
 export const addressSchema = z.object({
   full_name: z.string().min(2).max(120),
-  phone: z
-    .string()
-    .min(10, 'Phone must be 10 digits')
-    .max(10)
-    .regex(/^[6-9]\d{9}$/, 'Enter a valid Indian mobile number'),
+  phone: customerPhoneSchema,
   line1: z.string().min(4).max(200),
   line2: z.string().max(200).optional().or(z.literal('')),
   city: z.string().min(2).max(80),
@@ -40,11 +51,7 @@ export const checkoutSchema = z
   .object({
     customer_name: z.string().min(2).max(120),
     customer_email: z.string().email().optional().or(z.literal('')),
-    customer_phone: z
-      .string()
-      .min(10)
-      .max(10)
-      .regex(/^[6-9]\\d{9}$/),
+    customer_phone: customerPhoneSchema,
     shipping_address: addressSchema,
     payment_method: z.literal('razorpay'),
     coupon_code: z.string().max(40).optional().or(z.literal('')),
