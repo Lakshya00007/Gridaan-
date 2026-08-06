@@ -1,9 +1,8 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  BadgeCheck,
-  Ban,
   Check,
   ExternalLink,
   Eye,
@@ -13,7 +12,7 @@ import {
   Truck,
   XCircle,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { formatRupees, formatDateTime, cn } from '@/lib/utils';
 import { buildAdminOrderLink, buildCustomerOrderLink, buildStatusUpdateLink } from '@/lib/whatsapp-links';
 import {
@@ -21,15 +20,43 @@ import {
   formatPaymentMethod,
   isManualPaymentMethod,
 } from '@/lib/manual-payment';
-import type { Order, OrderStatus } from '@/types';
+import type { Order, OrderStatus, PaymentMethod, PaymentStatus } from '@/types';
 
-const STATUSES: OrderStatus[] = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'returned'];
+const STATUSES: OrderStatus[] = [
+  'draft',
+  'pending_payment',
+  'payment_processing',
+  'placed',
+  'confirmed',
+  'packed',
+  'shipped',
+  'out_for_delivery',
+  'delivered',
+  'cancelled',
+  'return_requested',
+  'returned',
+];
+const PAYMENT_STATUSES: PaymentStatus[] = [
+  'pending',
+  'authorised',
+  'captured',
+  'failed',
+  'partially_refunded',
+  'refunded',
+];
+const PAYMENT_METHODS: PaymentMethod[] = ['razorpay', 'upi', 'card', 'netbanking', 'wallet', 'emi'];
 const statusColor: Record<OrderStatus, string> = {
+  draft: 'bg-neutral-100 text-neutral-700',
+  pending_payment: 'bg-amber-100 text-amber-700',
+  payment_processing: 'bg-amber-100 text-amber-700',
   placed: 'bg-amber-100 text-amber-700',
   confirmed: 'bg-blue-100 text-blue-700',
+  packed: 'bg-cyan-100 text-cyan-700',
   shipped: 'bg-indigo-100 text-indigo-700',
+  out_for_delivery: 'bg-purple-100 text-purple-700',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
+  return_requested: 'bg-orange-100 text-orange-700',
   returned: 'bg-neutral-200 text-neutral-700',
 };
 
@@ -51,19 +78,30 @@ export default function OrdersAdmin({
   const [orders, setOrders] = useState(initial);
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all');
+  const [methodFilter, setMethodFilter] = useState<'all' | PaymentMethod>('all');
+  const [fulfilmentFilter, setFulfilmentFilter] = useState('all');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
   const [openOrder, setOpenOrder] = useState<Order | null>(null);
   const router = useRouter();
 
   const filtered = orders.filter((o) => {
     if (statusFilter !== 'all' && o.order_status !== statusFilter) return false;
+    if (paymentFilter !== 'all' && o.payment_status !== paymentFilter) return false;
+    if (methodFilter !== 'all' && o.payment_method !== methodFilter) return false;
+    if (fulfilmentFilter !== 'all' && (o.fulfilment_status ?? 'unfulfilled') !== fulfilmentFilter) return false;
+    if (minAmount && Number(o.final_amount ?? o.total) < Number(minAmount)) return false;
+    if (maxAmount && Number(o.final_amount ?? o.total) > Number(maxAmount)) return false;
     if (!q) return true;
     const s = q.toLowerCase();
-    return [o.order_number, o.customer_name, o.customer_phone, o.customer_email].some((f) =>
+    return [o.order_number, o.checkout_reference, o.customer_name, o.customer_phone, o.customer_email].some((f) =>
       (f ?? '').toLowerCase().includes(s)
     );
   });
 
   async function updateStatus(id: string, status: OrderStatus) {
+    if (!window.confirm(`Change this order status to ${status.replace(/_/g, ' ')}?`)) return;
     const res = await fetch(`/api/admin/orders/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -78,35 +116,6 @@ export default function OrdersAdmin({
     toast.success(`Order ${status}`);
   }
 
-  async function reviewPayment(
-    id: string,
-    paymentAction: 'mark_paid' | 'reject',
-    rejectionReason?: string
-  ) {
-    const res = await fetch(`/api/admin/orders/${id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        payment_action: paymentAction,
-        rejection_reason: rejectionReason,
-      }),
-    });
-    const body = (await res.json().catch(() => null)) as
-      | { order?: Order; error?: string }
-      | null;
-
-    if (!res.ok || !body?.order) {
-      toast.error(body?.error || 'Failed to review payment');
-      return false;
-    }
-
-    const updatedOrder = body.order;
-    setOrders((current) => current.map((order) => (order.id === id ? updatedOrder : order)));
-    setOpenOrder(updatedOrder);
-    toast.success(paymentAction === 'mark_paid' ? 'Payment marked as paid' : 'Payment rejected');
-    return true;
-  }
-
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -119,9 +128,21 @@ export default function OrdersAdmin({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | OrderStatus)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
-            <option value="all">All</option>
+            <option value="all">All order statuses</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value as 'all' | PaymentStatus)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+            <option value="all">All payment statuses</option>
+            {PAYMENT_STATUSES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as 'all' | PaymentMethod)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+            <option value="all">All methods</option>
+            {PAYMENT_METHODS.map((s) => (
+              <option key={s} value={s}>{formatPaymentMethod(s)}</option>
             ))}
           </select>
         </div>
@@ -135,6 +156,36 @@ export default function OrdersAdmin({
           placeholder="Search by order #, customer name, phone, email…"
           className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none"
         />
+      </div>
+
+      <div className="mb-4 grid gap-3 rounded-2xl border border-neutral-100 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <select value={fulfilmentFilter} onChange={(e) => setFulfilmentFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+          <option value="all">All fulfilment</option>
+          <option value="unfulfilled">Unfulfilled</option>
+          <option value="processing">Processing</option>
+          <option value="packed">Packed</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+        </select>
+        <input
+          type="number"
+          min={0}
+          value={minAmount}
+          onChange={(e) => setMinAmount(e.target.value)}
+          placeholder="Minimum amount"
+          className="px-3 py-2 rounded-lg border border-neutral-200 text-sm"
+        />
+        <input
+          type="number"
+          min={0}
+          value={maxAmount}
+          onChange={(e) => setMaxAmount(e.target.value)}
+          placeholder="Maximum amount"
+          className="px-3 py-2 rounded-lg border border-neutral-200 text-sm"
+        />
+        <p className="flex items-center text-xs text-neutral-500">
+          {filtered.length.toLocaleString('en-IN')} matching orders on this page
+        </p>
       </div>
 
       <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
@@ -170,9 +221,14 @@ export default function OrdersAdmin({
                 <tr className="border-b border-neutral-100 text-left bg-neutral-50">
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Order</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Customer</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Items</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Date</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Total</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Gross</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Discount</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Shipping</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Final</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Payment</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Fulfilment</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Status</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500 w-32"></th>
                 </tr>
@@ -180,19 +236,28 @@ export default function OrdersAdmin({
               <tbody>
                 {filtered.map((o) => (
                   <tr key={o.id} className="border-b border-neutral-50 hover:bg-neutral-50">
-                    <td className="px-4 py-3 text-sm font-medium">{o.order_number}</td>
+                    <td className="px-4 py-3 text-sm font-medium">
+                      <Link href={`/admin/orders/${o.id}`} className="hover:text-gold-700">
+                        {o.order_number ?? o.checkout_reference ?? o.id.slice(0, 8)}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3">
                       <p className="text-sm text-neutral-900">{o.customer_name}</p>
                       <p className="text-xs text-neutral-400">{o.customer_phone}</p>
+                      {o.customer_email && <p className="text-xs text-neutral-400">{o.customer_email}</p>}
                     </td>
+                    <td className="px-4 py-3 text-sm text-neutral-500">{(o.items ?? []).reduce((sum, item) => sum + item.quantity, 0)}</td>
                     <td className="px-4 py-3 text-sm text-neutral-500">{formatDateTime(o.created_at)}</td>
-                    <td className="px-4 py-3 text-sm font-semibold">{formatRupees(o.total)}</td>
+                    <td className="px-4 py-3 text-sm font-semibold">{formatRupees(o.gross_amount ?? o.subtotal + o.discount)}</td>
+                    <td className="px-4 py-3 text-sm text-green-700">{o.discount > 0 ? `-${formatRupees(o.discount)}` : '—'}</td>
+                    <td className="px-4 py-3 text-sm">{o.shipping === 0 ? 'FREE' : formatRupees(o.shipping)}</td>
+                    <td className="px-4 py-3 text-sm font-semibold">{formatRupees(o.final_amount ?? o.total)}</td>
                     <td className="px-4 py-3 text-xs">
                       <div className="space-y-1">
                         <span
                           className={cn(
                             'inline-flex font-medium px-2 py-0.5 rounded-full',
-                            o.payment_status === 'paid'
+                            o.payment_status === 'captured'
                               ? 'bg-green-100 text-green-700'
                               : o.payment_status === 'pending'
                                 ? 'bg-amber-100 text-amber-700'
@@ -203,12 +268,12 @@ export default function OrdersAdmin({
                         >
                           {formatAdminPaymentLabel(o.payment_method, o.payment_status)}
                         </span>
-                        {isManualPaymentMethod(o.payment_method) && o.manual_payment_reference && (
-                          <p className="max-w-40 truncate text-[11px] text-neutral-500">
-                            Ref: {o.manual_payment_reference}
-                          </p>
-                        )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700">
+                        {(o.fulfilment_status ?? 'unfulfilled').replace(/_/g, ' ')}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full', statusColor[o.order_status])}>
@@ -231,9 +296,17 @@ export default function OrdersAdmin({
                         <button
                           onClick={() => setOpenOrder(o)}
                           className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg"
+                          title="Quick view"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+                        <Link
+                          href={`/admin/orders/${o.id}`}
+                          className="p-2 text-neutral-400 hover:text-gold-700 hover:bg-gold-50 rounded-lg"
+                          title="Open order detail"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -250,7 +323,6 @@ export default function OrdersAdmin({
           order={openOrder}
           onClose={() => setOpenOrder(null)}
           onStatus={(s) => updateStatus(openOrder.id, s)}
-          onPaymentAction={(action, reason) => reviewPayment(openOrder.id, action, reason)}
         />
       )}
     </div>
@@ -262,45 +334,14 @@ function OrderDrawer({
   order,
   onClose,
   onStatus,
-  onPaymentAction,
 }: {
   adminWhatsappNumber: string | null;
   order: Order;
   onClose: () => void;
   onStatus: (s: OrderStatus) => void;
-  onPaymentAction: (
-    action: 'mark_paid' | 'reject',
-    rejectionReason?: string
-  ) => Promise<boolean>;
 }) {
-  const [paymentReviewBusy, setPaymentReviewBusy] = useState(false);
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
   const isManualPayment = isManualPaymentMethod(order.payment_method);
   const isPendingManualPayment = isManualPayment && order.payment_status === 'pending';
-
-  async function markPaymentPaid() {
-    if (
-      !window.confirm(
-        'Confirm that the payment is visible as credited in the actual UPI or bank account. A UTR alone is not proof of payment.'
-      )
-    ) {
-      return;
-    }
-    setPaymentReviewBusy(true);
-    await onPaymentAction('mark_paid');
-    setPaymentReviewBusy(false);
-  }
-
-  async function rejectPayment() {
-    setPaymentReviewBusy(true);
-    const updated = await onPaymentAction('reject', rejectionReason.trim() || undefined);
-    if (updated) {
-      setShowRejectForm(false);
-      setRejectionReason('');
-    }
-    setPaymentReviewBusy(false);
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-end" onClick={onClose}>
@@ -308,7 +349,7 @@ function OrderDrawer({
       <div onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-md flex flex-col overflow-y-auto">
         <div className="p-5 border-b border-neutral-100 flex items-center justify-between sticky top-0 bg-white">
           <div>
-            <p className="font-semibold">{order.order_number}</p>
+            <p className="font-semibold">{order.order_number ?? order.checkout_reference ?? order.id.slice(0, 8)}</p>
             <p className="text-xs text-neutral-400">{formatDateTime(order.created_at)}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-lg">×</button>
@@ -340,7 +381,7 @@ function OrderDrawer({
             <SummaryRow label="Subtotal" value={formatRupees(order.subtotal)} />
             {order.discount > 0 && <SummaryRow label="Discount" value={`- ${formatRupees(order.discount)}`} className="text-green-600" />}
             <SummaryRow label="Shipping" value={order.shipping === 0 ? 'FREE' : formatRupees(order.shipping)} />
-            <SummaryRow label="Total" value={formatRupees(order.total)} bold />
+            <SummaryRow label="Final total" value={formatRupees(order.final_amount ?? order.total)} bold />
           </Section>
           <Section title="Payment">
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
@@ -352,86 +393,20 @@ function OrderDrawer({
                 label="Status"
                 value={formatAdminPaymentLabel(order.payment_method, order.payment_status)}
               />
-              {isManualPayment && order.manual_payment_reference && (
-                <SummaryRow label="UTR / reference" value={order.manual_payment_reference} />
-              )}
-              {isManualPayment && order.manual_payment_sender_name && (
-                <SummaryRow label="Sender" value={order.manual_payment_sender_name} />
-              )}
-              {isManualPayment && order.manual_payment_note && (
-                <div className="mt-2 border-t border-neutral-200 pt-2">
-                  <p className="text-xs text-neutral-500">Customer note</p>
-                  <p className="mt-1 break-words text-sm text-neutral-800">
-                    {order.manual_payment_note}
-                  </p>
-                </div>
-              )}
-              {order.manual_payment_verified_at && (
-                <SummaryRow
-                  label="Verified"
-                  value={formatDateTime(order.manual_payment_verified_at)}
-                />
-              )}
-              {order.manual_payment_rejected_reason && (
-                <div className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">
-                  Rejection reason: {order.manual_payment_rejected_reason}
-                </div>
-              )}
             </div>
           </Section>
-          {isPendingManualPayment && (
-            <Section title="Manual payment review">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs leading-5 text-amber-900">
-                  Verify actual account credit before approving. A screenshot or UTR by itself
-                  must never be treated as payment confirmation.
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <ActionBtn
-                    onClick={markPaymentPaid}
-                    icon={BadgeCheck}
-                    className="bg-green-100 text-green-800 disabled:opacity-50"
-                    disabled={paymentReviewBusy}
-                  >
-                    Mark as paid
-                  </ActionBtn>
-                  <ActionBtn
-                    onClick={() => setShowRejectForm((current) => !current)}
-                    icon={Ban}
-                    className="bg-red-100 text-red-800 disabled:opacity-50"
-                    disabled={paymentReviewBusy}
-                  >
-                    Reject payment
-                  </ActionBtn>
-                </div>
-                {showRejectForm && (
-                  <div className="mt-3 space-y-2 border-t border-amber-200 pt-3">
-                    <label className="block text-xs font-medium text-neutral-700">
-                      Rejection reason (optional)
-                    </label>
-                    <textarea
-                      value={rejectionReason}
-                      onChange={(event) => setRejectionReason(event.target.value)}
-                      maxLength={500}
-                      rows={3}
-                      placeholder="For example: account credit could not be matched to this order"
-                      className="w-full resize-none rounded-lg border border-neutral-200 bg-white p-2 text-xs outline-none focus:border-gold-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={rejectPayment}
-                      disabled={paymentReviewBusy}
-                      className="w-full rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                    >
-                      {paymentReviewBusy ? 'Saving…' : 'Confirm rejection'}
-                    </button>
-                  </div>
-                )}
+          {isPendingManualPayment ? (
+            <Section title="Legacy manual payment">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-800">
+                Manual payment approval is disabled. Unpaid orders can only become placed after a verified captured Razorpay payment.
               </div>
             </Section>
-          )}
+          ) : null}
           <Section title="Actions">
             <div className="grid grid-cols-2 gap-2 text-xs">
+              {(order.order_status === 'pending_payment' || order.order_status === 'payment_processing') && (
+                <ActionBtn onClick={() => onStatus('cancelled')} icon={XCircle} className="bg-red-50 text-red-700">Cancel</ActionBtn>
+              )}
               {order.order_status === 'placed' && (
                 <>
                   {!isPendingManualPayment && (
@@ -441,9 +416,18 @@ function OrderDrawer({
                 </>
               )}
               {order.order_status === 'confirmed' && (
+                <>
+                  <ActionBtn onClick={() => onStatus('packed')} icon={Check} className="bg-cyan-50 text-cyan-700">Mark packed</ActionBtn>
+                  <ActionBtn onClick={() => onStatus('cancelled')} icon={XCircle} className="bg-red-50 text-red-700">Cancel</ActionBtn>
+                </>
+              )}
+              {order.order_status === 'packed' && (
                 <ActionBtn onClick={() => onStatus('shipped')} icon={Truck} className="bg-blue-50 text-blue-700">Mark shipped</ActionBtn>
               )}
               {order.order_status === 'shipped' && (
+                <ActionBtn onClick={() => onStatus('out_for_delivery')} icon={Truck} className="bg-purple-50 text-purple-700">Out for delivery</ActionBtn>
+              )}
+              {order.order_status === 'out_for_delivery' && (
                 <ActionBtn onClick={() => onStatus('delivered')} icon={Check} className="bg-green-50 text-green-700">Mark delivered</ActionBtn>
               )}
             </div>

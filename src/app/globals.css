@@ -45,6 +45,9 @@
   .btn-gold {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold-500 to-gold-600 px-6 sm:px-8 py-3 text-sm font-medium text-white shadow-[0_18px_40px_-30px_rgba(162,108,25,0.48)] transition-all duration-300 hover:-translate-y-0.5 hover:from-gold-600 hover:to-gold-700 hover:shadow-[0_22px_48px_-28px_rgba(162,108,25,0.56)] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
   }
+  .input {
+    @apply w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-900 outline-none transition focus:border-gold-400 focus:ring-2 focus:ring-gold-100 disabled:bg-neutral-50 disabled:text-neutral-400;
+  }
   .glass {
     backdrop-filter: blur(20px) saturate(180%);
     background-color: rgba(255, 255, 255, 0.72);

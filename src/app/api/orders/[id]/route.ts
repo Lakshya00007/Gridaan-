@@ -5,7 +5,7 @@ import { errorResponse, notFound } from '@/lib/api';
 import type { OrderSuccessSummary } from '@/types';
 
 const ORDER_SUCCESS_SELECT =
-  'id, order_number, customer_name, total, payment_method, payment_status, order_status, manual_payment_reference, manual_payment_sender_name, manual_payment_note, manual_payment_verified_at, manual_payment_rejected_reason, created_at';
+  'id, order_number, customer_name, total, payment_method, payment_status, order_status, created_at';
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -17,6 +17,8 @@ function fetchPublicOrderSummary(identifier: string, column: 'id' | 'order_numbe
     .from('orders')
     .select(ORDER_SUCCESS_SELECT)
     .eq(column, identifier)
+    .eq('payment_status', 'captured')
+    .eq('order_status', 'placed')
     .maybeSingle();
 }
 

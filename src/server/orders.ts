@@ -31,8 +31,8 @@ export const getAdminStats = unstable_cache(
   async () => {
     const supabase = createServiceClient();
     const [revenue, orders, customers, products] = await Promise.all([
-      supabase.from('orders').select('total').eq('payment_status', 'paid'),
-      supabase.from('orders').select('id, order_status, created_at'),
+      supabase.from('orders').select('total').eq('payment_status', 'captured').eq('order_status', 'placed'),
+      supabase.from('orders').select('id, order_status, created_at').eq('payment_status', 'captured'),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('products').select('id, stock_count, in_stock', { count: 'exact' }),
     ]);

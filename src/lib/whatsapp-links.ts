@@ -1,9 +1,14 @@
 import type { Order } from '@/types';
 import { formatPaymentMethod } from '@/lib/manual-payment';
 
+function getOrderLabel(order: Order): string {
+  return order.order_number ?? order.checkout_reference ?? order.id.slice(0, 8);
+}
+
 export function buildAdminOrderMessage(order: Order): string {
+  const orderLabel = getOrderLabel(order);
   const lines: string[] = [];
-  lines.push(`*New Order* - ${order.order_number}`);
+  lines.push(`*New Order* - ${orderLabel}`);
   lines.push('');
   lines.push(`*Customer:* ${order.customer_name}`);
   lines.push(`*Phone:* ${order.customer_phone}`);
@@ -22,12 +27,6 @@ export function buildAdminOrderMessage(order: Order): string {
   lines.push(`*Total:* Rs. ${order.total.toLocaleString('en-IN')}`);
   lines.push('');
   lines.push(`*Payment:* ${formatPaymentMethod(order.payment_method)} - ${order.payment_status}`);
-  if (order.payment_method === 'manual_upi' || order.payment_method === 'bank_transfer') {
-    lines.push(`*Payment Note:* Gridaan Order ${order.order_number}`);
-  }
-  if (order.manual_payment_reference) {
-    lines.push(`*UTR / Reference:* ${order.manual_payment_reference}`);
-  }
   if (order.coupon_code) lines.push(`*Coupon:* ${order.coupon_code}`);
   if (order.notes) lines.push(`*Notes:* ${order.notes}`);
   return lines.join('\n');
@@ -38,12 +37,13 @@ export function buildAdminOrderLink(order: Order, adminPhone: string): string {
 }
 
 export function buildCustomerOrderMessage(order: Order): string {
+  const orderLabel = getOrderLabel(order);
   const lines: string[] = [];
   lines.push(`Hi ${order.customer_name.split(' ')[0]},`);
   lines.push('');
   lines.push(`Thank you for your order at *Gridaan*!`);
   lines.push('');
-  lines.push(`*Order:* ${order.order_number}`);
+  lines.push(`*Order:* ${orderLabel}`);
   lines.push(`*Total:* Rs. ${order.total.toLocaleString('en-IN')}`);
   lines.push(`*Payment:* ${formatPaymentMethod(order.payment_method)} (${order.payment_status})`);
   lines.push('');
@@ -58,10 +58,11 @@ export function buildCustomerOrderLink(order: Order): string {
 }
 
 export function buildStatusUpdateMessage(order: Order, status: string): string {
+  const orderLabel = getOrderLabel(order);
   return [
     `Hi ${order.customer_name.split(' ')[0]},`,
     '',
-    `Your order *${order.order_number}* status has been updated to: *${status}*.`,
+    `Your order *${orderLabel}* status has been updated to: *${status}*.`,
     '',
     'Thank you for shopping with Gridaan.',
   ].join('\n');

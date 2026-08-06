@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/supabase/auth';
+import { requireAdminPermission } from '@/lib/admin/permissions';
+import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { createServiceClient } from '@/lib/supabase/server';
 import { assertJsonRequest, assertSameOrigin, errorResponse, notFound } from '@/lib/api';
 import { productSchema } from '@/lib/validators';
@@ -10,8 +11,7 @@ const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
-const PRODUCT_SELECT =
-  'id, slug, name, description, price, original_price, discount, images, category_id, tags, in_stock, stock_count, rating, review_count, is_trending, is_new_arrival, is_best_seller, metadata, created_at, updated_at, category:categories(*)';
+const PRODUCT_SELECT = '*, category:categories(*)';
 
 export async function PATCH(
   req: NextRequest,
@@ -20,11 +20,12 @@ export async function PATCH(
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
-    await requireAdmin();
+    const admin = await requireAdminPermission('products.write');
 
     const { id } = paramsSchema.parse(await context.params);
     const input = productSchema.parse(await req.json());
     const supabase = createServiceClient();
+    const { data: before } = await supabase.from('products').select(PRODUCT_SELECT).eq('id', id).maybeSingle();
 
     const { data: product, error } = await supabase
       .from('products')
@@ -38,6 +39,16 @@ export async function PATCH(
 
     if (error) throw error;
     if (!product) throw notFound('Product not found');
+
+    await writeAdminAuditLog({
+      supabase,
+      adminId: admin.profile.id,
+      action: 'product.updated',
+      entity: 'product',
+      entityId: id,
+      beforeData: before,
+      afterData: product,
+    });
 
     revalidatePath('/admin/products');
     revalidatePath('/');
@@ -56,13 +67,23 @@ export async function DELETE(
 ) {
   try {
     assertSameOrigin(req);
-    await requireAdmin();
+    const admin = await requireAdminPermission('products.write');
 
     const { id } = paramsSchema.parse(await context.params);
     const supabase = createServiceClient();
+    const { data: before } = await supabase.from('products').select(PRODUCT_SELECT).eq('id', id).maybeSingle();
 
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
+
+    await writeAdminAuditLog({
+      supabase,
+      adminId: admin.profile.id,
+      action: 'product.deleted',
+      entity: 'product',
+      entityId: id,
+      beforeData: before,
+    });
 
     revalidatePath('/admin/products');
     revalidatePath('/');

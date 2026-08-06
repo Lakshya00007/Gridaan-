@@ -1,5 +1,6 @@
 import OrdersAdmin from './_client';
 import { createServiceClient } from '@/lib/supabase/server';
+import { requireAdminPermission } from '@/lib/admin/permissions';
 import { getAdminWhatsAppNumber } from '@/lib/whatsapp';
 import type { Order } from '@/types';
 
@@ -15,6 +16,7 @@ interface PageProps {
 }
 
 export default async function Page({ searchParams }: PageProps) {
+  await requireAdminPermission('orders.read');
   const supabase = createServiceClient();
   const { page } = await searchParams;
   const pageNumber = Math.max(1, Number.parseInt(page ?? '1', 10) || 1);

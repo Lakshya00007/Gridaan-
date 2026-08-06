@@ -19,6 +19,7 @@ export default function AccountView() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const getOrderLabel = (order: Order) => order.order_number ?? order.checkout_reference ?? order.id.slice(0, 8);
 
   useEffect(() => {
     fetch('/api/orders/mine')
@@ -65,12 +66,12 @@ export default function AccountView() {
           {orders.map((order) => (
             <Link
               key={order.id}
-              href={`/order-success?order=${encodeURIComponent(order.order_number)}`}
+              href={`/order-success?order=${encodeURIComponent(getOrderLabel(order))}`}
               className="block bg-white rounded-2xl p-5 shadow-sm border border-neutral-100 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-semibold">{order.order_number}</p>
+                  <p className="font-semibold">{getOrderLabel(order)}</p>
                   <p className="text-xs text-neutral-400">{formatDate(order.created_at)}</p>
                 </div>
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColors[order.order_status]}`}>

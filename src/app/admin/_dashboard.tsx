@@ -1,118 +1,227 @@
 'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
-import { DollarSign, ShoppingCart, Package, Users, AlertTriangle, ArrowUpRight } from 'lucide-react';
-import { formatRupees, formatDate, cn } from '@/lib/utils';
-import type { Order } from '@/types';
+import {
+  AlertTriangle,
+  Boxes,
+  CreditCard,
+  IndianRupee,
+  PackageCheck,
+  PackageX,
+  ReceiptIndianRupee,
+  RotateCcw,
+  ShoppingCart,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
+import { AdminPageHeader, AdminSection, EmptyState, MetricCard, MiniBarChart, StatusBadge } from './_components/ui';
+import { cn, formatDateTime, formatRupees } from '@/lib/utils';
+import type { DashboardData } from '@/server/admin';
 
-interface Stats {
-  totalRevenue: number;
-  totalOrders: number;
-  totalCustomers: number;
-  totalProducts: number;
-  outOfStock: number;
-  lowStock: number;
-}
+const dateFilters = ['Today', 'Yesterday', 'Last 7 days', 'Last 30 days', 'This month', 'Last month', 'Custom range'];
 
-const statusColor: Record<string, string> = {
-  placed: 'bg-amber-100 text-amber-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  shipped: 'bg-indigo-100 text-indigo-700',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  returned: 'bg-neutral-200 text-neutral-700',
-};
+export default function AdminDashboard({ data }: { data: DashboardData }) {
+  const [dateFilter, setDateFilter] = useState('Last 30 days');
 
-export default function AdminDashboard({ stats, recentOrders }: { stats: Stats; recentOrders: Order[] }) {
-  const cards = [
-    { label: 'Total Revenue', value: formatRupees(stats.totalRevenue), icon: DollarSign, color: 'bg-green-50 text-green-600' },
-    { label: 'Total Orders', value: stats.totalOrders.toLocaleString('en-IN'), icon: ShoppingCart, color: 'bg-blue-50 text-blue-600' },
-    { label: 'Customers', value: stats.totalCustomers.toLocaleString('en-IN'), icon: Users, color: 'bg-purple-50 text-purple-600' },
-    { label: 'Products', value: stats.totalProducts.toLocaleString('en-IN'), icon: Package, color: 'bg-amber-50 text-amber-600' },
+  const metrics = [
+    { label: 'Gross revenue', value: formatRupees(data.metrics.grossRevenue), icon: IndianRupee, tone: 'green' as const },
+    { label: 'Net revenue', value: formatRupees(data.metrics.netRevenue), icon: ReceiptIndianRupee, tone: 'gold' as const },
+    { label: 'Total orders', value: data.metrics.totalOrders.toLocaleString('en-IN'), icon: ShoppingCart, tone: 'blue' as const },
+    { label: 'Captured online orders', value: data.metrics.paidOrders.toLocaleString('en-IN'), icon: CreditCard, tone: 'green' as const },
+    { label: 'Pending payments', value: data.metrics.pendingPayments.toLocaleString('en-IN'), icon: AlertTriangle, tone: 'amber' as const },
+    { label: 'Cancelled orders', value: data.metrics.cancelledOrders.toLocaleString('en-IN'), icon: PackageX, tone: 'red' as const },
+    { label: 'Refund amount', value: formatRupees(data.metrics.refundAmount), icon: RotateCcw, tone: 'red' as const },
+    { label: 'Total customers', value: data.metrics.totalCustomers.toLocaleString('en-IN'), icon: Users, tone: 'blue' as const },
+    { label: 'New customers', value: data.metrics.newCustomers.toLocaleString('en-IN'), icon: TrendingUp, tone: 'gold' as const },
+    { label: 'Active products', value: data.metrics.activeProducts.toLocaleString('en-IN'), icon: PackageCheck, tone: 'green' as const },
+    { label: 'Low-stock products', value: data.metrics.lowStockProducts.toLocaleString('en-IN'), icon: Boxes, tone: 'amber' as const },
+    { label: 'Out-of-stock products', value: data.metrics.outOfStockProducts.toLocaleString('en-IN'), icon: PackageX, tone: 'red' as const },
+    { label: 'Average order value', value: formatRupees(data.metrics.averageOrderValue), icon: ReceiptIndianRupee, tone: 'neutral' as const },
   ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
-          <p className="text-sm text-neutral-500">Real-time overview of your store</p>
-        </div>
+      <AdminPageHeader
+        title="Dashboard"
+        description="Operational overview for orders, revenue, payments, inventory, customers, and admin activity."
+        action={
+          <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-stone-200 bg-white p-1">
+            {dateFilters.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setDateFilter(filter)}
+                className={cn(
+                  'whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition',
+                  dateFilter === filter ? 'bg-neutral-950 text-white' : 'text-neutral-500 hover:bg-stone-50 hover:text-neutral-950'
+                )}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        }
+      />
+
+      <div className="mb-6 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3 text-sm text-gold-900">
+        Conversion metrics are shown only when a reliable storefront analytics source is connected.
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {cards.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-100">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-neutral-500">{label}</span>
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', color)}>
-                <Icon className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-neutral-900">{value}</p>
-          </div>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+        {metrics.map((metric) => (
+          <MetricCard key={metric.label} {...metric} />
         ))}
       </div>
 
-      {(stats.outOfStock > 0 || stats.lowStock > 0) && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-          <div className="flex-1 text-sm">
-            {stats.outOfStock > 0 && (
-              <span className="font-medium text-amber-900">{stats.outOfStock} products are out of stock.</span>
-            )}
-            {stats.outOfStock > 0 && stats.lowStock > 0 && ' · '}
-            {stats.lowStock > 0 && (
-              <span className="font-medium text-amber-900">{stats.lowStock} products are low in stock.</span>
-            )}
-          </div>
-          <Link href="/admin/products?filter=low_stock" className="text-sm font-medium text-amber-700 hover:text-amber-900 flex items-center gap-1">
-            Review <ArrowUpRight className="w-3 h-3" />
-          </Link>
-        </div>
-      )}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-neutral-100">
-        <div className="flex items-center justify-between p-5 border-b border-neutral-100">
-          <h2 className="font-semibold">Recent Orders</h2>
-          <Link href="/admin/orders" className="text-sm text-gold-700 hover:underline">View all</Link>
-        </div>
-        {recentOrders.length === 0 ? (
-          <div className="p-12 text-center text-neutral-400">No orders yet.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-neutral-100 text-left">
-                  <th className="px-5 py-3 text-xs font-semibold text-neutral-500">Order</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-neutral-500">Customer</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-neutral-500">Date</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-neutral-500">Total</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-neutral-500">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((o) => (
-                  <tr key={o.id} className="border-b border-neutral-50 hover:bg-neutral-50">
-                    <td className="px-5 py-3 text-sm font-medium">
-                      <Link href={`/admin/orders?id=${o.id}`} className="hover:underline">
-                        {o.order_number}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3 text-sm text-neutral-600">{o.customer_name}</td>
-                    <td className="px-5 py-3 text-sm text-neutral-500">{formatDate(o.created_at)}</td>
-                    <td className="px-5 py-3 text-sm font-semibold">{formatRupees(o.total)}</td>
-                    <td className="px-5 py-3">
-                      <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full', statusColor[o.order_status])}>
-                        {o.order_status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="mb-6 grid gap-4 xl:grid-cols-2">
+        <AdminSection title="Revenue over time" description="Paid and captured order totals. Test orders are hidden when classified.">
+          <MiniBarChart data={data.revenueOverTime} valuePrefix="inr" />
+        </AdminSection>
+        <AdminSection title="Orders over time" description="Order volume by creation date.">
+          <MiniBarChart data={data.ordersOverTime} />
+        </AdminSection>
+        <AdminSection title="Payment method distribution">
+          <MiniBarChart data={data.paymentDistribution} />
+        </AdminSection>
+        <AdminSection title="Order status distribution">
+          <MiniBarChart data={data.orderStatusDistribution} />
+        </AdminSection>
       </div>
+
+      <div className="mb-6 grid gap-4 xl:grid-cols-3">
+        <AdminSection title="Top-selling products">
+          <MiniBarChart data={data.topProducts} />
+        </AdminSection>
+        <AdminSection title="Low-stock products">
+          {data.lowStockProducts.length ? (
+            <div className="space-y-3">
+              {data.lowStockProducts.map((product) => (
+                <div key={product.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{product.name}</p>
+                    <p className="text-xs text-neutral-500">SKU {product.sku ?? 'Not set'}</p>
+                  </div>
+                  <StatusBadge value={`${Math.max(0, product.stock_count - (product.reserved_stock ?? 0))} left`} tone="amber" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No low-stock alerts" description="Products will appear here when available stock drops below threshold." />
+          )}
+        </AdminSection>
+        <AdminSection title="Recent admin activities">
+          {data.recentActivities.length ? (
+            <div className="space-y-3">
+              {data.recentActivities.map((activity) => (
+                <div key={activity.id} className="rounded-lg border border-stone-100 p-3">
+                  <p className="text-sm font-semibold">{activity.action}</p>
+                  <p className="text-xs text-neutral-500">
+                    {activity.entity} · {formatDateTime(activity.created_at)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No audit activity yet" description="Admin actions will be logged once the new audit table is active." />
+          )}
+        </AdminSection>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <AdminSection title="Recent orders" action={<Link href="/admin/orders" className="text-sm font-semibold text-gold-700">View all</Link>}>
+          <OrderRows orders={data.recentOrders} />
+        </AdminSection>
+        <AdminSection title="Pending payment verification" action={<Link href="/admin/payments" className="text-sm font-semibold text-gold-700">Review</Link>}>
+          <OrderRows orders={data.pendingPaymentOrders} emptyTitle="No pending payments" />
+        </AdminSection>
+        <AdminSection title="Failed payments">
+          {data.failedPayments.length ? (
+            <div className="space-y-3">
+              {data.failedPayments.map((payment) => (
+                <div key={payment.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{payment.gateway_payment_id ?? payment.id}</p>
+                    <p className="text-xs text-neutral-500">{payment.failure_reason ?? 'Failure reason unavailable'}</p>
+                  </div>
+                  <StatusBadge value="failed" tone="red" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No failed payments" description="Failed payment attempts will appear here." />
+          )}
+        </AdminSection>
+        <AdminSection title="Pending refunds">
+          {data.pendingRefunds.length ? (
+            <div className="space-y-3">
+              {data.pendingRefunds.map((refund) => (
+                <div key={refund.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{refund.reason}</p>
+                    <p className="text-xs text-neutral-500">{formatRupees(refund.requested_amount_paise / 100)}</p>
+                  </div>
+                  <StatusBadge value={refund.status} tone="amber" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No pending refunds" description="Refund requests and processing items will appear here." />
+          )}
+        </AdminSection>
+        <AdminSection title="Recent customers">
+          {data.recentCustomers.length ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {data.recentCustomers.map((customer) => (
+                <div key={customer.id} className="rounded-lg border border-stone-100 p-3">
+                  <p className="truncate text-sm font-semibold">{customer.full_name ?? customer.email ?? customer.phone ?? 'Customer'}</p>
+                  <p className="truncate text-xs text-neutral-500">{customer.email ?? customer.phone ?? 'No contact saved'}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No customers yet" />
+          )}
+        </AdminSection>
+      </div>
+    </div>
+  );
+}
+
+function OrderRows({ orders, emptyTitle = 'No orders yet' }: { orders: DashboardData['recentOrders']; emptyTitle?: string }) {
+  if (!orders.length) return <EmptyState title={emptyTitle} description="Matching orders will appear here." />;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[42rem] text-left">
+        <thead>
+          <tr className="border-b border-stone-100 text-xs text-neutral-500">
+            <th className="py-2 pr-3 font-semibold">Order</th>
+            <th className="py-2 pr-3 font-semibold">Customer</th>
+            <th className="py-2 pr-3 font-semibold">Amount</th>
+            <th className="py-2 pr-3 font-semibold">Payment</th>
+            <th className="py-2 pr-3 font-semibold">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order.id} className="border-b border-stone-50 text-sm">
+              <td className="py-3 pr-3 font-semibold">
+                <Link href={`/admin/orders/${order.id}`} className="hover:text-gold-700">
+                  {order.order_number ?? order.checkout_reference ?? order.id.slice(0, 8)}
+                </Link>
+              </td>
+              <td className="py-3 pr-3">
+                <p className="font-medium">{order.customer_name}</p>
+                <p className="text-xs text-neutral-500">{order.customer_phone}</p>
+              </td>
+              <td className="py-3 pr-3 font-semibold">{formatRupees(order.final_amount ?? order.total)}</td>
+              <td className="py-3 pr-3"><StatusBadge value={order.payment_status} tone={order.payment_status === 'failed' ? 'red' : 'gold'} /></td>
+              <td className="py-3 pr-3"><StatusBadge value={order.order_status} tone="blue" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

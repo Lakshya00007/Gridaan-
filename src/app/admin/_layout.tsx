@@ -1,10 +1,11 @@
-import { requireAdmin } from '@/lib/supabase/auth';
+import { requireAdminRole } from '@/lib/admin/permissions';
 import AdminShell from './_shell';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const profile = await requireAdmin();
+  const admin = await requireAdminRole();
+  const profile = admin.profile;
 
   return (
     <AdminShell
@@ -12,6 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         id: profile.id,
         email: profile.email ?? '',
         full_name: profile.full_name ?? 'Admin',
+        role: admin.role,
       }}
     >
       {children}

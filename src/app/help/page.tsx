@@ -25,8 +25,8 @@ export default function HelpPage() {
         {
           heading: 'Payments',
           body: [
-            'Gridaan supports Cash on Delivery and, when configured, manual UPI or bank transfer payments.',
-            'Manual payments remain pending until the Gridaan team verifies actual account credit. Keep your transaction reference and payment screenshot until confirmation.',
+            'Gridaan accepts online payments through Razorpay, including UPI, cards, net banking, and wallets where Razorpay supports them.',
+            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
           ],
         },
         {

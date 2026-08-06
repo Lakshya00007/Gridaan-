@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/supabase/auth';
+import { requireAdminPermission } from '@/lib/admin/permissions';
+import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { createServiceClient } from '@/lib/supabase/server';
 import { assertJsonRequest, assertSameOrigin, errorResponse, notFound } from '@/lib/api';
 import { categorySchema } from '@/lib/validators';
@@ -17,11 +18,12 @@ export async function PATCH(
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
-    await requireAdmin();
+    const admin = await requireAdminPermission('categories.write');
 
     const { id } = paramsSchema.parse(await context.params);
     const input = categorySchema.parse(await req.json());
     const supabase = createServiceClient();
+    const { data: before } = await supabase.from('categories').select('*').eq('id', id).maybeSingle();
 
     const { data: category, error } = await supabase
       .from('categories')
@@ -37,6 +39,16 @@ export async function PATCH(
 
     if (error) throw error;
     if (!category) throw notFound('Category not found');
+
+    await writeAdminAuditLog({
+      supabase,
+      adminId: admin.profile.id,
+      action: 'category.updated',
+      entity: 'category',
+      entityId: id,
+      beforeData: before,
+      afterData: category,
+    });
 
     revalidatePath('/admin/categories');
     revalidatePath('/');
@@ -54,13 +66,23 @@ export async function DELETE(
 ) {
   try {
     assertSameOrigin(req);
-    await requireAdmin();
+    const admin = await requireAdminPermission('categories.write');
 
     const { id } = paramsSchema.parse(await context.params);
     const supabase = createServiceClient();
+    const { data: before } = await supabase.from('categories').select('*').eq('id', id).maybeSingle();
 
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) throw error;
+
+    await writeAdminAuditLog({
+      supabase,
+      adminId: admin.profile.id,
+      action: 'category.deleted',
+      entity: 'category',
+      entityId: id,
+      beforeData: before,
+    });
 
     revalidatePath('/admin/categories');
     revalidatePath('/');

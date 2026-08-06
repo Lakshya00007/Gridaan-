@@ -5,7 +5,7 @@ import { buildPageMetadata } from '@/lib/seo';
 export const metadata = buildPageMetadata({
   title: 'About Gridaan | Affordable Artificial Fashion Jewellery',
   description:
-    "Learn about Gridaan, an Indian artificial and imitation fashion jewellery brand offering premium-look women's earrings, necklaces, full jewellery sets, men's accessories, COD, and manual UPI options.",
+    "Learn about Gridaan, an Indian artificial and imitation fashion jewellery brand offering premium-look women's earrings, necklaces, full jewellery sets, men's accessories, and secure online payment.",
   path: '/about',
 });
 
@@ -40,15 +40,15 @@ export default function AboutPage() {
         {
           heading: 'Customer-first shopping experience',
           body: [
-            'Gridaan is built to keep shopping straightforward with clean product browsing, Cash on Delivery availability where applicable, and manual UPI payment verification before dispatch.',
+            'Gridaan is built to keep shopping straightforward with clean product browsing and secure online payment through Razorpay.',
             'We want customers to feel confident before and after they place an order, from product selection to delivery updates and support.',
           ],
         },
         {
           heading: 'Packing and support',
           body: [
-            'Orders are packed carefully for delivery, gifting, and everyday use. If you need help with payment verification or delivery, please contact support with your order number.',
-            'Manual UPI and bank-transfer payments are reviewed by the Gridaan team before an order is confirmed for dispatch.',
+            'Orders are packed carefully for delivery, gifting, and everyday use. If you need help with payment or delivery, please contact support with your order number.',
+            'Orders are confirmed only after Razorpay verifies captured online payment.',
           ],
         },
       ]}

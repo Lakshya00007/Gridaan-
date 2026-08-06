@@ -42,11 +42,15 @@ export default function Header({ categories, user }: HeaderProps) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<'women' | 'men' | null>(null);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [hasMounted, setHasMounted] = useState(false);
   const [, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
   const { searchQuery, setSearchQuery, isSearchOpen, setSearchOpen } = useUI();
-  const { getCount: getCartCount, setOpen: setCartOpen } = useCart();
+  const setCartOpen = useCart((state) => state.setOpen);
+  const cartCount = useCart((state) =>
+    state.guest.reduce((total, item) => total + item.quantity, 0)
+  );
   const availableSlugs = new Set(categories.map((category) => category.slug));
   const womenLinks = categoryPageConfigs.filter(
     (link) => link.slug.startsWith('women-') && availableSlugs.has(link.slug)
@@ -63,6 +67,10 @@ export default function Header({ categories, user }: HeaderProps) {
   const womenActive = pathname.startsWith('/category/women-');
   const menActive = pathname.startsWith('/category/men-');
   const fullSetsActive = pathname === getCategoryPageHref('women-full-sets');
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -110,15 +118,13 @@ export default function Header({ categories, user }: HeaderProps) {
     });
   }
 
-  const cartCount = getCartCount();
-
   return (
     <>
       {/* Announcement bar */}
       <div className="bg-neutral-950 px-4 py-2 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-white sm:text-[11px]">
         <span>Artificial fashion jewellery from ₹99</span>
         <span className="hidden sm:inline"> · </span>
-        <span className="hidden sm:inline">COD available across India</span>
+        <span className="hidden sm:inline">Secure online payment with Razorpay</span>
       </div>
 
       <header
@@ -232,8 +238,8 @@ export default function Header({ categories, user }: HeaderProps) {
                 className={cn(headerIconClass, 'relative')}
                 aria-label="Wishlist"
               >
-                <Heart className={cn('h-[18px] w-[18px]', wishlistCount > 0 && 'fill-red-500 text-red-500')} />
-                {wishlistCount > 0 && (
+                <Heart className={cn('h-[18px] w-[18px]', hasMounted && wishlistCount > 0 && 'fill-red-500 text-red-500')} />
+                {hasMounted && wishlistCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gradient-to-r from-red-500 to-red-400 text-white text-[10px] font-bold shadow-sm flex items-center justify-center">
                     {wishlistCount}
                   </span>
@@ -321,7 +327,7 @@ export default function Header({ categories, user }: HeaderProps) {
                 aria-label="Cart"
               >
                 <ShoppingBag className="h-[18px] w-[18px]" />
-                {cartCount > 0 && (
+                {hasMounted && cartCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gradient-to-r from-gold-600 to-gold-500 text-white text-[10px] font-bold shadow-sm flex items-center justify-center">
                     {cartCount}
                   </span>

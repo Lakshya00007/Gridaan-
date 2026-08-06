@@ -1,5 +1,6 @@
 import ProductsAdmin from './_client';
 import { createClient } from '@/lib/supabase/server';
+import { requireAdminPermission } from '@/lib/admin/permissions';
 import type { Category, Product } from '@/types';
 
 type AdminProduct = Product & { category: Pick<Category, 'id' | 'name' | 'slug'> | null };
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Products · Admin' };
 
 export default async function Page() {
+  await requireAdminPermission('products.read');
   const supabase = await createClient();
   const [{ data: products, count }, { data: categories }] = await Promise.all([
     supabase

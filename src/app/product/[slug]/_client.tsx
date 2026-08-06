@@ -5,7 +5,7 @@ import { Heart, ShoppingBag, Minus, Plus, Truck, Shield, RotateCcw, Star, Share2
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/store/cart';
 import { formatRupees, cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Product } from '@/types';
 import { useRouter } from 'next/navigation';
 import { getWishlistState, toggleWishlist as toggleWishlistItem } from '@/lib/wishlist-client';
@@ -252,7 +252,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
           <div className="space-y-4">
             {[
               { icon: Truck, text: 'Free shipping on orders above ₹999' },
-              { icon: Shield, text: 'COD and manually verified payment options' },
+              { icon: Shield, text: 'Secure Razorpay online payment' },
               { icon: RotateCcw, text: 'Return support for damaged or wrong items' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3">

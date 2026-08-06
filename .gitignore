@@ -31,3 +31,5 @@ claude-cli.py
 node_modules
 .next
 supabase/.temp/
+.vercel
+.env*
