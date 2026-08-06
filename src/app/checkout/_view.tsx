@@ -1,15 +1,25 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
+  ArrowRight,
   ArrowLeft,
   Banknote,
+  Building2,
+  Check,
   CreditCard,
+  FileText,
+  LoaderCircle,
   Lock,
+  Mail,
+  MapPin,
+  Navigation,
   ShieldCheck,
   Tag,
+  UserRound,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -21,7 +31,21 @@ import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from '@/lib/config';
 import type { Coupon, OrderSuccessSummary } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { publicEnv } from '@/lib/env.public';
-import { INDIAN_PHONE_ERROR, normalizeIndianPhone } from '@/lib/phone';
+import {
+  acquireCheckoutSubmission,
+  buildCheckoutOrderPayload,
+  CHECKOUT_FIELD_ORDER,
+  EMPTY_CHECKOUT_FORM,
+  getCheckoutDismissalState,
+  hasPreparedRazorpayCheckout,
+  mapCheckoutApiFieldErrors,
+  releaseCheckoutSubmission,
+  sanitizePhoneFieldValue,
+  sanitizePincode,
+  validateCheckoutForm,
+  type CheckoutFormErrors,
+  type CheckoutFormValues,
+} from '@/lib/checkout-form';
 
 type OrderApiResponse = {
   checkout?: RazorpayCheckoutPayload;
@@ -29,6 +53,10 @@ type OrderApiResponse = {
   error?: string;
   message?: string;
   request_id?: string;
+  issues?: {
+    formErrors?: string[];
+    fieldErrors?: Record<string, string[] | undefined>;
+  };
 };
 
 type VerifyPaymentResponse = {
@@ -113,22 +141,13 @@ export default function CheckoutView() {
   const { setSearchQuery } = useUI();
   const [mounted, setMounted] = useState(false);
   const [, startTransition] = useTransition();
+  const processingLock = useRef(false);
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [couponCode, setCouponCode] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<CheckoutFormErrors>({});
   const [processing, setProcessing] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<RazorpayCheckoutPayload | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    line1: '',
-    line2: '',
-    city: '',
-    state: '',
-    pincode: '',
-    notes: '',
-  });
+  const [form, setForm] = useState<CheckoutFormValues>(EMPTY_CHECKOUT_FORM);
 
   useEffect(() => {
     setMounted(true);
@@ -157,7 +176,7 @@ export default function CheckoutView() {
               setForm((f) => ({
                 ...f,
                 name: f.name || profile.full_name || '',
-                phone: f.phone || profile.phone || '',
+                phone: f.phone || sanitizePhoneFieldValue(profile.phone || ''),
               }));
             }
           });
@@ -175,22 +194,25 @@ export default function CheckoutView() {
   const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = Math.max(0, subtotal - discount + shipping);
 
-  function setField(key: keyof typeof form, value: string) {
+  function setField(key: keyof CheckoutFormValues, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: '' }));
   }
 
-  function validate(): boolean {
-    const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = 'Name is required';
-    if (!normalizeIndianPhone(form.phone)) e.phone = INDIAN_PHONE_ERROR;
-    if (form.email && !form.email.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) e.email = 'Invalid email';
-    if (!form.line1.trim()) e.line1 = 'Address is required';
-    if (!form.city.trim()) e.city = 'City is required';
-    if (!form.state) e.state = 'State is required';
-    if (!form.pincode.match(/^\d{6}$/)) e.pincode = 'PIN must be 6 digits';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  function setCheckoutProcessing(next: boolean) {
+    if (!next) releaseCheckoutSubmission(processingLock);
+    setProcessing(next);
+  }
+
+  function focusFirstInvalidField(nextErrors: CheckoutFormErrors) {
+    const firstField = CHECKOUT_FIELD_ORDER.find((field) => nextErrors[field]);
+    if (!firstField) return;
+
+    window.requestAnimationFrame(() => {
+      const element = document.getElementById(`checkout-${firstField}`);
+      element?.focus({ preventScroll: true });
+      element?.scrollIntoView({ block: 'center' });
+    });
   }
 
   async function applyCoupon() {
@@ -299,7 +321,7 @@ export default function CheckoutView() {
     const scriptLoaded = await loadRazorpayCheckout();
     if (!scriptLoaded || !window.Razorpay) {
       toast.error('Could not load Razorpay Checkout. Please try again.');
-      setProcessing(false);
+      setCheckoutProcessing(false);
       return;
     }
 
@@ -321,7 +343,7 @@ export default function CheckoutView() {
     };
     if (!response.ok || !data.provider_order?.gatewayOrderId) {
       toast.error(data.error ?? 'Could not retry payment');
-      setProcessing(false);
+      setCheckoutProcessing(false);
       return;
     }
 
@@ -342,14 +364,14 @@ export default function CheckoutView() {
   function openRazorpayCheckout(checkout: RazorpayCheckoutPayload) {
     if (!checkout.key && !publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
       toast.error('Razorpay key is not configured');
-      setProcessing(false);
+      setCheckoutProcessing(false);
       return;
     }
 
     const Razorpay = window.Razorpay;
     if (!Razorpay) {
       toast.error('Razorpay Checkout is unavailable');
-      setProcessing(false);
+      setCheckoutProcessing(false);
       return;
     }
 
@@ -374,8 +396,9 @@ export default function CheckoutView() {
             message: 'Customer closed Razorpay Checkout before payment completion',
             releaseReservation: false,
           });
-          setPendingCheckout(checkout);
-          setProcessing(false);
+          const dismissalState = getCheckoutDismissalState(form, checkout);
+          setPendingCheckout(dismissalState.pendingCheckout);
+          setCheckoutProcessing(dismissalState.processing);
           toast.message('Payment was not completed. You can retry without creating a duplicate order.');
         },
       },
@@ -384,7 +407,7 @@ export default function CheckoutView() {
           const verified = await verifyRazorpayPayment(checkout, response);
           if (!verified.placed || !verified.order?.order_number) {
             setPendingCheckout(checkout);
-            setProcessing(false);
+            setCheckoutProcessing(false);
             toast.message('Payment is being verified. Your order is not placed yet.');
             return;
           }
@@ -405,8 +428,9 @@ export default function CheckoutView() {
             gatewayPaymentId: response.razorpay_payment_id,
             releaseReservation: true,
           });
-          setPendingCheckout(checkout);
-          setProcessing(false);
+          const dismissalState = getCheckoutDismissalState(form, checkout);
+          setPendingCheckout(dismissalState.pendingCheckout);
+          setCheckoutProcessing(dismissalState.processing);
           toast.error(error instanceof Error ? error.message : 'Payment verification failed');
         }
       },
@@ -423,7 +447,7 @@ export default function CheckoutView() {
         releaseReservation: true,
       });
       setPendingCheckout(checkout);
-      setProcessing(false);
+      setCheckoutProcessing(false);
       toast.error(message);
     });
 
@@ -431,19 +455,19 @@ export default function CheckoutView() {
   }
 
   async function placeOrder() {
-    if (processing) return;
-    if (!validate()) {
+    if (!acquireCheckoutSubmission(processingLock)) return;
+
+    const nextErrors = validateCheckoutForm(form);
+    if (Object.keys(nextErrors).length > 0) {
+      releaseCheckoutSubmission(processingLock);
+      setErrors(nextErrors);
+      focusFirstInvalidField(nextErrors);
       toast.error('Please fix the highlighted fields');
       return;
     }
     if (guest.length === 0) {
+      releaseCheckoutSubmission(processingLock);
       toast.error('Your cart is empty');
-      return;
-    }
-    const normalizedPhone = normalizeIndianPhone(form.phone);
-    if (!normalizedPhone) {
-      setErrors((current) => ({ ...current, phone: INDIAN_PHONE_ERROR }));
-      toast.error(INDIAN_PHONE_ERROR);
       return;
     }
     setProcessing(true);
@@ -455,43 +479,45 @@ export default function CheckoutView() {
       const scriptLoaded = await loadRazorpayCheckout();
       if (!scriptLoaded || !window.Razorpay) {
         toast.error('Could not load Razorpay Checkout. Please try again.');
-        setProcessing(false);
+        setCheckoutProcessing(false);
         return;
       }
       const idempotencyKey = getCheckoutIdempotencyKey();
+      const orderPayload = buildCheckoutOrderPayload({
+        form,
+        couponCode: coupon?.code,
+        items: guest.map((item) => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+        })),
+      });
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey },
-        body: JSON.stringify({
-          customer_name: form.name,
-          customer_email: form.email,
-          customer_phone: normalizedPhone,
-          shipping_address: {
-            full_name: form.name,
-            phone: normalizedPhone,
-            line1: form.line1,
-            line2: form.line2 || undefined,
-            city: form.city,
-            state: form.state,
-            pincode: form.pincode,
-            country: 'India',
-          },
-          payment_method: 'razorpay',
-          coupon_code: coupon?.code,
-          notes: form.notes,
-          items: guest.map((g) => ({ product_id: g.product.id, quantity: g.quantity })),
-        }),
+        body: JSON.stringify(orderPayload),
       });
       const data = (await res.json()) as OrderApiResponse;
       if (!res.ok) {
         if (data.error === 'idempotency_conflict') clearCheckoutIdempotencyKey();
-        toast.error(data.message ?? data.error ?? 'Could not start payment');
-        setProcessing(false);
+        const apiErrors = mapCheckoutApiFieldErrors(data.issues?.fieldErrors);
+        if (data.error === 'validation_error' && Object.keys(apiErrors).length > 0) {
+          setErrors(apiErrors);
+          focusFirstInvalidField(apiErrors);
+          toast.error('Please review the highlighted delivery details');
+        } else {
+          toast.error(
+            data.message ??
+              data.issues?.formErrors?.[0] ??
+              data.error ??
+              'Could not start payment'
+          );
+        }
+        setCheckoutProcessing(false);
         return;
       }
-      if (!data.checkout?.razorpay_order_id) {
+      if (!hasPreparedRazorpayCheckout(res.ok, data)) {
         toast.error('Payment could not be prepared.');
-        setProcessing(false);
+        setCheckoutProcessing(false);
         return;
       }
 
@@ -501,287 +527,685 @@ export default function CheckoutView() {
     } catch (error) {
       console.error('[checkout] placeOrder failed', error);
       toast.error(error instanceof Error ? error.message : 'Network error');
-      setProcessing(false);
+      setCheckoutProcessing(false);
     }
   }
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-warm-50">
-      <div className="bg-white border-b border-neutral-100">
-        <div className="container py-4">
-          <Link href="/shop" className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Continue Shopping
+    <div className="min-h-screen bg-[#f8f5ef] pb-32 text-neutral-950 lg:pb-16">
+      <div className="border-b border-stone-200/80 bg-white/90">
+        <div className="mx-auto flex max-w-[1180px] items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
+          <Link
+            href="/shop"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-950"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Continue shopping
           </Link>
+          <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+            <Lock className="h-3.5 w-3.5 text-gold-700" aria-hidden="true" />
+            Secure checkout
+          </div>
         </div>
       </div>
 
-      <div className="container py-8 md:py-12">
-        <h1 className="heading-display text-2xl md:text-3xl text-neutral-900 mb-8 text-center">Checkout</h1>
+      <main className="mx-auto max-w-[1180px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-11">
+        <div className="mb-7 flex flex-col gap-6 md:mb-9 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase text-gold-700">Complete your purchase</p>
+            <h1 className="heading-display text-3xl text-neutral-950 sm:text-4xl">Checkout</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
+              Add your delivery details, review your jewellery, and continue to secure payment.
+            </p>
+          </div>
+          <CheckoutProgress />
+        </div>
 
-        <div className="grid lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold mb-6">Delivery Information</h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Full Name *" error={errors.name}>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setField('name', e.target.value)}
-                    placeholder="Your full name"
-                    className={inputCls(errors.name)}
-                  />
-                </Field>
-                <Field label="Mobile Number *" error={errors.phone}>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    maxLength={18}
-                    value={form.phone}
-                    onChange={(e) => setField('phone', e.target.value)}
-                    placeholder="98765 43210"
-                    className={inputCls(errors.phone)}
-                  />
-                </Field>
-                <Field label="Email" error={errors.email} className="sm:col-span-2">
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setField('email', e.target.value)}
-                    placeholder="optional"
-                    className={inputCls(errors.email)}
-                  />
-                </Field>
-                <Field label="Address *" error={errors.line1} className="sm:col-span-2">
-                  <textarea
-                    value={form.line1}
-                    onChange={(e) => setField('line1', e.target.value)}
-                    placeholder="House/Flat, Street, Locality"
-                    rows={2}
-                    className={cn(inputCls(errors.line1), 'resize-none')}
-                  />
-                </Field>
-                <Field label="City *" error={errors.city}>
-                  <input value={form.city} onChange={(e) => setField('city', e.target.value)} placeholder="City" className={inputCls(errors.city)} />
-                </Field>
-                <Field label="State *" error={errors.state}>
-                  <select value={form.state} onChange={(e) => setField('state', e.target.value)} className={inputCls(errors.state)}>
-                    <option value="">Select state</option>
-                    {indianStates.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="PIN Code *" error={errors.pincode}>
-                  <input
-                    value={form.pincode}
-                    onChange={(e) => setField('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="6-digit"
-                    className={inputCls(errors.pincode)}
-                  />
-                </Field>
-                <Field label="Order Notes (optional)" className="sm:col-span-2">
-                  <textarea
-                    value={form.notes}
-                    onChange={(e) => setField('notes', e.target.value)}
-                    placeholder="Any special instructions"
-                    rows={2}
-                    className={cn(inputCls(), 'resize-none')}
-                  />
-                </Field>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold">Payment Method</h3>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Your order will be placed only after successful payment.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <PayOption
-                  active
-                  onClick={() => undefined}
-                  icon={CreditCard}
-                  title="Online Payment — UPI, Cards, Net Banking and Wallets"
-                  desc="Secure payment powered by Razorpay"
-                />
-                <PayOption
-                  active={false}
-                  disabled
-                  onClick={() => undefined}
-                  icon={Banknote}
-                  title="Cash on Delivery — Unavailable"
-                  desc="Gridaan is online-payment-only"
-                />
-              </div>
-
-              <div className="mt-5 rounded-xl border border-gold-200 bg-gold-50 p-4 text-sm text-gold-900">
-                <p className="font-semibold">Your order will be placed only after successful payment.</p>
-                <p className="mt-1 text-xs leading-5 text-gold-800">
-                  If checkout is closed, fails, or cannot be verified, no order number is generated and no order is placed.
-                </p>
-              </div>
-            </div>
+        <form
+          id="checkout-delivery-form"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void placeOrder();
+          }}
+        >
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {CHECKOUT_FIELD_ORDER.map((field) => errors[field]).find(Boolean) ?? ''}
           </div>
 
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl p-6 shadow-sm sticky top-24">
-              <h3 className="text-lg font-semibold mb-6">Order Summary</h3>
-              <div className="space-y-4 mb-6 pb-6 border-b border-neutral-100">
-                {guest.map((item) => (
-                  <div key={item.product.id} className="flex gap-3">
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 flex-shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.product.images?.[0] || '/placeholder.svg'} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-neutral-900 truncate">{item.product.name}</p>
-                      <p className="text-xs text-neutral-400">Qty: {item.quantity}</p>
-                      <p className="text-sm font-semibold mt-0.5">{formatRupees(item.product.price * item.quantity)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mb-6 pb-6 border-b border-neutral-100">
-                {coupon ? (
-                  <div className="flex items-center justify-between bg-green-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-700">{coupon.code}</span>
-                      <span className="text-xs text-green-600">- {formatRupees(discount)}</span>
-                    </div>
-                    <button onClick={() => setCoupon(null)} aria-label="Remove coupon">
-                      <X className="w-4 h-4 text-green-600" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <input
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                      placeholder="Coupon code"
-                      className="flex-1 px-4 py-2.5 rounded-xl border border-neutral-200 text-sm outline-none focus:border-gold-400"
-                    />
-                    <button
-                      onClick={applyCoupon}
-                      className="px-4 py-2.5 bg-neutral-900 text-white rounded-xl text-sm font-medium hover:bg-neutral-800"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2.5 mb-6">
-                <Row label="Subtotal" value={formatRupees(subtotal)} />
-                {discount > 0 && <Row label="Discount" value={`- ${formatRupees(discount)}`} className="text-green-600" />}
-                <Row label="Shipping" value={shipping === 0 ? <span className="text-green-600">FREE</span> : formatRupees(shipping)} />
-                <div className="flex justify-between text-base pt-2.5 border-t border-neutral-100">
-                  <span className="font-semibold">Total</span>
-                  <span className="font-bold text-lg">{formatRupees(total)}</span>
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)] lg:gap-7">
+            <div className="space-y-6">
+              <section className="rounded-[22px] border border-stone-200/90 bg-white p-5 shadow-[0_18px_55px_-46px_rgba(45,35,20,0.55)] sm:p-7">
+                <div className="mb-7">
+                  <h2 className="text-xl font-semibold text-neutral-950">Delivery information</h2>
+                  <p className="mt-1 text-sm text-neutral-500">Where should we deliver your order?</p>
                 </div>
-              </div>
 
-              <button
-                onClick={placeOrder}
-                disabled={processing}
-                className="w-full btn-primary py-4 text-base font-semibold"
-              >
-                {processing ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                    Processing…
-                  </span>
-                ) : (
-                  `${pendingCheckout ? 'Retry Payment' : 'Pay & Place Order'} — ${formatRupees(total)}`
-                )}
-              </button>
+                <div className="space-y-8">
+                  <div>
+                    <SectionHeading icon={UserRound} title="Contact information" />
+                    <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                      <Field id="checkout-name" label="Full Name" required error={errors.name}>
+                        <input
+                          id="checkout-name"
+                          name="name"
+                          autoComplete="name"
+                          maxLength={120}
+                          disabled={processing}
+                          value={form.name}
+                          onChange={(event) => setField('name', event.target.value)}
+                          placeholder="e.g. Aanya Sharma"
+                          aria-invalid={Boolean(errors.name)}
+                          aria-describedby={errorId('checkout-name', errors.name)}
+                          className={inputCls(errors.name)}
+                        />
+                      </Field>
 
-              <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-neutral-500">
-                {[
-                  { icon: CreditCard, label: 'Razorpay Checkout' },
-                  { icon: Banknote, label: 'COD Unavailable' },
-                  { icon: ShieldCheck, label: 'Verified Online Payment' },
-                  { icon: Lock, label: 'SSL Secured' },
-                ].map(({ icon: Icon, label }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <Icon className="h-3.5 w-3.5 text-gold-600" />
-                    <span>{label}</span>
+                      <Field
+                        id="checkout-phone"
+                        label="Mobile Number"
+                        required
+                        error={errors.phone}
+                        hint="Used only for order and delivery updates."
+                      >
+                        <div className="relative">
+                          <span
+                            className="pointer-events-none absolute inset-y-0 left-0 flex w-14 items-center justify-center border-r border-stone-200 text-sm font-semibold text-neutral-700"
+                            aria-hidden="true"
+                          >
+                            +91
+                          </span>
+                          <input
+                            id="checkout-phone"
+                            name="phone"
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel"
+                            maxLength={10}
+                            disabled={processing}
+                            value={form.phone}
+                            onChange={(event) =>
+                              setField('phone', sanitizePhoneFieldValue(event.target.value))
+                            }
+                            placeholder="98765 43210"
+                            aria-invalid={Boolean(errors.phone)}
+                            aria-describedby={fieldDescriptionIds(
+                              'checkout-phone',
+                              errors.phone,
+                              true
+                            )}
+                            className={cn(inputCls(errors.phone), 'pl-[4.5rem]')}
+                          />
+                        </div>
+                      </Field>
+
+                      <Field
+                        id="checkout-email"
+                        label="Email"
+                        optional
+                        error={errors.email}
+                        className="sm:col-span-2"
+                        hint="Used only for order and delivery updates."
+                      >
+                        <div className="relative">
+                          <Mail
+                            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                            aria-hidden="true"
+                          />
+                          <input
+                            id="checkout-email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            maxLength={254}
+                            disabled={processing}
+                            value={form.email}
+                            onChange={(event) => setField('email', event.target.value)}
+                            placeholder="aanya@example.com"
+                            aria-invalid={Boolean(errors.email)}
+                            aria-describedby={fieldDescriptionIds(
+                              'checkout-email',
+                              errors.email,
+                              true
+                            )}
+                            className={cn(inputCls(errors.email), 'pl-10')}
+                          />
+                        </div>
+                      </Field>
+                    </div>
                   </div>
-                ))}
+
+                  <div className="border-t border-stone-200/80 pt-7">
+                    <SectionHeading icon={MapPin} title="Delivery address" />
+                    <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                      <Field
+                        id="checkout-line1"
+                        label="House No., Building, Street and Area"
+                        required
+                        error={errors.line1}
+                        className="sm:col-span-2"
+                      >
+                        <textarea
+                          id="checkout-line1"
+                          name="address-line1"
+                          autoComplete="street-address"
+                          rows={3}
+                          maxLength={200}
+                          disabled={processing}
+                          value={form.line1}
+                          onChange={(event) => setField('line1', event.target.value)}
+                          placeholder="e.g. Flat 12, Gulmohar Residency, C-Scheme"
+                          aria-invalid={Boolean(errors.line1)}
+                          aria-describedby={errorId('checkout-line1', errors.line1)}
+                          className={cn(inputCls(errors.line1), 'resize-none py-3')}
+                        />
+                      </Field>
+
+                      <Field
+                        id="checkout-line2"
+                        label="Landmark"
+                        optional
+                        error={errors.line2}
+                        className="sm:col-span-2"
+                      >
+                        <div className="relative">
+                          <Building2
+                            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                            aria-hidden="true"
+                          />
+                          <input
+                            id="checkout-line2"
+                            name="address-line2"
+                            autoComplete="address-line2"
+                            maxLength={200}
+                            disabled={processing}
+                            value={form.line2}
+                            onChange={(event) => setField('line2', event.target.value)}
+                            placeholder="e.g. Near Central Park"
+                            aria-invalid={Boolean(errors.line2)}
+                            aria-describedby={errorId('checkout-line2', errors.line2)}
+                            className={cn(inputCls(errors.line2), 'pl-10')}
+                          />
+                        </div>
+                      </Field>
+
+                      <Field id="checkout-city" label="City" required error={errors.city}>
+                        <input
+                          id="checkout-city"
+                          name="city"
+                          autoComplete="address-level2"
+                          maxLength={80}
+                          disabled={processing}
+                          value={form.city}
+                          onChange={(event) => setField('city', event.target.value)}
+                          placeholder="e.g. Jaipur"
+                          aria-invalid={Boolean(errors.city)}
+                          aria-describedby={errorId('checkout-city', errors.city)}
+                          className={inputCls(errors.city)}
+                        />
+                      </Field>
+
+                      <Field id="checkout-state" label="State" required error={errors.state}>
+                        <div className="relative">
+                          <select
+                            id="checkout-state"
+                            name="state"
+                            autoComplete="address-level1"
+                            disabled={processing}
+                            value={form.state}
+                            onChange={(event) => setField('state', event.target.value)}
+                            aria-invalid={Boolean(errors.state)}
+                            aria-describedby={errorId('checkout-state', errors.state)}
+                            className={cn(inputCls(errors.state), 'appearance-none pr-10')}
+                          >
+                            <option value="">Select state</option>
+                            {indianStates.map((state) => (
+                              <option key={state} value={state}>
+                                {state}
+                              </option>
+                            ))}
+                          </select>
+                          <Navigation
+                            className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </Field>
+
+                      <Field id="checkout-pincode" label="PIN Code" required error={errors.pincode}>
+                        <input
+                          id="checkout-pincode"
+                          name="postal-code"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          maxLength={6}
+                          disabled={processing}
+                          value={form.pincode}
+                          onChange={(event) =>
+                            setField('pincode', sanitizePincode(event.target.value))
+                          }
+                          placeholder="e.g. 302001"
+                          aria-invalid={Boolean(errors.pincode)}
+                          aria-describedby={errorId('checkout-pincode', errors.pincode)}
+                          className={inputCls(errors.pincode)}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-stone-200/80 pt-7">
+                    <SectionHeading icon={FileText} title="Additional information" />
+                    <div className="mt-4">
+                      <Field id="checkout-notes" label="Order Notes" optional error={errors.notes}>
+                        <textarea
+                          id="checkout-notes"
+                          name="notes"
+                          rows={3}
+                          maxLength={500}
+                          disabled={processing}
+                          value={form.notes}
+                          onChange={(event) => setField('notes', event.target.value)}
+                          placeholder="Any delivery instructions or a note for your order"
+                          aria-invalid={Boolean(errors.notes)}
+                          aria-describedby={fieldDescriptionIds(
+                            'checkout-notes',
+                            errors.notes,
+                            true
+                          )}
+                          className={cn(inputCls(errors.notes), 'resize-none py-3')}
+                        />
+                        <p
+                          id="checkout-notes-hint"
+                          className="mt-1.5 text-right text-xs tabular-nums text-neutral-400"
+                        >
+                          {form.notes.length}/500
+                        </p>
+                      </Field>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[22px] border border-stone-200/90 bg-white p-5 shadow-[0_18px_55px_-46px_rgba(45,35,20,0.55)] sm:p-7">
+                <div className="mb-5">
+                  <SectionHeading icon={ShieldCheck} title="Payment" />
+                  <p className="mt-2 text-sm leading-6 text-neutral-500">
+                    Your order will be placed only after successful payment.
+                  </p>
+                </div>
+
+                <div className="space-y-3" aria-label="Available payment methods">
+                  <PaymentMethodRow
+                    active
+                    icon={CreditCard}
+                    title="Online Payment — UPI, Cards, Net Banking and Wallets"
+                    description="Secure payment powered by Razorpay"
+                  />
+                  <PaymentMethodRow
+                    disabled
+                    icon={Banknote}
+                    title="Cash on Delivery — Unavailable"
+                    description="Gridaan is an online-payment-only store"
+                  />
+                </div>
+
+                <div className="mt-5 flex gap-3 border-t border-stone-200/80 pt-5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-50 text-gold-800">
+                    <Lock className="h-[18px] w-[18px]" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-900">Secure online payment</p>
+                    <p className="mt-1 text-xs leading-5 text-neutral-500">
+                      Powered by Razorpay. Pay using UPI, cards, net banking, wallets, and other supported methods.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside className="lg:sticky lg:top-28">
+              <section className="rounded-[22px] border border-stone-200/90 bg-white p-5 shadow-[0_22px_65px_-48px_rgba(45,35,20,0.62)] sm:p-6">
+                <div className="flex items-center justify-between border-b border-stone-200/80 pb-4">
+                  <h2 className="text-lg font-semibold text-neutral-950">Order summary</h2>
+                  <span className="text-xs font-medium text-neutral-500">
+                    {guest.reduce((count, item) => count + item.quantity, 0)} items
+                  </span>
+                </div>
+
+                <div className="max-h-72 space-y-4 overflow-y-auto border-b border-stone-200/80 py-5 pr-1">
+                  {guest.map((item) => (
+                    <div key={item.product.id} className="flex gap-3.5">
+                      <CheckoutProductImage
+                        src={item.product.images?.[0] || '/placeholder.svg'}
+                        alt={item.product.name}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-medium leading-5 text-neutral-900">
+                          {item.product.name}
+                        </p>
+                        {item.product.category?.name && (
+                          <p className="mt-0.5 text-xs text-neutral-400">
+                            {item.product.category.name}
+                          </p>
+                        )}
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <span className="text-xs text-neutral-500">Qty {item.quantity}</span>
+                          <span className="text-sm font-semibold tabular-nums text-neutral-900">
+                            {formatRupees(item.product.price * item.quantity)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-b border-stone-200/80 py-5">
+                  {coupon ? (
+                    <div className="flex min-h-12 items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Tag className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-emerald-800">{coupon.code}</p>
+                          <p className="text-[11px] text-emerald-700">
+                            You save {formatRupees(discount)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCoupon(null)}
+                        disabled={processing}
+                        aria-label={`Remove coupon ${coupon.code}`}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <label htmlFor="checkout-coupon" className="sr-only">
+                        Coupon code
+                      </label>
+                      <input
+                        id="checkout-coupon"
+                        value={couponCode}
+                        onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                        placeholder="Coupon code"
+                        disabled={processing}
+                        className="min-h-11 min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3.5 text-sm uppercase outline-none transition-colors placeholder:normal-case placeholder:text-neutral-400 focus:border-gold-500 focus:ring-4 focus:ring-gold-100/70 disabled:bg-stone-50 disabled:text-neutral-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyCoupon}
+                        disabled={processing || !couponCode.trim()}
+                        className="min-h-11 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:ring-4 focus-visible:ring-gold-200 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 py-5">
+                  <Row label="Subtotal" value={formatRupees(subtotal)} />
+                  {discount > 0 && (
+                    <Row
+                      label={`Discount${coupon ? ` (${coupon.code})` : ''}`}
+                      value={`- ${formatRupees(discount)}`}
+                      className="text-emerald-700"
+                    />
+                  )}
+                  <Row
+                    label="Shipping"
+                    value={
+                      shipping === 0 ? (
+                        <span className="font-semibold text-emerald-700">Free</span>
+                      ) : (
+                        formatRupees(shipping)
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="flex items-end justify-between border-t border-stone-200/80 pt-5">
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-950">Total</p>
+                    <p className="mt-0.5 text-xs text-neutral-400">Inclusive of applicable taxes</p>
+                  </div>
+                  <p className="text-2xl font-bold tabular-nums text-neutral-950">
+                    {formatRupees(total)}
+                  </p>
+                </div>
+
+                {pendingCheckout && (
+                  <p className="mt-4 rounded-xl bg-gold-50 px-3.5 py-3 text-xs leading-5 text-gold-900">
+                    Your payment session is ready to continue without creating another order.
+                  </p>
+                )}
+
+                <CheckoutButton processing={processing} className="mt-5 hidden lg:flex" />
+
+                <div className="mt-4 flex items-start gap-2 text-xs leading-5 text-neutral-500">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-gold-700" aria-hidden="true" />
+                  <span>Your order is confirmed only after Razorpay verifies a successful payment.</span>
+                </div>
+              </section>
+            </aside>
+          </div>
+
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_35px_-25px_rgba(30,24,15,0.5)] backdrop-blur-xl lg:hidden">
+            <div className="mx-auto flex max-w-[1180px] items-center gap-3">
+              <div className="min-w-[88px] shrink-0">
+                <p className="text-[11px] font-medium text-neutral-500">Total</p>
+                <p className="text-lg font-bold tabular-nums text-neutral-950">{formatRupees(total)}</p>
               </div>
+              <CheckoutButton processing={processing} className="min-w-0 flex-1" />
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-function Field({ label, error, children, className }: { label: string; error?: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={className}>
-      <label className="text-xs font-medium text-neutral-500 mb-1.5 block">{label}</label>
-      {children}
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </form>
+      </main>
     </div>
   );
 }
 
-function PayOption({
-  active,
-  onClick,
-  icon: Icon,
-  title,
-  desc,
-  disabled = false,
+function CheckoutProgress() {
+  return (
+    <nav className="w-full max-w-xs" aria-label="Checkout progress">
+      <ol className="flex items-center">
+        <li className="flex flex-1 items-center gap-2.5" aria-current="step">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-xs font-semibold text-white">
+            1
+          </span>
+          <span className="text-sm font-semibold text-neutral-950">Delivery</span>
+        </li>
+        <li className="mx-3 h-px w-9 bg-stone-300" aria-hidden="true" />
+        <li className="flex items-center gap-2.5 text-neutral-400">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 bg-white text-xs font-semibold">
+            2
+          </span>
+          <span className="whitespace-nowrap text-sm font-medium">Review &amp; Pay</span>
+        </li>
+      </ol>
+    </nav>
+  );
+}
+
+function SectionHeading({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-50 text-gold-800">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
+    </div>
+  );
+}
+
+function Field({
+  id,
+  label,
+  error,
+  hint,
+  required = false,
+  optional = false,
+  children,
+  className,
 }: {
-  active: boolean;
-  onClick: () => void;
-  icon: LucideIcon;
-  title: string;
-  desc: string;
-  disabled?: boolean;
+  id: string;
+  label: string;
+  error?: string;
+  hint?: string;
+  required?: boolean;
+  optional?: boolean;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
+    <div className={className}>
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-neutral-800">
+        {label}
+        {required && (
+          <span className="ml-1 text-red-600" aria-label="required">
+            *
+          </span>
+        )}
+        {optional && <span className="ml-1.5 text-xs font-normal text-neutral-400">(optional)</span>}
+      </label>
+      {children}
+      {hint && (
+        <p id={`${id}-hint`} className="mt-1.5 text-xs leading-5 text-neutral-500">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-xs font-medium text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PaymentMethodRow({
+  active = false,
+  disabled = false,
+  icon: Icon,
+  title,
+  description,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      aria-disabled={disabled || undefined}
       className={cn(
-        'w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left',
-        active ? 'border-gold-500 bg-gold-50' : 'border-neutral-200 hover:border-neutral-300',
-        disabled && 'cursor-not-allowed bg-neutral-50 text-neutral-400 hover:border-neutral-200'
+        'flex min-h-[72px] items-center gap-3.5 rounded-xl border px-4 py-3.5',
+        active && 'border-gold-300 bg-gold-50/60',
+        disabled && 'border-stone-200 bg-stone-50 text-neutral-400'
       )}
     >
-      <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center', active ? 'border-gold-500' : 'border-neutral-300')}>
-        {active && <div className="w-3 h-3 bg-gold-500 rounded-full" />}
+      <span
+        className={cn(
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+          active ? 'bg-white text-gold-800 shadow-sm' : 'bg-stone-100 text-neutral-400'
+        )}
+      >
+        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={cn('text-sm font-semibold leading-5', disabled ? 'text-neutral-500' : 'text-neutral-900')}>
+          {title}
+        </p>
+        <p className="mt-0.5 text-xs leading-5 text-neutral-500">{description}</p>
       </div>
-      <Icon className="w-5 h-5 text-neutral-500" />
-      <div>
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-neutral-400">{desc}</p>
-      </div>
-    </button>
+      {active && (
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white">
+          <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
+        </span>
+      )}
+    </div>
   );
 }
 
 function Row({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('flex justify-between text-sm', className)}>
-      <span>{label}</span>
-      <span className="font-medium">{value}</span>
+    <div className={cn('flex justify-between gap-4 text-sm text-neutral-600', className)}>
+      <span className="min-w-0">{label}</span>
+      <span className="shrink-0 font-medium tabular-nums text-current">{value}</span>
     </div>
   );
 }
 
+function CheckoutButton({ processing, className }: { processing: boolean; className?: string }) {
+  return (
+    <button
+      type="submit"
+      disabled={processing}
+      aria-label={processing ? 'Preparing secure payment' : 'Proceed to secure payment'}
+      className={cn(
+        'min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 text-xs font-semibold text-white shadow-[0_16px_30px_-20px_rgba(0,0,0,0.75)] transition-colors hover:bg-neutral-800 focus-visible:ring-4 focus-visible:ring-gold-200 active:bg-black disabled:cursor-not-allowed disabled:bg-neutral-400 disabled:shadow-none sm:text-sm',
+        className
+      )}
+    >
+      {processing ? (
+        <>
+          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+          <span className="truncate">Preparing Secure Payment...</span>
+        </>
+      ) : (
+        <>
+          <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">Proceed to Secure Payment</span>
+          <ArrowRight className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+        </>
+      )}
+    </button>
+  );
+}
+
+function CheckoutProductImage({ src, alt }: { src: string; alt: string }) {
+  const [imageSrc, setImageSrc] = useState(src);
+
+  useEffect(() => {
+    setImageSrc(src);
+  }, [src]);
+
+  return (
+    <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
+      <Image
+        src={imageSrc}
+        alt={alt}
+        fill
+        sizes="72px"
+        className="object-cover"
+        onError={() => setImageSrc('/placeholder.svg')}
+      />
+    </div>
+  );
+}
+
+function errorId(id: string, error?: string) {
+  return error ? `${id}-error` : undefined;
+}
+
+function fieldDescriptionIds(id: string, error?: string, hasHint = false) {
+  return [hasHint ? `${id}-hint` : null, error ? `${id}-error` : null]
+    .filter(Boolean)
+    .join(' ') || undefined;
+}
+
 function inputCls(error?: string) {
   return cn(
-    'w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all',
-    error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-neutral-200 focus:border-gold-400 focus:ring-2 focus:ring-gold-100'
+    'min-h-12 w-full rounded-xl border bg-white px-3.5 text-[15px] text-neutral-950 shadow-[0_1px_0_rgba(30,24,15,0.03)] outline-none transition-colors placeholder:text-neutral-400 focus:ring-4 disabled:cursor-not-allowed disabled:bg-stone-50 disabled:text-neutral-500',
+    error
+      ? 'border-red-400 focus:border-red-500 focus:ring-red-100/80'
+      : 'border-stone-200 focus:border-gold-500 focus:ring-gold-100/70'
   );
 }

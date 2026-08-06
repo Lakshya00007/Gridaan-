@@ -8,6 +8,7 @@ import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
 import { createOnlineCheckout } from '@/lib/payments/payment-service';
 import { publicEnv } from '@/lib/env.public';
 import { CheckoutProcessingError, checkoutFailureLog } from '@/lib/payments/checkout-errors';
+import { expandCheckoutFieldErrors } from '@/lib/checkout-form';
 
 /**
  * POST /api/orders
@@ -116,7 +117,11 @@ export async function POST(req: NextRequest) {
     }
     if (err instanceof ZodError) {
       return NextResponse.json(
-        { error: 'validation_error', issues: err.flatten(), request_id: requestId },
+        {
+          error: 'validation_error',
+          issues: expandCheckoutFieldErrors(err.flatten(), err.issues),
+          request_id: requestId,
+        },
         { status: 422 }
       );
     }
