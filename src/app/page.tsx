@@ -62,7 +62,7 @@ export default async function HomePage() {
 
               <div className="mt-10 flex items-center justify-center gap-6 lg:justify-start">
                 {[
-                  { title: 'COD Available', detail: 'Easy checkout across India' },
+                  { title: 'Secure Online Payment', detail: 'UPI, cards, net banking and wallets' },
                   { title: 'Premium Look', detail: 'Festive styles that feel elevated' },
                   { title: 'Affordable Prices', detail: 'Launch picks starting at ₹99' },
                 ].map((stat) => (
@@ -96,7 +96,7 @@ export default async function HomePage() {
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {[
-              { icon: Truck, title: 'COD Available', desc: 'Easy shopping across India' },
+              { icon: Truck, title: 'Online Payment', desc: 'Secure Razorpay checkout' },
               { icon: Shield, title: 'Premium Look', desc: 'Polished festive-ready styles' },
               { icon: RotateCcw, title: 'Affordable Prices', desc: 'Statement pieces from ₹99' },
               { icon: Sparkles, title: 'Launch Picks', desc: 'Earrings, sets, combos & more' },

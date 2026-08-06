@@ -3,15 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, Check, Clock3, MessageCircle } from 'lucide-react';
+import { AlertCircle, Check, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatRupees } from '@/lib/utils';
 import type { OrderSuccessSummary } from '@/types';
-import {
-  formatPaymentMethod,
-  getPaymentSupportHref,
-  isManualPaymentMethod,
-} from '@/lib/manual-payment';
 
 type OrderLookupResponse = {
   order?: OrderSuccessSummary;
@@ -32,30 +27,23 @@ export default function OrderSuccessView() {
       return;
     }
 
-    console.info('[order-success] lookup parameter', { lookupParam });
-
     fetch(`/api/orders/${encodeURIComponent(lookupParam)}`)
       .then(async (response) => {
         const data = (await response.json()) as OrderLookupResponse;
-        console.info('[order-success] API response', {
-          status: response.status,
-          orderNumber: data.order?.order_number ?? null,
-          paymentStatus: data.order?.payment_status ?? null,
-          orderStatus: data.order?.order_status ?? null,
-          error: data.error ?? null,
-        });
-
         if (!response.ok || !data.order) {
           setError(data.error ?? 'Order not found.');
           setOrder(null);
           return;
         }
-
+        if (data.order.payment_status !== 'captured' || data.order.order_status !== 'placed') {
+          setError('This order has not been placed because payment is not captured yet.');
+          setOrder(null);
+          return;
+        }
         setOrder(data.order);
         setError('');
       })
-      .catch((fetchError) => {
-        console.error('[order-success] order lookup failed', fetchError);
+      .catch(() => {
         setError('Could not load your order right now.');
         setOrder(null);
       })
@@ -82,16 +70,16 @@ export default function OrderSuccessView() {
             <AlertCircle className="h-10 w-10 text-amber-600" />
           </div>
           <h2 className="heading-display mb-3 text-2xl text-neutral-900 md:text-3xl">
-            We couldn&apos;t load your order
+            Payment verification is pending
           </h2>
-          <p className="mb-6 text-sm text-neutral-500">
-            {error || 'Order details are unavailable right now.'}
+          <p className="mb-6 text-sm leading-6 text-neutral-500">
+            {error || 'Your order will appear only after Razorpay confirms captured payment.'}
           </p>
           <div className="flex justify-center gap-3">
-            <Link href="/shop" className="btn-outline text-sm">
-              Continue Shopping
+            <Link href="/checkout" className="btn-primary text-sm">
+              Return to Checkout
             </Link>
-            <Link href="/contact" className="btn-primary text-sm">
+            <Link href="/contact" className="btn-outline text-sm">
               Contact Support
             </Link>
           </div>
@@ -99,24 +87,6 @@ export default function OrderSuccessView() {
       </div>
     );
   }
-
-  const isManual = isManualPaymentMethod(order.payment_method);
-  const isUpi = order.payment_method === 'manual_upi';
-  const isBankTransfer = order.payment_method === 'bank_transfer';
-  const isManualPending = isManual && order.payment_status === 'pending';
-  const isManualFailed = isManual && order.payment_status === 'failed';
-  const supportHref = getPaymentSupportHref();
-  const paymentNote = `Gridaan Order ${order.order_number}`;
-
-  const title = isManualPending
-    ? 'Order placed — payment verification pending'
-    : isManualFailed
-      ? 'Payment verification was unsuccessful'
-      : order.payment_status === 'paid'
-        ? isManual
-          ? 'Payment confirmed'
-          : 'Payment verified — order confirmed'
-        : 'Order placed!';
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center bg-[#fcfaf7] px-4 py-12">
@@ -129,84 +99,33 @@ export default function OrderSuccessView() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.15, type: 'spring' }}
-          className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full ${
-            isManualFailed
-              ? 'bg-red-100'
-              : isManualPending
-                ? 'bg-amber-100'
-                : 'bg-green-100'
-          }`}
+          className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100"
         >
-          {isManualPending ? (
-            <Clock3 className="h-10 w-10 text-amber-700" />
-          ) : isManualFailed ? (
-            <AlertCircle className="h-10 w-10 text-red-600" />
-          ) : (
-            <Check className="h-10 w-10 text-green-600" />
-          )}
+          <Check className="h-10 w-10 text-green-600" />
         </motion.div>
 
-        <h1 className="heading-display mb-3 text-2xl text-neutral-950 md:text-3xl">{title}</h1>
-
-        {isManualPending ? (
-          <p className="mx-auto mb-6 max-w-md text-sm leading-6 text-neutral-600">
-            {isUpi
-              ? 'We have received your order. Please complete the UPI payment if you have not already. We will verify the payment against your order number before dispatch.'
-              : 'We have received your order. Please complete the bank transfer if you have not already. We will verify the payment against your order number before dispatch.'}
-          </p>
-        ) : null}
+        <h1 className="heading-display mb-3 text-2xl text-neutral-950 md:text-3xl">
+          Payment successful — order placed
+        </h1>
+        <p className="mx-auto mb-6 max-w-md text-sm leading-6 text-neutral-600">
+          Razorpay has confirmed captured payment. Your Gridaan order has now been placed.
+        </p>
 
         <div className="mb-6 rounded-2xl border border-neutral-100 bg-white p-5 text-left shadow-sm">
           <dl className="space-y-3 text-sm">
             <SummaryRow label="Order Number" value={order.order_number} />
             <SummaryRow label="Customer" value={order.customer_name} />
             <SummaryRow label="Amount" value={formatRupees(order.total)} />
-            <SummaryRow
-              label="Payment Method"
-              value={isUpi ? 'UPI' : formatPaymentMethod(order.payment_method)}
-            />
-            {(isUpi || isBankTransfer) && (
-              <SummaryRow label="Payment Note" value={paymentNote} />
-            )}
-            {isManual && order.manual_payment_reference ? (
-              <SummaryRow label="Payment Reference" value={order.manual_payment_reference} />
-            ) : null}
-            {isManual && order.manual_payment_sender_name ? (
-              <SummaryRow label="Sender Name" value={order.manual_payment_sender_name} />
-            ) : null}
-            <SummaryRow label="Payment Status" value={order.payment_status.toUpperCase()} />
-            <SummaryRow label="Order Status" value={order.order_status.toUpperCase()} />
+            <SummaryRow label="Payment Method" value="Online Payment" />
+            <SummaryRow label="Payment Status" value="CAPTURED" />
+            <SummaryRow label="Order Status" value="PLACED" />
           </dl>
         </div>
 
-        {order.payment_method === 'cod' ? (
-          <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            Pay {formatRupees(order.total)} in cash when your order is delivered.
-          </p>
-        ) : null}
-
-        {isManualPending ? (
-          <div className="mb-5 space-y-2 rounded-xl border border-gold-200 bg-gold-50 p-4 text-left text-xs leading-5 text-gold-900">
-            <p>
-              {isUpi
-                ? 'If the UPI app did not open or payment was not completed, complete payment using the order number as the note.'
-                : 'Use the order number above as the bank transfer payment note.'}
-            </p>
-            <p>Orders are dispatched only after the payment is verified and the order is confirmed.</p>
-          </div>
-        ) : null}
-
-        {isManualFailed ? (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-left text-xs leading-5 text-red-800">
-            <p>
-              The submitted payment could not be verified. Contact support with your order number before
-              making another payment.
-            </p>
-            {order.manual_payment_rejected_reason ? (
-              <p className="mt-2 font-semibold">Reason: {order.manual_payment_rejected_reason}</p>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="mb-5 flex items-center justify-center gap-2 rounded-xl border border-gold-200 bg-gold-50 p-3 text-xs font-medium text-gold-900">
+          <CreditCard className="h-4 w-4" />
+          Paid online through Razorpay
+        </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Link href="/account" className="btn-primary text-sm">
@@ -215,17 +134,6 @@ export default function OrderSuccessView() {
           <Link href="/shop" className="btn-outline text-sm">
             Continue Shopping
           </Link>
-          {supportHref ? (
-            <a
-              href={supportHref}
-              target={supportHref.startsWith('https://') ? '_blank' : undefined}
-              rel={supportHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
-              className="btn-outline text-sm sm:col-span-2"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Payment Support
-            </a>
-          ) : null}
         </div>
       </motion.div>
     </div>

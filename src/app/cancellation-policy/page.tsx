@@ -5,7 +5,7 @@ import { buildPageMetadata } from '@/lib/seo';
 export const metadata = buildPageMetadata({
   title: 'Cancellation Policy | Gridaan',
   description:
-    'Read Gridaan’s cancellation policy for COD, manual UPI, and bank-transfer artificial fashion jewellery orders.',
+    'Read Gridaan’s cancellation policy for online-paid artificial fashion jewellery orders.',
   path: '/cancellation-policy',
 });
 
@@ -14,7 +14,7 @@ export default function CancellationPolicyPage() {
     <InfoPage
       eyebrow="Policy"
       title="Cancellation Policy"
-      description="How order cancellation requests are handled before dispatch, after dispatch, and for manual payment or COD orders."
+      description="How order cancellation requests are handled before dispatch, after dispatch, and after successful online payment."
       sections={[
         {
           heading: 'Cancellation before dispatch',
@@ -27,21 +27,21 @@ export default function CancellationPolicyPage() {
           heading: 'Cancellation after dispatch',
           body: [
             'Once an order has been dispatched, cancellation may not be possible through support. The customer may need to follow the delivery or return process depending on the situation.',
-            'Shipping charges, COD fees, or courier costs may be considered where applicable and where permitted by the policy shown at checkout or on the website.',
+            'Shipping charges or courier costs may be considered where applicable and where permitted by the policy shown at checkout or on the website.',
           ],
         },
         {
-          heading: 'COD refusal policy',
+          heading: 'Online payment confirmation',
           body: [
-            'Cash on Delivery orders should be accepted when the courier attempts delivery. Repeated COD refusals, unreachable phone numbers, or suspicious ordering behaviour may lead to future COD restrictions or order cancellation.',
-            'Incorrect address or phone details may lead to cancellation if the courier cannot complete delivery.',
+            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
+            'If Razorpay payment fails, is cancelled, or cannot be verified as captured, no final order number is generated and the order is not placed.',
           ],
         },
         {
-          heading: 'Manual UPI or bank-transfer cancellation',
+          heading: 'Paid-order cancellation',
           body: [
-            'For manual UPI or bank-transfer orders, payment pending does not mean payment confirmed. Orders are confirmed for dispatch only after Gridaan verifies actual payment credit.',
-            'If a customer requests cancellation before dispatch and payment has already been verified, any approved refund will be processed to verified UPI or bank details.',
+            'Orders are confirmed for dispatch only after Razorpay verifies successful captured payment.',
+            'If a customer requests cancellation before dispatch and the paid order is approved for cancellation, any approved refund is processed through the payment/refund flow supported by Gridaan and Razorpay.',
           ],
         },
         {

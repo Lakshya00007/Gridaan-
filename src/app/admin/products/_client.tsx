@@ -2,9 +2,9 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Search, Eye } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { formatRupees, cn } from '@/lib/utils';
+import { Archive, Copy, Plus, Pencil, Search, Star, Trash2, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import { formatDateTime, formatRupees, cn } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 import ProductForm from './_form';
 
@@ -18,17 +18,20 @@ export default function ProductsAdmin({
   categories: Category[];
 }) {
   const [list, setList] = useState(products);
+  const [selected, setSelected] = useState<string[]>([]);
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const filtered = list.filter((p) =>
-    [p.name, p.slug, p.category?.name].join(' ').toLowerCase().includes(q.toLowerCase())
+    [p.name, p.slug, p.sku, p.category?.name].join(' ').toLowerCase().includes(q.toLowerCase())
   );
 
+  const selectedProducts = list.filter((product) => selected.includes(product.id));
+
   async function handleDelete(id: string) {
-    if (!confirm('Delete this product? This cannot be undone.')) return;
+    if (!confirm('Permanently delete this product? Archiving is safer if this product has historical orders.')) return;
     const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       toast.error('Failed to delete');
@@ -62,6 +65,37 @@ export default function ProductsAdmin({
     return result.product;
   }
 
+  async function updateProduct(product: Product, patch: Partial<Product>, success: string) {
+    const saved = await handleSave({ ...product, ...patch });
+    if (saved) toast.success(success);
+  }
+
+  async function duplicateProduct(product: Product) {
+    const copy = {
+      ...product,
+      id: undefined,
+      name: `${product.name} Copy`,
+      slug: `${product.slug}-copy-${Date.now().toString().slice(-4)}`,
+      sku: product.sku ? `${product.sku}-COPY` : null,
+      is_active: false,
+      is_featured: false,
+      is_trending: false,
+      is_new_arrival: false,
+      is_best_seller: false,
+    };
+    await handleSave(copy);
+  }
+
+  async function bulkArchive() {
+    if (selectedProducts.length === 0) return;
+    if (!confirm(`Archive ${selectedProducts.length} selected products?`)) return;
+    for (const product of selectedProducts) {
+      await handleSave({ ...product, is_active: false, archived_at: new Date().toISOString() });
+    }
+    setSelected([]);
+    toast.success('Selected products archived');
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
@@ -71,7 +105,22 @@ export default function ProductsAdmin({
         </div>
         <button
           onClick={() => {
-            setEditing({ in_stock: true, is_new_arrival: true, images: [], tags: [], stock_count: 0, price: 0, original_price: 0 });
+            setEditing({
+              in_stock: true,
+              is_active: true,
+              is_new_arrival: true,
+              images: [],
+              image_metadata: [],
+              tags: [],
+              stock_count: 0,
+              reserved_stock: 0,
+              low_stock_threshold: 5,
+              reorder_level: 0,
+              price: 0,
+              original_price: 0,
+              return_eligible: true,
+              cod_eligible: false,
+            });
             setOpen(true);
           }}
           className="btn-primary"
@@ -79,6 +128,20 @@ export default function ProductsAdmin({
           <Plus className="w-4 h-4" /> Add product
         </button>
       </div>
+
+      {selected.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold-200 bg-gold-50 p-3">
+          <p className="text-sm font-semibold text-gold-900">{selected.length} selected</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={bulkArchive} className="rounded-lg bg-neutral-950 px-3 py-2 text-xs font-semibold text-white">
+              Bulk archive
+            </button>
+            <button type="button" onClick={() => setSelected([])} className="rounded-lg border border-gold-200 bg-white px-3 py-2 text-xs font-semibold text-gold-800">
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4 relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -99,10 +162,17 @@ export default function ProductsAdmin({
               <thead>
                 <tr className="border-b border-neutral-100 text-left bg-neutral-50">
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Product</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">SKU</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Category</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Price</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Selling</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">MRP</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Discount</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Stock</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Reserved</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Available</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Featured</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Updated</th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500 w-32"></th>
                 </tr>
               </thead>
@@ -111,6 +181,16 @@ export default function ProductsAdmin({
                   <tr key={p.id} className="border-b border-neutral-50 hover:bg-neutral-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(p.id)}
+                          onChange={(e) =>
+                            setSelected((current) =>
+                              e.target.checked ? [...current, p.id] : current.filter((id) => id !== p.id)
+                            )
+                          }
+                          aria-label={`Select ${p.name}`}
+                        />
                         <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-neutral-100 flex-shrink-0">
                           {p.images?.[0] && (
                             <Image src={p.images[0]} alt="" fill sizes="48px" className="object-cover" />
@@ -122,8 +202,11 @@ export default function ProductsAdmin({
                         </div>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-sm text-neutral-600">{p.sku ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-neutral-600">{p.category?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-sm font-semibold">{formatRupees(p.price)}</td>
+                    <td className="px-4 py-3 text-sm text-neutral-500">{formatRupees(p.original_price)}</td>
+                    <td className="px-4 py-3 text-sm text-green-700">{p.discount > 0 ? `${p.discount}%` : '—'}</td>
                     <td className="px-4 py-3 text-sm">
                       <span
                         className={cn(
@@ -134,16 +217,30 @@ export default function ProductsAdmin({
                         {p.stock_count}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-neutral-600">{p.reserved_stock ?? 0}</td>
+                    <td className="px-4 py-3 text-sm font-semibold">{Math.max(0, p.stock_count - (p.reserved_stock ?? 0))}</td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
                           'text-xs font-medium px-2.5 py-1 rounded-full',
-                          p.in_stock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          p.is_active === false
+                            ? 'bg-neutral-200 text-neutral-700'
+                            : p.in_stock
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
                         )}
                       >
-                        {p.in_stock ? 'In stock' : 'Out'}
+                        {p.is_active === false ? 'Inactive' : p.in_stock ? 'In stock' : 'Out'}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      {p.is_featured || p.is_trending || p.is_best_seller ? (
+                        <Star className="h-4 w-4 fill-gold-500 text-gold-500" />
+                      ) : (
+                        <span className="text-neutral-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-neutral-500">{formatDateTime(p.updated_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <Link href={`/product/${p.slug}`} target="_blank" className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg">
@@ -155,8 +252,31 @@ export default function ProductsAdmin({
                             setOpen(true);
                           }}
                           className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => duplicateProduct(p)}
+                          className="p-2 text-neutral-400 hover:text-gold-700 hover:bg-gold-50 rounded-lg"
+                          title="Duplicate"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            updateProduct(
+                              p,
+                              p.is_active === false
+                                ? { is_active: true, archived_at: null }
+                                : { is_active: false, archived_at: new Date().toISOString() },
+                              p.is_active === false ? 'Product activated' : 'Product archived'
+                            )
+                          }
+                          className="p-2 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg"
+                          title={p.is_active === false ? 'Activate' : 'Archive'}
+                        >
+                          <Archive className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(p.id)}

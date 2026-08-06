@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/supabase/auth';
+import { requireAdminPermission } from '@/lib/admin/permissions';
+import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { createServiceClient } from '@/lib/supabase/server';
 import { assertJsonRequest, assertSameOrigin, errorResponse } from '@/lib/api';
 import { categorySchema } from '@/lib/validators';
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
-    await requireAdmin();
+    const admin = await requireAdminPermission('categories.write');
 
     const input = categorySchema.parse(await req.json());
     const supabase = createServiceClient();
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    await writeAdminAuditLog({
+      supabase,
+      adminId: admin.profile.id,
+      action: 'category.created',
+      entity: 'category',
+      entityId: category.id,
+      afterData: category,
+    });
 
     revalidatePath('/admin/categories');
     revalidatePath('/');

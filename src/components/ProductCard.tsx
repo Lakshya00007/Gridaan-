@@ -3,11 +3,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, ShoppingBag, Eye } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useCart } from '@/store/cart';
 import { formatRupees } from '@/lib/utils';
 import type { Product } from '@/types';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { getWishlistState, toggleWishlist } from '@/lib/wishlist-client';
@@ -20,12 +19,18 @@ interface Props {
 
 export default function ProductCard({ product, index = 0, priority = false }: Props) {
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [imageSrc, setImageSrc] = useState(product.images?.[0] || '/placeholder.svg');
   const [wishlisted, setWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const router = useRouter();
   const { add: addToCart, setOpen: setCartOpen } = useCart();
 
   const isOut = !product.in_stock || product.stock_count <= 0;
+
+  useEffect(() => {
+    setImgLoaded(false);
+    setImageSrc(product.images?.[0] || '/placeholder.svg');
+  }, [product.id, product.images]);
 
   useEffect(() => {
     let active = true;
@@ -76,30 +81,30 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-50px' }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.16) }}
-      className="group"
-    >
+    <div className="group h-full" data-product-card-index={index}>
       <Link
         href={`/product/${product.slug}`}
         className="block h-full rounded-2xl border border-stone-200/70 bg-white p-2.5 shadow-[0_16px_36px_-30px_rgba(53,38,18,0.32)] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-stone-300 group-hover:shadow-[0_20px_42px_-28px_rgba(53,38,18,0.4)]"
         prefetch
       >
         <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-neutral-100 ring-1 ring-black/5">
-          {!imgLoaded && <div className="absolute inset-0 shimmer" />}
+          <div
+            className={cn(
+              'absolute inset-0 shimmer transition-opacity duration-300',
+              imgLoaded ? 'opacity-0' : 'opacity-100'
+            )}
+          />
           <Image
-            src={product.images?.[0] || '/placeholder.svg'}
+            src={imageSrc}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className={cn(
-              'object-cover transition-transform duration-500 group-hover:scale-[1.03]',
-              imgLoaded ? 'opacity-100' : 'opacity-0'
-            )}
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             onLoad={() => setImgLoaded(true)}
+            onError={() => {
+              setImgLoaded(true);
+              setImageSrc('/placeholder.svg');
+            }}
             loading={priority ? 'eager' : 'lazy'}
             priority={priority}
           />
@@ -196,6 +201,6 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
           ) : null}
         </div>
       </Link>
-    </motion.div>
+    </div>
   );
 }

@@ -31,9 +31,9 @@ export default function PrivacyPage() {
           heading: 'Order and payment data',
           body: [
             'Order information is used to confirm purchases, arrange delivery, help with support requests, and maintain basic order history.',
-            'For manual UPI or bank-transfer orders, Gridaan may record the order number, payment note, transaction reference when provided, payment status, and verification outcome so the team can verify actual payment before dispatch.',
-            'Cash on Delivery orders may be checked for serviceability, delivery feasibility, and basic fraud prevention before dispatch.',
-            'If a third-party payment provider is enabled in the future, payment information may be processed by that provider under their own terms. Gridaan does not store full card or banking details through the storefront.',
+            'Online payments are processed through Razorpay. Gridaan may store safe payment metadata such as internal payment IDs, Razorpay order/payment IDs, payment status, amount, currency, method, webhook event IDs, and failure reasons for fulfilment, reconciliation, refund, and support workflows.',
+            'Gridaan does not store card numbers, CVV, UPI PINs, banking passwords, raw payment secrets, or screenshot-based payment proofs through the storefront.',
+            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
           ],
         },
         {
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
         {
           heading: 'How information is used',
           body: [
-            'Gridaan uses customer information for order fulfilment, delivery coordination, support, payment verification, fraud prevention, website security, analytics, and reasonable legal or accounting recordkeeping.',
+            'Gridaan uses customer information for order fulfilment, delivery coordination, support, online payment verification, fraud prevention, website security, analytics, and reasonable legal or accounting recordkeeping.',
             'No website can promise absolute security, but we work to limit unnecessary exposure and use trusted service providers for core functions.',
           ],
         },

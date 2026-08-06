@@ -13,6 +13,8 @@ export async function GET() {
       .from('orders')
       .select('*, items:order_items(*)')
       .eq('user_id', user.id)
+      .eq('payment_status', 'captured')
+      .not('order_status', 'in', '("pending_payment","payment_processing","draft")')
       .order('created_at', { ascending: false });
     if (error) throw error;
     return NextResponse.json({ orders: data ?? [] });

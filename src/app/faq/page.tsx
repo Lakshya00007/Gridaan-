@@ -12,7 +12,7 @@ const faqs = [
   {
     question: 'Is Cash on Delivery available?',
     answer:
-      'Cash on Delivery may be available on eligible orders and serviceable locations within India. Final availability is shown during checkout.',
+      'No. Gridaan is online-payment-only. Orders are placed only after successful Razorpay payment.',
   },
   {
     question: 'How long does delivery take?',
@@ -48,7 +48,7 @@ const faqs = [
 export const metadata = buildPageMetadata({
   title: 'FAQs | Gridaan Jewelry',
   description:
-    'Find answers to common questions about Gridaan artificial and imitation jewellery, orders, payments, shipping, COD, returns, and product care.',
+    'Find answers to common questions about Gridaan artificial and imitation jewellery, orders, online payments, shipping, returns, and product care.',
   path: '/faq',
 });
 
@@ -71,7 +71,7 @@ export default function FaqPage() {
       <InfoPage
         eyebrow="FAQs"
         title="Frequently Asked Questions"
-        description="Answers to common questions about Gridaan artificial and imitation jewellery, orders, delivery, COD availability, returns, and product care."
+        description="Answers to common questions about Gridaan artificial and imitation jewellery, orders, delivery, online payments, returns, and product care."
         sections={faqs.map((item) => ({
           heading: item.question,
           body: [item.answer],

@@ -55,7 +55,7 @@ export default function ReturnRefundPolicyPage() {
           heading: 'Refund timeline and method',
           body: [
             'Approved refunds are usually initiated within 5–7 business days after the returned item is received and checked, or after the issue is verified by support where return pickup is not required.',
-            'For manual UPI or bank-transfer payments, refunds may be processed back through UPI/bank transfer to verified customer details. COD refunds may require verified bank or UPI details from the customer.',
+            'For online-paid orders, approved refunds are processed through the configured payment/refund flow supported by Gridaan and Razorpay. Refunds cannot exceed the captured payment amount.',
           ],
         },
         {

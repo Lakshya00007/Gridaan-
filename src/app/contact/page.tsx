@@ -36,8 +36,8 @@ export default function ContactPage() {
           heading: 'Order help',
           body: [
             'If you need help with an order, please keep your order number ready when you contact support so the team can respond faster.',
-            'For payment verification or delivery help, please include your order number.',
-            'Support can help with manual payment follow-up, address correction requests before dispatch, delivery questions, and product-related concerns.',
+            'For payment or delivery help, please include your order number when one has been generated.',
+            'Support can help with Razorpay payment issues, address correction requests before dispatch, delivery questions, and product-related concerns.',
           ],
         },
         {

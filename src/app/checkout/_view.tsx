@@ -6,34 +6,95 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Banknote,
-  Building2,
-  CheckCircle2,
-  Copy,
+  CreditCard,
   Lock,
-  QrCode,
   ShieldCheck,
   Tag,
   X,
   type LucideIcon,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useCart } from '@/store/cart';
 import { useUI } from '@/store/ui';
 import { formatRupees, cn } from '@/lib/utils';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from '@/lib/config';
-import type { Coupon, OrderSuccessSummary, PaymentMethod } from '@/types';
+import type { Coupon, OrderSuccessSummary } from '@/types';
 import { createClient } from '@/lib/supabase/client';
-import {
-  bankTransferAvailable,
-  getPaymentSupportHref,
-  manualPaymentConfig,
-  manualUpiAvailable,
-} from '@/lib/manual-payment';
+import { publicEnv } from '@/lib/env.public';
 
 type OrderApiResponse = {
+  checkout?: RazorpayCheckoutPayload;
   order?: OrderSuccessSummary;
   error?: string;
 };
+
+type VerifyPaymentResponse = {
+  order?: OrderSuccessSummary;
+  placed?: boolean;
+  error?: string;
+};
+
+type RazorpayCheckoutPayload = {
+  order_id: string;
+  payment_id: string | null;
+  attempt_id: string | null;
+  checkout_reference: string;
+  razorpay_order_id: string;
+  amount: number;
+  currency: 'INR';
+  key: string | null;
+  business_name: string;
+  prefill: {
+    name: string;
+    email: string;
+    contact: string;
+  };
+  expires_at: string | null;
+};
+
+type RazorpaySuccessResponse = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayFailureResponse = {
+  error?: {
+    code?: string;
+    description?: string;
+    metadata?: {
+      order_id?: string;
+      payment_id?: string;
+    };
+  };
+};
+
+type RazorpayCheckoutOptions = {
+  key: string;
+  amount: number;
+  currency: 'INR';
+  name: string;
+  description: string;
+  order_id: string;
+  prefill: {
+    name: string;
+    email?: string;
+    contact: string;
+  };
+  notes: Record<string, string>;
+  theme: { color: string };
+  modal: { ondismiss: () => void };
+  handler: (response: RazorpaySuccessResponse) => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayCheckoutOptions) => {
+      open: () => void;
+      on: (event: 'payment.failed', handler: (response: RazorpayFailureResponse) => void) => void;
+    };
+  }
+}
 
 const indianStates = [
   'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat',
@@ -51,9 +112,9 @@ export default function CheckoutView() {
   const [, startTransition] = useTransition();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [couponCode, setCouponCode] = useState('');
-  const [payment, setPayment] = useState<PaymentMethod>('cod');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<RazorpayCheckoutPayload | null>(null);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -68,6 +129,14 @@ export default function CheckoutView() {
 
   useEffect(() => {
     setMounted(true);
+    const storedCheckout = window.localStorage.getItem('gridaan-pending-checkout');
+    if (storedCheckout) {
+      try {
+        setPendingCheckout(JSON.parse(storedCheckout) as RazorpayCheckoutPayload);
+      } catch {
+        window.localStorage.removeItem('gridaan-pending-checkout');
+      }
+    }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
@@ -102,15 +171,10 @@ export default function CheckoutView() {
   }, [coupon, subtotal]);
   const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = Math.max(0, subtotal - discount + shipping);
-  const paymentSupportHref = getPaymentSupportHref();
 
   function setField(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: '' }));
-  }
-
-  function selectPayment(method: PaymentMethod) {
-    setPayment(method);
   }
 
   function validate(): boolean {
@@ -124,15 +188,6 @@ export default function CheckoutView() {
     if (!form.pincode.match(/^\d{6}$/)) e.pincode = 'PIN must be 6 digits';
     setErrors(e);
     return Object.keys(e).length === 0;
-  }
-
-  async function copyValue(value: string, label: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
-    } catch {
-      toast.error(`Could not copy ${label.toLowerCase()}`);
-    }
   }
 
   async function applyCoupon() {
@@ -155,6 +210,223 @@ export default function CheckoutView() {
     }
   }
 
+  function getCheckoutIdempotencyKey() {
+    const storageKey = 'gridaan-razorpay-checkout-key';
+    const existing = window.localStorage.getItem(storageKey);
+    if (existing) return existing;
+    const key = `checkout:${crypto.randomUUID()}`;
+    window.localStorage.setItem(storageKey, key);
+    return key;
+  }
+
+  function clearCheckoutIdempotencyKey() {
+    window.localStorage.removeItem('gridaan-razorpay-checkout-key');
+  }
+
+  async function loadRazorpayCheckout() {
+    if (window.Razorpay) return true;
+    return new Promise<boolean>((resolve) => {
+      const existing = document.querySelector<HTMLScriptElement>('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(true), { once: true });
+        existing.addEventListener('error', () => resolve(false), { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+
+  async function recordPaymentFailure({
+    checkout,
+    code,
+    message,
+    gatewayPaymentId,
+    releaseReservation,
+  }: {
+    checkout: RazorpayCheckoutPayload;
+    code: string;
+    message: string;
+    gatewayPaymentId?: string;
+    releaseReservation: boolean;
+  }) {
+    await fetch('/api/payments/fail', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        order_id: checkout.order_id,
+        checkout_reference: checkout.checkout_reference,
+        payment_id: checkout.payment_id ?? undefined,
+        gateway_order_id: checkout.razorpay_order_id,
+        gateway_payment_id: gatewayPaymentId,
+        error_code: code,
+        error_message: message,
+        release_reservation: releaseReservation,
+      }),
+    }).catch(() => null);
+  }
+
+  async function verifyRazorpayPayment(
+    checkout: RazorpayCheckoutPayload,
+    response: RazorpaySuccessResponse
+  ) {
+    const verifyResponse = await fetch('/api/payments/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        order_id: checkout.order_id,
+        checkout_reference: checkout.checkout_reference,
+        gateway_order_id: response.razorpay_order_id,
+        gateway_payment_id: response.razorpay_payment_id,
+        signature: response.razorpay_signature,
+      }),
+    });
+    const data = (await verifyResponse.json()) as VerifyPaymentResponse;
+    if (!verifyResponse.ok) {
+      throw new Error(data.error ?? 'Payment verification failed');
+    }
+    return data;
+  }
+
+  async function retryPendingPayment(checkout: RazorpayCheckoutPayload) {
+    const scriptLoaded = await loadRazorpayCheckout();
+    if (!scriptLoaded || !window.Razorpay) {
+      toast.error('Could not load Razorpay Checkout. Please try again.');
+      setProcessing(false);
+      return;
+    }
+
+    const retryKey = `retry:${crypto.randomUUID()}`;
+    const response = await fetch('/api/payments/create-order', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': retryKey },
+      body: JSON.stringify({
+        order_id: checkout.order_id,
+        checkout_reference: checkout.checkout_reference,
+        idempotency_key: retryKey,
+      }),
+    });
+    const data = await response.json() as {
+      payment?: { id: string };
+      attempt?: { id: string; expires_at?: string | null };
+      provider_order?: { gatewayOrderId: string; amountPaise: number; currency: 'INR' };
+      error?: string;
+    };
+    if (!response.ok || !data.provider_order?.gatewayOrderId) {
+      toast.error(data.error ?? 'Could not retry payment');
+      setProcessing(false);
+      return;
+    }
+
+    const nextCheckout: RazorpayCheckoutPayload = {
+      ...checkout,
+      payment_id: data.payment?.id ?? checkout.payment_id,
+      attempt_id: data.attempt?.id ?? checkout.attempt_id,
+      razorpay_order_id: data.provider_order.gatewayOrderId,
+      amount: data.provider_order.amountPaise,
+      currency: data.provider_order.currency,
+      expires_at: data.attempt?.expires_at ?? checkout.expires_at,
+    };
+    setPendingCheckout(nextCheckout);
+    window.localStorage.setItem('gridaan-pending-checkout', JSON.stringify(nextCheckout));
+    openRazorpayCheckout(nextCheckout);
+  }
+
+  function openRazorpayCheckout(checkout: RazorpayCheckoutPayload) {
+    if (!checkout.key && !publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+      toast.error('Razorpay key is not configured');
+      setProcessing(false);
+      return;
+    }
+
+    const Razorpay = window.Razorpay;
+    if (!Razorpay) {
+      toast.error('Razorpay Checkout is unavailable');
+      setProcessing(false);
+      return;
+    }
+
+    const razorpay = new Razorpay({
+      key: checkout.key ?? publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+      amount: checkout.amount,
+      currency: checkout.currency,
+      name: 'Gridaan',
+      description: 'Online Payment',
+      order_id: checkout.razorpay_order_id,
+      prefill: checkout.prefill,
+      notes: {
+        checkout_reference: checkout.checkout_reference,
+        internal_order_id: checkout.order_id,
+      },
+      theme: { color: '#b8860b' },
+      modal: {
+        ondismiss: () => {
+          void recordPaymentFailure({
+            checkout,
+            code: 'checkout_dismissed',
+            message: 'Customer closed Razorpay Checkout before payment completion',
+            releaseReservation: false,
+          });
+          setPendingCheckout(checkout);
+          setProcessing(false);
+          toast.message('Payment was not completed. You can retry without creating a duplicate order.');
+        },
+      },
+      handler: async (response) => {
+        try {
+          const verified = await verifyRazorpayPayment(checkout, response);
+          if (!verified.placed || !verified.order?.order_number) {
+            setPendingCheckout(checkout);
+            setProcessing(false);
+            toast.message('Payment is being verified. Your order is not placed yet.');
+            return;
+          }
+
+          clear();
+          setSearchQuery('');
+          clearCheckoutIdempotencyKey();
+          window.localStorage.removeItem('gridaan-pending-checkout');
+          toast.success('Payment successful. Order placed.');
+          startTransition(() => {
+            router.push(`/order-success?order=${encodeURIComponent(verified.order!.order_number)}`);
+          });
+        } catch (error) {
+          await recordPaymentFailure({
+            checkout,
+            code: 'verification_failed',
+            message: error instanceof Error ? error.message : 'Payment verification failed',
+            gatewayPaymentId: response.razorpay_payment_id,
+            releaseReservation: true,
+          });
+          setPendingCheckout(checkout);
+          setProcessing(false);
+          toast.error(error instanceof Error ? error.message : 'Payment verification failed');
+        }
+      },
+    });
+
+    razorpay.on('payment.failed', (response) => {
+      const code = response.error?.code ?? 'payment_failed';
+      const message = response.error?.description ?? 'Razorpay payment failed';
+      void recordPaymentFailure({
+        checkout,
+        code,
+        message,
+        gatewayPaymentId: response.error?.metadata?.payment_id,
+        releaseReservation: true,
+      });
+      setPendingCheckout(checkout);
+      setProcessing(false);
+      toast.error(message);
+    });
+
+    razorpay.open();
+  }
+
   async function placeOrder() {
     if (processing) return;
     if (!validate()) {
@@ -167,11 +439,20 @@ export default function CheckoutView() {
     }
     setProcessing(true);
     try {
-      console.info('[checkout] selected payment method', { paymentMethod: payment });
-
+      if (pendingCheckout) {
+        await retryPendingPayment(pendingCheckout);
+        return;
+      }
+      const scriptLoaded = await loadRazorpayCheckout();
+      if (!scriptLoaded || !window.Razorpay) {
+        toast.error('Could not load Razorpay Checkout. Please try again.');
+        setProcessing(false);
+        return;
+      }
+      const idempotencyKey = getCheckoutIdempotencyKey();
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey },
         body: JSON.stringify({
           customer_name: form.name,
           customer_email: form.email,
@@ -186,46 +467,30 @@ export default function CheckoutView() {
             pincode: form.pincode,
             country: 'India',
           },
-          payment_method: payment,
+          payment_method: 'razorpay',
           coupon_code: coupon?.code,
           notes: form.notes,
           items: guest.map((g) => ({ product_id: g.product.id, quantity: g.quantity })),
         }),
       });
       const data = (await res.json()) as OrderApiResponse;
-      console.info('[checkout] app order creation response', {
-        status: res.status,
-        orderNumber: data.order?.order_number ?? null,
-        error: data.error ?? null,
-      });
       if (!res.ok) {
-        toast.error(data.error ?? 'Could not place order');
+        toast.error(data.error ?? 'Could not start payment');
         setProcessing(false);
         return;
       }
-      const { order } = data;
-      if (!order?.order_number) {
-        toast.error('Order created, but confirmation could not be prepared.');
+      if (!data.checkout?.razorpay_order_id) {
+        toast.error('Payment could not be prepared.');
         setProcessing(false);
         return;
       }
 
-      clear();
-      setSearchQuery('');
-      startTransition(() => {
-        if (payment === 'manual_upi') {
-          router.push(`/payment/upi-redirect?order=${encodeURIComponent(order.id)}`);
-          return;
-        }
-        if (payment === 'bank_transfer') {
-          router.push(`/order-success?orderId=${encodeURIComponent(order.id)}&payment=pending`);
-          return;
-        }
-        router.push(`/order-success?order=${encodeURIComponent(order.order_number)}`);
-      });
+      setPendingCheckout(data.checkout);
+      window.localStorage.setItem('gridaan-pending-checkout', JSON.stringify(data.checkout));
+      openRazorpayCheckout(data.checkout);
     } catch (error) {
       console.error('[checkout] placeOrder failed', error);
-      toast.error('Network error');
+      toast.error(error instanceof Error ? error.message : 'Network error');
       setProcessing(false);
     }
   }
@@ -320,116 +585,32 @@ export default function CheckoutView() {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold">Payment Method</h3>
                 <p className="mt-1 text-sm text-neutral-500">
-                  Your payment is verified manually before dispatch.
+                  Your order will be placed only after successful payment.
                 </p>
               </div>
               <div className="space-y-3">
                 <PayOption
-                  active={payment === 'cod'}
-                  onClick={() => selectPayment('cod')}
-                  icon={Banknote}
-                  title="Cash on Delivery"
-                  desc="Pay in cash when your order arrives"
+                  active
+                  onClick={() => undefined}
+                  icon={CreditCard}
+                  title="Online Payment — UPI, Cards, Net Banking and Wallets"
+                  desc="Secure payment powered by Razorpay"
                 />
-                {manualUpiAvailable ? (
-                  <PayOption
-                    active={payment === 'manual_upi'}
-                    onClick={() => selectPayment('manual_upi')}
-                    icon={QrCode}
-                    title="Pay with any UPI app"
-                    desc="Paytm, PhonePe, Google Pay, BHIM and other UPI apps supported"
-                  />
-                ) : null}
-                {bankTransferAvailable ? (
-                  <PayOption
-                    active={payment === 'bank_transfer'}
-                    onClick={() => selectPayment('bank_transfer')}
-                    icon={Building2}
-                    title="Bank Transfer"
-                    desc="Place the order, then transfer using the order number as payment note"
-                  />
-                ) : null}
+                <PayOption
+                  active={false}
+                  disabled
+                  onClick={() => undefined}
+                  icon={Banknote}
+                  title="Cash on Delivery — Unavailable"
+                  desc="Gridaan is online-payment-only"
+                />
               </div>
 
-              {payment === 'manual_upi' && manualUpiAvailable ? (
-                <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-50/70 p-5">
-                  <div className="flex gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-gold-700 shadow-sm">
-                      <QrCode className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-neutral-900">Fast UPI redirect</p>
-                      <p className="mt-2 text-sm leading-6 text-neutral-600">
-                        We will create your pending order first, then open your UPI app with the exact
-                        amount and order number filled in. Payment is verified manually before dispatch.
-                      </p>
-                      <p className="mt-3 text-xs font-medium text-gold-900">
-                        Please do not close the page until your order number is saved.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {payment === 'bank_transfer' && bankTransferAvailable ? (
-                <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-5">
-                  <p className="text-sm font-semibold text-neutral-900">Bank transfer details</p>
-                  <p className="mt-2 text-sm leading-6 text-neutral-600">
-                    Place the order first, then transfer the exact total. Use the order number shown on
-                    the next page as your payment note. Orders are confirmed only after bank credit is
-                    verified.
-                  </p>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    {manualPaymentConfig.bankAccountName ? (
-                      <PaymentDetail label="Account Name" value={manualPaymentConfig.bankAccountName} />
-                    ) : null}
-                    {manualPaymentConfig.bankAccountNumber ? (
-                      <PaymentDetail
-                        label="Account Number"
-                        value={manualPaymentConfig.bankAccountNumber}
-                        onCopy={() =>
-                          copyValue(manualPaymentConfig.bankAccountNumber!, 'Account number')
-                        }
-                      />
-                    ) : null}
-                    {manualPaymentConfig.bankIfsc ? (
-                      <PaymentDetail
-                        label="IFSC"
-                        value={manualPaymentConfig.bankIfsc}
-                        onCopy={() => copyValue(manualPaymentConfig.bankIfsc!, 'IFSC')}
-                      />
-                    ) : null}
-                    {manualPaymentConfig.bankName ? (
-                      <PaymentDetail label="Bank Name" value={manualPaymentConfig.bankName} />
-                    ) : null}
-                    {manualPaymentConfig.bankBranch ? (
-                      <PaymentDetail label="Branch" value={manualPaymentConfig.bankBranch} />
-                    ) : null}
-                    <PaymentDetail label="Amount" value={formatRupees(total)} />
-                  </div>
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                    Your order number becomes the payment note after checkout, for example:
-                    <span className="font-semibold"> Gridaan Order GR-0000001</span>.
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                <p className="font-semibold">Orders are confirmed only after payment verification.</p>
-                <p className="mt-1 text-xs leading-5 text-amber-800">
-                  UPI and bank-transfer payments stay pending until our team verifies actual account
-                  credit. We never mark a manual payment as paid automatically.
+              <div className="mt-5 rounded-xl border border-gold-200 bg-gold-50 p-4 text-sm text-gold-900">
+                <p className="font-semibold">Your order will be placed only after successful payment.</p>
+                <p className="mt-1 text-xs leading-5 text-gold-800">
+                  If checkout is closed, fails, or cannot be verified, no order number is generated and no order is placed.
                 </p>
-                {paymentSupportHref ? (
-                  <a
-                    href={paymentSupportHref}
-                    target={paymentSupportHref.startsWith('https://') ? '_blank' : undefined}
-                    rel={paymentSupportHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
-                    className="mt-2 inline-flex font-semibold underline underline-offset-4"
-                  >
-                    Need help? Contact us.
-                  </a>
-                ) : null}
               </div>
             </div>
           </div>
@@ -504,21 +685,15 @@ export default function CheckoutView() {
                     Processing…
                   </span>
                 ) : (
-                  payment === 'manual_upi'
-                    ? `Pay ${formatRupees(total)} via UPI`
-                    : `${payment === 'cod' ? 'Place Order' : 'Place Bank Transfer Order'} — ${formatRupees(total)}`
+                  `${pendingCheckout ? 'Retry Payment' : 'Pay & Place Order'} — ${formatRupees(total)}`
                 )}
               </button>
 
               <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-neutral-500">
                 {[
-                  { icon: Banknote, label: 'COD Available' },
-                  ...(manualUpiAvailable ? [{ icon: QrCode, label: 'UPI Accepted' }] : []),
-                  ...(bankTransferAvailable
-                    ? [{ icon: Building2, label: 'Bank Transfer' }]
-                    : []),
-                  { icon: CheckCircle2, label: 'Manual Verification' },
-                  { icon: ShieldCheck, label: 'Secure Order Tracking' },
+                  { icon: CreditCard, label: 'Razorpay Checkout' },
+                  { icon: Banknote, label: 'COD Unavailable' },
+                  { icon: ShieldCheck, label: 'Verified Online Payment' },
                   { icon: Lock, label: 'SSL Secured' },
                 ].map(({ icon: Icon, label }) => (
                   <div key={label} className="flex items-center gap-1.5">
@@ -545,13 +720,30 @@ function Field({ label, error, children, className }: { label: string; error?: s
   );
 }
 
-function PayOption({ active, onClick, icon: Icon, title, desc }: { active: boolean; onClick: () => void; icon: LucideIcon; title: string; desc: string }) {
+function PayOption({
+  active,
+  onClick,
+  icon: Icon,
+  title,
+  desc,
+  disabled = false,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: LucideIcon;
+  title: string;
+  desc: string;
+  disabled?: boolean;
+}) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         'w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left',
-        active ? 'border-gold-500 bg-gold-50' : 'border-neutral-200 hover:border-neutral-300'
+        active ? 'border-gold-500 bg-gold-50' : 'border-neutral-200 hover:border-neutral-300',
+        disabled && 'cursor-not-allowed bg-neutral-50 text-neutral-400 hover:border-neutral-200'
       )}
     >
       <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center', active ? 'border-gold-500' : 'border-neutral-300')}>
@@ -571,35 +763,6 @@ function Row({ label, value, className }: { label: string; value: React.ReactNod
     <div className={cn('flex justify-between text-sm', className)}>
       <span>{label}</span>
       <span className="font-medium">{value}</span>
-    </div>
-  );
-}
-
-function PaymentDetail({
-  label,
-  value,
-  onCopy,
-}: {
-  label: string;
-  value: string;
-  onCopy?: () => void;
-}) {
-  return (
-    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2.5">
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-400">{label}</p>
-        <p className="truncate text-sm font-semibold text-neutral-900">{value}</p>
-      </div>
-      {onCopy ? (
-        <button
-          type="button"
-          onClick={onCopy}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-stone-100 hover:text-neutral-900"
-          aria-label={`Copy ${label}`}
-        >
-          <Copy className="h-4 w-4" />
-        </button>
-      ) : null}
     </div>
   );
 }

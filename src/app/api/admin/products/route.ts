@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/supabase/auth';
+import { requireAdminPermission } from '@/lib/admin/permissions';
+import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { createServiceClient } from '@/lib/supabase/server';
 import { assertJsonRequest, assertSameOrigin, errorResponse } from '@/lib/api';
 import { productSchema } from '@/lib/validators';
 
-const PRODUCT_SELECT =
-  'id, slug, name, description, price, original_price, discount, images, category_id, tags, in_stock, stock_count, rating, review_count, is_trending, is_new_arrival, is_best_seller, metadata, created_at, updated_at, category:categories(*)';
+const PRODUCT_SELECT = '*, category:categories(*)';
 
 export async function POST(req: NextRequest) {
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
-    await requireAdmin();
+    const admin = await requireAdminPermission('products.write');
 
     const input = productSchema.parse(await req.json());
     const supabase = createServiceClient();
@@ -27,6 +27,15 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    await writeAdminAuditLog({
+      supabase,
+      adminId: admin.profile.id,
+      action: 'product.created',
+      entity: 'product',
+      entityId: product.id,
+      afterData: product,
+    });
 
     revalidatePath('/admin/products');
     revalidatePath('/');

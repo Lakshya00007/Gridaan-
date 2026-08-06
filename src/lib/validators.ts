@@ -45,10 +45,7 @@ export const checkoutSchema = z.object({
     .max(10)
     .regex(/^[6-9]\d{9}$/),
   shipping_address: addressSchema,
-  payment_method: z.enum(['cod', 'manual_upi', 'bank_transfer']),
-  manual_payment_reference: z.string().trim().max(100).optional().or(z.literal('')),
-  manual_payment_sender_name: z.string().trim().max(120).optional().or(z.literal('')),
-  manual_payment_note: z.string().trim().max(500).optional().or(z.literal('')),
+  payment_method: z.literal('razorpay'),
   coupon_code: z.string().max(40).optional().or(z.literal('')),
   notes: z.string().max(500).optional().or(z.literal('')),
   items: z
@@ -71,16 +68,52 @@ export const productSchema = z.object({
     .max(200)
     .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and dashes only'),
   description: z.string().min(10).max(5000),
+  short_description: z.string().max(500).optional().nullable(),
+  sku: z.string().trim().max(80).optional().nullable(),
   price: z.number().positive().max(1_000_000),
   original_price: z.number().positive().max(1_000_000),
+  cost_price: z.number().min(0).max(1_000_000).optional().nullable(),
   category_id: z.string().uuid().nullable().optional(),
+  subcategory: z.string().trim().max(120).optional().nullable(),
+  product_type: z.string().trim().max(120).optional().nullable(),
+  gender: z.string().trim().max(80).optional().nullable(),
+  material: z.string().trim().max(120).optional().nullable(),
+  colour: z.string().trim().max(80).optional().nullable(),
+  size: z.string().trim().max(80).optional().nullable(),
+  weight_grams: z.number().min(0).max(100000).optional().nullable(),
+  jewellery_type: z.string().trim().max(120).optional().nullable(),
+  tax_category: z.string().trim().max(120).optional().nullable(),
   images: z.array(z.string().url()).min(1, 'At least one image is required'),
+  image_metadata: z
+    .array(
+      z.object({
+        url: z.string(),
+        alt: z.string().max(200).optional(),
+        is_primary: z.boolean().optional(),
+      })
+    )
+    .optional(),
   tags: z.array(z.string()).default([]),
   in_stock: z.boolean().default(true),
   stock_count: z.number().int().min(0).default(0),
+  reserved_stock: z.number().int().min(0).optional(),
+  low_stock_threshold: z.number().int().min(0).optional(),
+  reorder_level: z.number().int().min(0).optional(),
   is_trending: z.boolean().default(false),
   is_new_arrival: z.boolean().default(false),
   is_best_seller: z.boolean().default(false),
+  is_featured: z.boolean().optional(),
+  is_active: z.boolean().optional(),
+  return_eligible: z.boolean().optional(),
+  cod_eligible: z.boolean().optional(),
+  archived_at: z.string().datetime().nullable().optional(),
+  seo_title: z.string().max(200).optional().nullable(),
+  seo_description: z.string().max(500).optional().nullable(),
+  search_keywords: z.array(z.string()).optional(),
+  metadata: z.record(z.unknown()).optional(),
+}).refine((data) => data.original_price >= data.price, {
+  message: 'MRP must be greater than or equal to selling price',
+  path: ['original_price'],
 });
 export type ProductInput = z.infer<typeof productSchema>;
 

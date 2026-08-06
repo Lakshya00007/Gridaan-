@@ -34,7 +34,7 @@ export default function TermsPage() {
         {
           heading: 'Orders and cancellations',
           body: [
-            'Orders are subject to stock availability, payment confirmation where applicable, and basic order verification checks.',
+            'Orders are subject to stock availability, successful Razorpay payment capture, and basic order verification checks.',
             'If a product becomes unavailable, appears incorrectly priced, or cannot be fulfilled for a valid reason, Gridaan may cancel the order and inform the customer.',
             'Cancellation handling is explained in the Cancellation Policy, and return or refund eligibility is explained in the Return & Refund Policy.',
           ],
@@ -47,17 +47,17 @@ export default function TermsPage() {
           ],
         },
         {
-          heading: 'Manual UPI, bank transfer, and Cash on Delivery',
+          heading: 'Online payment only',
           body: [
-            'Manual UPI and bank-transfer orders are not automatically treated as paid. Payment pending does not mean payment confirmed.',
-            'Gridaan verifies manual payments against actual bank or UPI credit before dispatch. Customers should use the correct order number in the payment note where possible.',
-            'Cash on Delivery may be available only on eligible orders and serviceable locations and may be refused for suspected abuse, repeated failed deliveries, or incorrect contact details.',
+            'Gridaan accepts online payments through Razorpay. Supported methods can include UPI, cards, net banking, and wallets where Razorpay enables them.',
+            'Cash on Delivery, manual UPI, bank transfer, screenshot verification, and UTR submission are not available.',
+            'A checkout attempt is not a placed order. An order is placed only after the server verifies the Razorpay payment and confirms captured payment for the expected amount and currency.',
           ],
         },
         {
           heading: 'Shipping and delivery',
           body: [
-            'Shipping timelines, tracking, charges, and COD serviceability are explained in the Shipping & Delivery Policy.',
+            'Shipping timelines, tracking, charges, and online payment confirmation are explained in the Shipping & Delivery Policy.',
             'Customers are responsible for being reachable at the provided phone number and for accepting delivery within the courier partner’s delivery attempts.',
           ],
         },
@@ -65,7 +65,7 @@ export default function TermsPage() {
           heading: 'Liability and use of the website',
           body: [
             'Gridaan aims to keep product, pricing, and checkout information accurate, but the website is provided on a reasonable-effort basis and may occasionally contain temporary errors or interruptions.',
-            'To the extent reasonably permitted, Gridaan is not responsible for indirect losses arising from delay, courier disruption, payment-verification delay, third-party service interruption, or customer-provided information errors.',
+            'To the extent reasonably permitted, Gridaan is not responsible for indirect losses arising from delay, courier disruption, Razorpay/payment-provider delay, third-party service interruption, or customer-provided information errors.',
             'Gridaan may cancel, hold, or refuse orders where fraud, abuse, suspicious payment activity, unavailable stock, incorrect pricing, or delivery risk is identified.',
           ],
         },

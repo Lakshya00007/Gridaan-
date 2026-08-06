@@ -100,11 +100,11 @@ export default function Footer({ whatsappHref }: FooterProps) {
               </li>
               <li className="flex items-start gap-2.5">
                 <Truck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <span>COD available and careful packing for gifting.</span>
+                <span>Secure online payment and careful packing for gifting.</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-gold-400 mt-0.5 flex-shrink-0" />
-                <span>Manual payment verification before dispatch.</span>
+                <span>Orders are placed after verified Razorpay payment.</span>
               </li>
               {whatsappHref ? (
                 <li className="flex items-start gap-2.5">
@@ -130,7 +130,7 @@ export default function Footer({ whatsappHref }: FooterProps) {
             © {new Date().getFullYear()} Gridaan. All rights reserved.
           </p>
           <p className="text-[10px] text-neutral-600">
-            Artificial, imitation & fashion jewellery only. Manual payment verification before dispatch.
+            Artificial, imitation & fashion jewellery only. Online payment confirmation required before fulfilment.
           </p>
         </div>
       </div>

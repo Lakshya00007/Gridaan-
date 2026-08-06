@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase/auth';
+import { requireAdminPermission } from '@/lib/admin/permissions';
 import { createServiceClient } from '@/lib/supabase/server';
 import { assertSameOrigin, badRequest, errorResponse } from '@/lib/api';
 
@@ -10,7 +10,7 @@ const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 export async function POST(req: NextRequest) {
   try {
     assertSameOrigin(req);
-    await requireAdmin();
+    await requireAdminPermission('products.write');
 
     const formData = await req.formData();
     const file = formData.get('file');
