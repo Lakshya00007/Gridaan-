@@ -8,6 +8,25 @@ import { validateRefundAmount } from '@/lib/commerce/refund-rules';
 import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { serverEnv } from '@/lib/env.server';
 import { assertExpectedPaymentAmount } from './payment-validation';
+import {
+  buildOrderItemRows,
+  createCheckoutFingerprint,
+  createCheckoutReference,
+  createRazorpayReceipt,
+  getCheckoutResumeDecision,
+  getFailedCheckoutState,
+  getPaymentAttemptDecision,
+  getPreparedCheckoutState,
+  getRazorpayConfigurationError,
+  isPreparedProviderOrder,
+  shouldCommitCheckoutInventory,
+} from './checkout-preparation';
+import {
+  CheckoutProcessingError,
+  RazorpayProviderError,
+  type CheckoutPublicError,
+  type CheckoutStage,
+} from './checkout-errors';
 import { MockPaymentProvider } from './mock-payment-provider';
 import { RazorpayProvider } from './razorpay-provider';
 import type { PaymentProvider } from './payment-provider';
@@ -70,12 +89,39 @@ function getIdempotencyKey(key?: string) {
   return key?.trim() || `auto:${randomUUID()}`;
 }
 
-function generateCheckoutReference() {
-  return `chk_${randomUUID().replace(/-/g, '').slice(0, 28)}`;
-}
-
 function getFinalOrderNumber(orderNumber: string | null | undefined) {
   return orderNumber && orderNumber.trim() ? orderNumber : null;
+}
+
+function checkoutError({
+  publicError,
+  stage,
+  cause,
+  checkoutReference,
+  status,
+}: {
+  publicError: CheckoutPublicError;
+  stage: CheckoutStage;
+  cause?: unknown;
+  checkoutReference?: string;
+  status?: number;
+}) {
+  return new CheckoutProcessingError({
+    publicError,
+    stage,
+    cause,
+    checkoutReference,
+    status,
+  });
+}
+
+function databaseError(stage: CheckoutStage, cause: unknown, checkoutReference?: string) {
+  return checkoutError({
+    publicError: 'order_database_error',
+    stage,
+    cause,
+    checkoutReference,
+  });
 }
 
 function buildOrderSuccessSummary(order: Record<string, unknown>): OrderSuccessSummary {
@@ -97,28 +143,34 @@ async function releaseReservationForOrder(orderId: string, reason: string) {
     p_order_id: orderId,
     p_reason: reason,
   });
-  if (error) {
-    console.warn('[payments] reservation release failed', {
-      orderId,
-      code: error.code,
-      message: error.message,
-    });
-  }
+  if (error) throw error;
 }
 
 async function ensureOrderReservation(orderId: string) {
   const supabase = createServiceClient();
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('id, stock_reserved_until, reservation_released_at, items:order_items(product_id, quantity)')
+    .select(
+      'id, stock_reserved_until, reservation_released_at, items:order_items(product_id, quantity)'
+    )
     .eq('id', orderId)
     .maybeSingle();
 
   if (orderError) throw orderError;
   if (!order) throw notFound('Order not found');
-  if (order.stock_reserved_until && !order.reservation_released_at) return;
+  const items = (order.items ?? []) as { product_id: string; quantity: number }[];
+  if (!items.length) throw badRequest('Checkout has no order items', 'order_items_missing');
+  const reservationIsActive =
+    order.stock_reserved_until &&
+    new Date(order.stock_reserved_until).getTime() > Date.now() &&
+    !order.reservation_released_at;
+  if (reservationIsActive) return;
 
-  for (const item of (order.items ?? []) as { product_id: string; quantity: number }[]) {
+  if (order.stock_reserved_until && !order.reservation_released_at) {
+    await releaseReservationForOrder(orderId, 'Expired checkout reservation replaced');
+  }
+
+  for (const item of items) {
     const { error: reserveError } = await supabase.rpc('reserve_product_stock', {
       p_product_id: item.product_id,
       p_order_id: orderId,
@@ -128,7 +180,7 @@ async function ensureOrderReservation(orderId: string) {
     if (reserveError) throw reserveError;
   }
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('orders')
     .update({
       stock_reserved_until: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
@@ -136,6 +188,7 @@ async function ensureOrderReservation(orderId: string) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', orderId);
+  if (updateError) throw updateError;
 }
 
 async function getOrCreateFinalOrderNumber(orderId: string, existingOrderNumber?: string | null) {
@@ -147,14 +200,26 @@ async function getOrCreateFinalOrderNumber(orderId: string, existingOrderNumber?
   if (error || !generated) throw error ?? new Error('Could not generate order number');
   const orderNumber = String(generated);
 
-  const { error: updateError } = await supabase
+  const { data: updatedOrder, error: updateError } = await supabase
     .from('orders')
     .update({ order_number: orderNumber, updated_at: new Date().toISOString() })
     .eq('id', orderId)
-    .is('order_number', null);
+    .is('order_number', null)
+    .select('order_number')
+    .maybeSingle();
 
   if (updateError) throw updateError;
-  return orderNumber;
+  if (updatedOrder?.order_number) return String(updatedOrder.order_number);
+
+  const { data: existingOrder, error: lookupError } = await supabase
+    .from('orders')
+    .select('order_number')
+    .eq('id', orderId)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  const assigned = getFinalOrderNumber(existingOrder?.order_number);
+  if (!assigned) throw new Error('Could not assign order number');
+  return assigned;
 }
 
 export async function createOnlineCheckout({
@@ -173,6 +238,28 @@ export async function createOnlineCheckout({
   const supabase = createServiceClient();
   const provider = getPaymentProvider();
   const key = getIdempotencyKey(idempotencyKey);
+  const checkoutReference = createCheckoutReference(key);
+  const checkoutFingerprint = createCheckoutFingerprint(input, profileId);
+  const configurationError = getRazorpayConfigurationError({
+    provider: serverEnv.PAYMENT_PROVIDER,
+    publicKeyId: serverEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    serverKeyId: serverEnv.RAZORPAY_KEY_ID,
+    serverKeySecret: serverEnv.RAZORPAY_KEY_SECRET,
+  });
+
+  if (configurationError) {
+    throw checkoutError({
+      publicError: 'razorpay_order_creation_failed',
+      stage: 'provider_configuration',
+      checkoutReference,
+      cause: new RazorpayProviderError({
+        code: configurationError,
+        description: 'Razorpay checkout configuration is incomplete or inconsistent',
+        httpStatus: 500,
+      }),
+      status: 500,
+    });
+  }
 
   const { data: existingAttempt, error: existingAttemptError } = await supabase
     .from('payment_attempts')
@@ -181,28 +268,21 @@ export async function createOnlineCheckout({
     .eq('idempotency_key', key)
     .maybeSingle();
 
-  if (existingAttemptError) throw existingAttemptError;
-  if (existingAttempt?.payment && existingAttempt?.order) {
-    return {
-      reused: true,
-      order: existingAttempt.order,
-      payment: existingAttempt.payment,
-      attempt: existingAttempt,
-      provider_order: existingAttempt.response_payload,
-      checkout_reference: (existingAttempt.order as { checkout_reference?: string }).checkout_reference,
-    };
+  if (existingAttemptError) {
+    throw databaseError('idempotency_lookup', existingAttemptError, checkoutReference);
   }
-
   const ids = input.items.map((item) => item.product_id);
   const { data: products, error: productError } = await supabase
     .from('products')
     .select(PRODUCT_COLS)
     .in('id', ids);
 
-  if (productError) throw productError;
+  if (productError) throw databaseError('product_lookup', productError, checkoutReference);
   if (!products || products.length !== ids.length) throw notFound('Some products are unavailable');
 
-  const byId = new Map((products as unknown as CheckoutProduct[]).map((product) => [product.id, product]));
+  const byId = new Map(
+    (products as unknown as CheckoutProduct[]).map((product) => [product.id, product])
+  );
   for (const item of input.items) {
     const product = byId.get(item.product_id);
     if (!product) throw notFound(`Product ${item.product_id} not found`);
@@ -226,14 +306,17 @@ export async function createOnlineCheckout({
       unit_price: Number(product.price),
     };
   });
-  const subtotalForCoupon = pricingItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  const subtotalForCoupon = pricingItems.reduce(
+    (sum, item) => sum + item.unit_price * item.quantity,
+    0
+  );
 
   if (input.coupon_code) {
     const { data: couponData, error: couponError } = await supabase.rpc('validate_coupon', {
       p_code: input.coupon_code,
       p_subtotal: subtotalForCoupon,
     });
-    if (couponError) throw couponError;
+    if (couponError) throw databaseError('coupon_validation', couponError, checkoutReference);
     const row = ((couponData ?? []) as ValidateCouponRow[])[0];
     if (!row?.ok) {
       throw badRequest(row?.reason ?? 'Coupon is not valid', 'invalid_coupon');
@@ -255,88 +338,191 @@ export async function createOnlineCheckout({
         }
       : null,
   });
-  const checkoutReference = generateCheckoutReference();
-  const reservationExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const orderValues = {
+    user_id: profileId ?? null,
+    customer_name: input.customer_name,
+    customer_email: input.customer_email || null,
+    customer_phone: input.customer_phone,
+    shipping_address: input.shipping_address,
+    billing_address: input.shipping_address,
+    subtotal: totals.subtotal,
+    discount: totals.discount,
+    shipping: totals.shipping,
+    tax: totals.tax,
+    total: totals.total,
+    gross_amount: totals.subtotal,
+    final_amount: totals.total,
+    coupon_id: coupon.id,
+    coupon_code: coupon.code,
+    payment_method: 'razorpay' as const,
+    fulfilment_status: 'unfulfilled',
+    notes: input.notes || null,
+    customer_notes: input.notes || null,
+  };
 
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      order_number: null,
-      checkout_reference: checkoutReference,
-      user_id: profileId ?? null,
-      customer_name: input.customer_name,
-      customer_email: input.customer_email || null,
-      customer_phone: input.customer_phone,
-      shipping_address: input.shipping_address,
-      billing_address: input.shipping_address,
-      subtotal: totals.subtotal,
-      discount: totals.discount,
-      shipping: totals.shipping,
-      tax: totals.tax,
-      total: totals.total,
-      gross_amount: totals.subtotal,
-      final_amount: totals.total,
-      coupon_id: coupon.id,
-      coupon_code: coupon.code,
-      payment_method: 'razorpay',
-      payment_status: 'pending',
-      order_status: 'pending_payment',
-      fulfilment_status: 'unfulfilled',
-      notes: input.notes || null,
-      customer_notes: input.notes || null,
-      stock_reserved_until: reservationExpiresAt,
-      metadata: {
+  let order = existingAttempt?.order as Record<string, unknown> | null | undefined;
+  if (!order) {
+    const { data: existingOrder, error: existingOrderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('checkout_reference', checkoutReference)
+      .maybeSingle();
+    if (existingOrderError) {
+      throw databaseError('idempotency_lookup', existingOrderError, checkoutReference);
+    }
+    order = existingOrder;
+  }
+
+  if (order) {
+    const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+    if (metadata.checkout_fingerprint && metadata.checkout_fingerprint !== checkoutFingerprint) {
+      throw checkoutError({
+        publicError: 'idempotency_conflict',
+        stage: 'order_resume',
+        checkoutReference,
+        status: 409,
+      });
+    }
+    const resumeDecision = getCheckoutResumeDecision({
+      orderStatus: String(order.order_status ?? ''),
+      paymentStatus: String(order.payment_status ?? ''),
+    });
+    if (resumeDecision === 'not_payable') {
+      throw badRequest('This checkout has already been placed', 'order_not_payable');
+    }
+    if (resumeDecision === 'in_progress') {
+      throw checkoutError({
+        publicError: 'checkout_in_progress',
+        stage: 'order_resume',
+        checkoutReference,
+        status: 409,
+      });
+    }
+
+    const { data: claimedOrder, error: claimError } = await supabase
+      .from('orders')
+      .update({
+        ...orderValues,
+        payment_status: 'pending',
+        order_status: 'payment_processing',
+        payment_failure_reason: null,
+        metadata: {
+          ...metadata,
+          checkout_reference: checkoutReference,
+          checkout_fingerprint: checkoutFingerprint,
+          online_payment_only: true,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', String(order.id))
+      .in('order_status', ['pending_payment', 'cancelled', 'draft'])
+      .select('*')
+      .maybeSingle();
+
+    if (claimError) throw databaseError('order_resume', claimError, checkoutReference);
+    if (!claimedOrder) {
+      throw checkoutError({
+        publicError: 'checkout_in_progress',
+        stage: 'order_resume',
+        checkoutReference,
+        status: 409,
+      });
+    }
+    order = claimedOrder;
+  } else {
+    const { data: insertedOrder, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        ...orderValues,
+        order_number: null,
         checkout_reference: checkoutReference,
-        online_payment_only: true,
-      },
-    })
-    .select('*')
-    .single();
+        payment_status: 'pending',
+        order_status: 'payment_processing',
+        stock_reserved_until: null,
+        metadata: {
+          checkout_reference: checkoutReference,
+          checkout_fingerprint: checkoutFingerprint,
+          online_payment_only: true,
+        },
+      })
+      .select('*')
+      .single();
 
-  if (orderError) throw orderError;
+    if (orderError?.code === '23505') {
+      throw checkoutError({
+        publicError: 'checkout_in_progress',
+        stage: 'order_insert',
+        cause: orderError,
+        checkoutReference,
+        status: 409,
+      });
+    }
+    if (orderError) throw databaseError('order_insert', orderError, checkoutReference);
+    order = insertedOrder;
+  }
+
+  if (!order?.id) {
+    throw databaseError(
+      'order_insert',
+      new Error('Order insert returned no ID'),
+      checkoutReference
+    );
+  }
+
+  const orderId = String(order.id);
 
   try {
-    const itemRows = input.items.map((item) => {
-      const product = byId.get(item.product_id)!;
-      const unitPrice = Number(product.price);
-      return {
-        order_id: order.id,
-        product_id: product.id,
-        product_name: product.name,
-        product_image: product.images?.[0] ?? null,
-        product_sku: product.sku ?? null,
-        product_snapshot: {
-          id: product.id,
-          slug: product.slug,
-          name: product.name,
-          images: product.images,
-          price: product.price,
-          category_id: product.category_id,
-        },
-        unit_price: unitPrice,
-        quantity: item.quantity,
-        discount_amount: 0,
-        tax_amount: 0,
-        line_total: unitPrice * item.quantity,
-      };
-    });
+    const { data: existingItems, error: existingItemsError } = await supabase
+      .from('order_items')
+      .select('id, product_id, quantity')
+      .eq('order_id', orderId);
+    if (existingItemsError) {
+      throw databaseError('order_items_lookup', existingItemsError, checkoutReference);
+    }
 
-    const { error: itemError } = await supabase.from('order_items').insert(itemRows);
-    if (itemError) throw itemError;
-
-    for (const item of input.items) {
-      const { error: reserveError } = await supabase.rpc('reserve_product_stock', {
-        p_product_id: item.product_id,
-        p_order_id: order.id,
-        p_quantity: item.quantity,
-        p_reason: 'Online payment checkout reservation',
+    if (existingItems?.length) {
+      const expected = new Map(input.items.map((item) => [item.product_id, item.quantity]));
+      const matches =
+        existingItems.length === expected.size &&
+        existingItems.every(
+          (item) => expected.get(String(item.product_id)) === Number(item.quantity)
+        );
+      if (!matches) {
+        throw checkoutError({
+          publicError: 'idempotency_conflict',
+          stage: 'order_items_lookup',
+          checkoutReference,
+          status: 409,
+        });
+      }
+    } else {
+      const itemRows = buildOrderItemRows({
+        orderId,
+        items: input.items,
+        productsById: byId,
       });
-      if (reserveError) throw reserveError;
+      const { error: itemError } = await supabase.from('order_items').insert(itemRows);
+      if (itemError) {
+        throw databaseError('order_items_insert', itemError, checkoutReference);
+      }
+    }
+
+    try {
+      await ensureOrderReservation(orderId);
+    } catch (error) {
+      throw checkoutError({
+        publicError: 'stock_reservation_failed',
+        stage: 'stock_reservation',
+        cause: error,
+        checkoutReference,
+        status: 409,
+      });
     }
 
     const paymentResult = await createPaymentOrderForOrder({
-      orderId: order.id,
+      orderId,
       idempotencyKey: key,
+      checkoutReference,
     });
 
     return {
@@ -345,133 +531,357 @@ export async function createOnlineCheckout({
       ...paymentResult,
     };
   } catch (error) {
-    await releaseReservationForOrder(order.id, 'Checkout preparation failed');
-    await supabase
+    const failure =
+      error instanceof CheckoutProcessingError
+        ? error
+        : databaseError('unhandled', error, checkoutReference);
+
+    try {
+      await releaseReservationForOrder(orderId, 'Checkout preparation failed');
+    } catch (releaseError) {
+      throw databaseError('checkout_cleanup', releaseError, checkoutReference);
+    }
+
+    const { error: cleanupError } = await supabase
       .from('orders')
       .update({
-        payment_status: 'failed',
-        order_status: 'cancelled',
-        payment_failure_reason: error instanceof Error ? error.message : 'Checkout preparation failed',
+        ...getFailedCheckoutState(failure.publicError),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', order.id);
-    throw error;
+      .eq('id', orderId);
+    if (cleanupError) throw databaseError('checkout_cleanup', cleanupError, checkoutReference);
+    throw failure;
   }
 }
 
 export async function createPaymentOrderForOrder({
   orderId,
   idempotencyKey,
+  checkoutReference: suppliedCheckoutReference,
 }: {
   orderId: string;
   idempotencyKey?: string;
+  checkoutReference?: string;
 }) {
   const supabase = createServiceClient();
   const provider = getPaymentProvider();
   const key = getIdempotencyKey(idempotencyKey);
 
-  const { data: existingAttempt } = await supabase
+  const { data: existingAttempt, error: existingAttemptError } = await supabase
     .from('payment_attempts')
     .select('*, payment:payments(*)')
     .eq('provider', provider.name)
     .eq('idempotency_key', key)
     .maybeSingle();
 
-  if (existingAttempt) {
-    return {
-      reused: true,
-      payment: (existingAttempt as { payment?: unknown }).payment,
-      attempt: existingAttempt,
-      provider_order: existingAttempt.response_payload,
-      integration_pending: true,
-    };
+  if (existingAttemptError) {
+    throw databaseError('idempotency_lookup', existingAttemptError, suppliedCheckoutReference);
   }
-
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('id, order_number, checkout_reference, user_id, customer_name, customer_email, customer_phone, total, final_amount, payment_status, order_status')
+    .select(
+      'id, order_number, checkout_reference, user_id, customer_name, customer_email, customer_phone, total, final_amount, payment_status, order_status'
+    )
     .eq('id', orderId)
     .maybeSingle();
 
-  if (orderError) throw orderError;
+  if (orderError) {
+    throw databaseError('order_resume', orderError, suppliedCheckoutReference);
+  }
   if (!order) throw notFound('Order not found');
 
   const typedOrder = order as OrderPaymentRow;
+  const checkoutReference =
+    suppliedCheckoutReference ?? typedOrder.checkout_reference ?? createCheckoutReference(key);
   if (['paid', 'captured', 'refunded'].includes(typedOrder.payment_status)) {
     throw badRequest('Order is not payable', 'order_not_payable');
   }
 
   const amountPaise = getOrderAmountPaise(typedOrder);
   if (amountPaise <= 0) throw badRequest('Order amount must be greater than zero');
-  const receipt = typedOrder.checkout_reference ?? typedOrder.order_number ?? `chk_${typedOrder.id.replace(/-/g, '').slice(0, 28)}`;
-  await ensureOrderReservation(typedOrder.id);
+  const receipt = createRazorpayReceipt(checkoutReference, key);
+  try {
+    await ensureOrderReservation(typedOrder.id);
+  } catch (error) {
+    throw checkoutError({
+      publicError: 'stock_reservation_failed',
+      stage: 'stock_reservation',
+      cause: error,
+      checkoutReference,
+      status: 409,
+    });
+  }
 
-  const providerOrder = await provider.createOrder({
-    internalOrderId: typedOrder.id,
-    receipt,
-    amountPaise,
-    currency: 'INR',
-    idempotencyKey: key,
-    notes: {
-      checkout_reference: receipt,
-      order_number: typedOrder.order_number ?? '',
-      customer_phone: typedOrder.customer_phone,
-    },
-  });
+  if (existingAttempt?.payment && isPreparedProviderOrder(existingAttempt.response_payload)) {
+    return {
+      reused: true,
+      payment: (existingAttempt as { payment?: unknown }).payment,
+      attempt: existingAttempt,
+      provider_order: existingAttempt.response_payload,
+      integration_pending: existingAttempt.response_payload.integrationPending,
+    };
+  }
 
-  const { data: payment, error: paymentError } = await supabase
-    .from('payments')
-    .insert({
-      order_id: typedOrder.id,
-      provider: provider.name,
-      gateway: 'razorpay',
-      gateway_order_id: providerOrder.gatewayOrderId,
-      amount_paise: amountPaise,
-      currency: providerOrder.currency,
-      status: providerOrder.status,
-      captured: false,
-      metadata: providerOrder.metadata,
-    })
-    .select('*')
-    .single();
+  let attempt = existingAttempt as Record<string, unknown> | null;
+  if (attempt && !isPreparedProviderOrder(attempt.response_payload)) {
+    const attemptDecision = getPaymentAttemptDecision({
+      status: String(attempt.status ?? ''),
+      hasProviderOrder: false,
+      hasPayment: Boolean(attempt.payment),
+    });
+    if (attemptDecision === 'in_progress') {
+      throw checkoutError({
+        publicError: 'checkout_in_progress',
+        stage: 'payment_attempt_insert',
+        checkoutReference,
+        status: 409,
+      });
+    }
 
-  if (paymentError) throw paymentError;
+    const { data: claimedAttempt, error: claimError } = await supabase
+      .from('payment_attempts')
+      .update({
+        status: 'pending',
+        error_code: null,
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', String(attempt.id))
+      .eq('status', 'failed')
+      .select('*')
+      .maybeSingle();
+    if (claimError) {
+      throw databaseError('payment_attempt_update', claimError, checkoutReference);
+    }
+    if (!claimedAttempt) {
+      throw checkoutError({
+        publicError: 'checkout_in_progress',
+        stage: 'payment_attempt_update',
+        checkoutReference,
+        status: 409,
+      });
+    }
+    attempt = claimedAttempt;
+  }
 
-  const { data: attempt, error: attemptError } = await supabase
-    .from('payment_attempts')
-    .insert({
-      order_id: typedOrder.id,
-      payment_id: payment.id,
-      provider: provider.name,
-      idempotency_key: key,
-      gateway_order_id: providerOrder.gatewayOrderId,
-      amount_paise: amountPaise,
-      currency: providerOrder.currency,
-      status: providerOrder.status,
-      request_payload: {
+  if (!attempt) {
+    const { data: insertedAttempt, error: attemptError } = await supabase
+      .from('payment_attempts')
+      .insert({
         order_id: typedOrder.id,
+        provider: provider.name,
+        idempotency_key: key,
+        amount_paise: amountPaise,
+        currency: 'INR',
+        status: 'pending',
+        request_payload: {
+          order_id: typedOrder.id,
+          receipt,
+        },
+        response_payload: {},
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      })
+      .select('*')
+      .single();
+
+    if (attemptError?.code === '23505') {
+      throw checkoutError({
+        publicError: 'checkout_in_progress',
+        stage: 'payment_attempt_insert',
+        cause: attemptError,
+        checkoutReference,
+        status: 409,
+      });
+    }
+    if (attemptError) {
+      throw databaseError('payment_attempt_insert', attemptError, checkoutReference);
+    }
+    if (!insertedAttempt) {
+      throw databaseError(
+        'payment_attempt_insert',
+        new Error('Payment attempt insert returned no row'),
+        checkoutReference
+      );
+    }
+    attempt = insertedAttempt;
+  }
+
+  if (!attempt) {
+    throw databaseError(
+      'payment_attempt_insert',
+      new Error('Payment attempt is unavailable'),
+      checkoutReference
+    );
+  }
+
+  let providerOrder = isPreparedProviderOrder(attempt.response_payload)
+    ? attempt.response_payload
+    : null;
+
+  if (!providerOrder) {
+    try {
+      providerOrder = await provider.createOrder({
+        internalOrderId: typedOrder.id,
         receipt,
-      },
-      response_payload: providerOrder,
-      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    })
-    .select('*')
-    .single();
+        amountPaise,
+        currency: 'INR',
+        idempotencyKey: key,
+        notes: {
+          checkout_reference: checkoutReference,
+          ...(typedOrder.order_number ? { order_number: typedOrder.order_number } : {}),
+        },
+      });
+      assertExpectedPaymentAmount({
+        expectedPaise: amountPaise,
+        actualPaise: providerOrder.amountPaise,
+        expectedCurrency: 'INR',
+        actualCurrency: providerOrder.currency,
+      });
+    } catch (error) {
+      await supabase
+        .from('payment_attempts')
+        .update({
+          status: 'failed',
+          error_code:
+            error instanceof RazorpayProviderError
+              ? error.code
+              : 'razorpay_order_validation_failed',
+          error_message: 'Razorpay order creation failed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', String(attempt.id));
+      throw checkoutError({
+        publicError: 'razorpay_order_creation_failed',
+        stage: 'razorpay_order_creation',
+        cause: error,
+        checkoutReference,
+        status: 502,
+      });
+    }
 
-  if (attemptError) throw attemptError;
+    const { data: updatedAttempt, error: attemptUpdateError } = await supabase
+      .from('payment_attempts')
+      .update({
+        gateway_order_id: providerOrder.gatewayOrderId,
+        status: providerOrder.status,
+        response_payload: providerOrder,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', String(attempt.id))
+      .select('*')
+      .single();
+    if (attemptUpdateError) {
+      throw databaseError('payment_attempt_update', attemptUpdateError, checkoutReference);
+    }
+    if (!updatedAttempt) {
+      throw databaseError(
+        'payment_attempt_update',
+        new Error('Payment attempt update returned no row'),
+        checkoutReference
+      );
+    }
+    attempt = updatedAttempt;
+  }
 
-  await supabase
-    .from('orders')
+  if (!attempt) {
+    throw databaseError(
+      'payment_attempt_update',
+      new Error('Payment attempt is unavailable after provider initialization'),
+      checkoutReference
+    );
+  }
+  const paymentAttempt = attempt;
+
+  let payment = (paymentAttempt.payment ?? null) as Record<string, unknown> | null;
+  if (!payment) {
+    const { data: existingPayment, error: existingPaymentError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('order_id', typedOrder.id)
+      .eq('gateway_order_id', providerOrder.gatewayOrderId)
+      .maybeSingle();
+    if (existingPaymentError) {
+      throw databaseError('payment_insert', existingPaymentError, checkoutReference);
+    }
+    payment = existingPayment;
+  }
+
+  if (!payment) {
+    const { data: insertedPayment, error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        order_id: typedOrder.id,
+        provider: provider.name,
+        gateway: 'razorpay',
+        gateway_order_id: providerOrder.gatewayOrderId,
+        amount_paise: amountPaise,
+        currency: providerOrder.currency,
+        status: providerOrder.status,
+        captured: false,
+        metadata: providerOrder.metadata,
+      })
+      .select('*')
+      .single();
+
+    if (paymentError) {
+      await supabase
+        .from('payment_attempts')
+        .update({
+          status: 'failed',
+          error_code: paymentError.code,
+          error_message: 'Payment record creation failed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', String(paymentAttempt.id));
+      throw databaseError('payment_insert', paymentError, checkoutReference);
+    }
+    if (!insertedPayment) {
+      throw databaseError(
+        'payment_insert',
+        new Error('Payment insert returned no row'),
+        checkoutReference
+      );
+    }
+    payment = insertedPayment;
+  }
+
+  if (!payment) {
+    throw databaseError(
+      'payment_insert',
+      new Error('Payment record is unavailable'),
+      checkoutReference
+    );
+  }
+
+  const { data: linkedAttempt, error: linkAttemptError } = await supabase
+    .from('payment_attempts')
     .update({
-      payment_status: 'pending',
-      order_status: 'pending_payment',
-      stock_reserved_until: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      payment_id: payment.id,
+      gateway_order_id: providerOrder.gatewayOrderId,
+      status: providerOrder.status,
+      response_payload: providerOrder,
+      error_code: null,
+      error_message: null,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', typedOrder.id)
-    .then(({ error }) => {
-      if (error) console.warn('[payments] Failed to update order payment state', error.message);
-    });
+    .eq('id', String(paymentAttempt.id))
+    .select('*')
+    .single();
+  if (linkAttemptError) {
+    throw databaseError('payment_attempt_update', linkAttemptError, checkoutReference);
+  }
+  attempt = linkedAttempt;
+
+  const { error: orderUpdateError } = await supabase
+    .from('orders')
+    .update({
+      ...getPreparedCheckoutState(new Date(Date.now() + 15 * 60 * 1000).toISOString()),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', typedOrder.id);
+  if (orderUpdateError) {
+    throw databaseError('order_resume', orderUpdateError, checkoutReference);
+  }
 
   return {
     reused: false,
@@ -497,7 +907,9 @@ export async function verifyPaymentCallback({
   const provider = getPaymentProvider();
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('id, order_number, checkout_reference, total, final_amount, payment_status, order_status')
+    .select(
+      'id, order_number, checkout_reference, total, final_amount, payment_status, order_status'
+    )
     .eq('id', orderId)
     .maybeSingle();
 
@@ -562,7 +974,8 @@ export async function verifyPaymentCallback({
       method: providerPayment.method,
       status: providerPayment.status,
       captured: providerPayment.captured,
-      captured_at: providerPayment.capturedAt ?? (providerPayment.captured ? new Date().toISOString() : null),
+      captured_at:
+        providerPayment.capturedAt ?? (providerPayment.captured ? new Date().toISOString() : null),
       metadata: {
         ...verified.metadata,
         provider_payment: providerPayment.metadata,
@@ -646,26 +1059,20 @@ export async function finalizeCapturedPayment({
     throw badRequest('Payment is not captured', 'payment_not_captured');
   }
 
-  if (typedPayment.order.payment_status === 'captured' && typedPayment.order.order_status === 'placed') {
+  if (
+    typedPayment.order.payment_status === 'captured' &&
+    typedPayment.order.order_status === 'placed'
+  ) {
     return buildOrderSuccessSummary(typedPayment.order);
   }
 
   const orderId = String(typedPayment.order_id);
-  const orderNumber = await getOrCreateFinalOrderNumber(orderId, typedPayment.order.order_number as string | null);
   const isOrderPaidWebhookReference = providerPayment.gatewayPaymentId.startsWith('order_paid:');
   const gatewayPaymentId = isOrderPaidWebhookReference
     ? typedPayment.gateway_payment_id
     : providerPayment.gatewayPaymentId;
-
-  if (!typedPayment.order.inventory_committed_at) {
-    const { error: commitError } = await supabase.rpc('commit_order_inventory', {
-      p_order_id: orderId,
-      p_reason: `Captured online payment (${source})`,
-    });
-    if (commitError) throw commitError;
-  }
-
   const now = new Date().toISOString();
+
   const { data: updatedPayment, error: updatePaymentError } = await supabase
     .from('payments')
     .update({
@@ -685,6 +1092,25 @@ export async function finalizeCapturedPayment({
     .select('*')
     .maybeSingle();
   if (updatePaymentError) throw updatePaymentError;
+  if (!updatedPayment) throw notFound('Payment not found after capture update');
+
+  if (
+    shouldCommitCheckoutInventory({
+      paymentCaptured: providerPayment.captured,
+      inventoryCommittedAt: typedPayment.order.inventory_committed_at as string | null,
+    })
+  ) {
+    const { error: commitError } = await supabase.rpc('commit_order_inventory', {
+      p_order_id: orderId,
+      p_reason: `Captured online payment (${source})`,
+    });
+    if (commitError) throw commitError;
+  }
+
+  const orderNumber = await getOrCreateFinalOrderNumber(
+    orderId,
+    typedPayment.order.order_number as string | null
+  );
 
   await supabase
     .from('payment_attempts')

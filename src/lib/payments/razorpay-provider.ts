@@ -2,7 +2,12 @@ import 'server-only';
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { serverEnv } from '@/lib/env.server';
-import { badRequest } from '@/lib/api';
+import {
+  buildRazorpayOrderPayload,
+  getRazorpayOrderResponseError,
+  getRazorpayOrderValidationError,
+} from './checkout-preparation';
+import { RazorpayProviderError } from './checkout-errors';
 import type { PaymentProvider } from './payment-provider';
 import type {
   CapturePaymentInput,
@@ -27,7 +32,11 @@ function safeCompare(a: string, b: string) {
 
 function requireRazorpayCredentials() {
   if (!serverEnv.RAZORPAY_KEY_ID || !serverEnv.RAZORPAY_KEY_SECRET) {
-    throw badRequest('Razorpay server credentials are not configured', 'razorpay_not_configured');
+    throw new RazorpayProviderError({
+      code: 'razorpay_not_configured',
+      description: 'Razorpay server credentials are not configured',
+      httpStatus: 500,
+    });
   }
   return {
     keyId: serverEnv.RAZORPAY_KEY_ID,
@@ -53,8 +62,12 @@ async function razorpayFetch<T>(path: string, init: RequestInit = {}): Promise<T
 
   const data = (await response.json().catch(() => ({}))) as T & { error?: { description?: string; code?: string } };
   if (!response.ok) {
-    const message = data.error?.description || `Razorpay request failed with status ${response.status}`;
-    throw badRequest(message, data.error?.code || 'razorpay_request_failed');
+    throw new RazorpayProviderError({
+      code: data.error?.code || 'razorpay_request_failed',
+      description:
+        data.error?.description || `Razorpay request failed with status ${response.status}`,
+      httpStatus: response.status,
+    });
   }
   return data;
 }
@@ -101,26 +114,42 @@ export class RazorpayProvider implements PaymentProvider {
   name = 'razorpay' as const;
 
   async createOrder(input: PaymentProviderOrderInput): Promise<PaymentProviderOrder> {
+    const validationError = getRazorpayOrderValidationError({
+      amountPaise: input.amountPaise,
+      currency: input.currency,
+      receipt: input.receipt,
+    });
+    if (validationError) {
+      throw new RazorpayProviderError({
+        code: validationError,
+        description: 'Razorpay order payload validation failed',
+        httpStatus: 400,
+      });
+    }
+
     const order = await razorpayFetch<RazorpayOrderResponse>('/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        amount: input.amountPaise,
-        currency: input.currency,
-        receipt: input.receipt.slice(0, 40),
-        notes: {
-          internal_order_id: input.internalOrderId,
-          checkout_reference: input.receipt,
-          ...(input.notes ?? {}),
-        },
-        payment_capture: 1,
-      }),
+      body: JSON.stringify(buildRazorpayOrderPayload(input)),
     });
+    const responseError = getRazorpayOrderResponseError({
+      expectedAmountPaise: input.amountPaise,
+      actualAmountPaise: order.amount,
+      expectedCurrency: input.currency,
+      actualCurrency: order.currency,
+    });
+    if (responseError) {
+      throw new RazorpayProviderError({
+        code: responseError,
+        description: 'Razorpay order response did not match the checkout request',
+        httpStatus: 502,
+      });
+    }
 
     return {
       provider: this.name,
       gatewayOrderId: order.id,
       amountPaise: order.amount,
-      currency: order.currency === 'INR' ? 'INR' : input.currency,
+      currency: input.currency,
       status: order.status === 'paid' ? 'captured' : 'pending',
       integrationPending: false,
       metadata: {
@@ -229,13 +258,20 @@ export class RazorpayProvider implements PaymentProvider {
   }
 
   private mapPayment(payment: RazorpayPaymentResponse): ProviderPayment {
+    if (payment.currency !== 'INR' || !Number.isSafeInteger(payment.amount)) {
+      throw new RazorpayProviderError({
+        code: 'razorpay_payment_response_mismatch',
+        description: 'Razorpay payment response amount or currency is invalid',
+        httpStatus: 502,
+      });
+    }
     const status = mapRazorpayPaymentStatus(payment.status, payment.captured);
     return {
       provider: this.name,
       gatewayPaymentId: payment.id,
       gatewayOrderId: payment.order_id,
       amountPaise: payment.amount,
-      currency: payment.currency === 'INR' ? 'INR' : 'INR',
+      currency: 'INR',
       method: payment.method,
       status,
       captured: status === 'captured',

@@ -36,27 +36,38 @@ export const addressSchema = z.object({
 export type AddressInput = z.infer<typeof addressSchema>;
 
 /* ---------- Checkout ---------- */
-export const checkoutSchema = z.object({
-  customer_name: z.string().min(2).max(120),
-  customer_email: z.string().email().optional().or(z.literal('')),
-  customer_phone: z
-    .string()
-    .min(10)
-    .max(10)
-    .regex(/^[6-9]\d{9}$/),
-  shipping_address: addressSchema,
-  payment_method: z.literal('razorpay'),
-  coupon_code: z.string().max(40).optional().or(z.literal('')),
-  notes: z.string().max(500).optional().or(z.literal('')),
-  items: z
-    .array(
-      z.object({
-        product_id: z.string().uuid(),
-        quantity: z.number().int().positive().max(50),
-      })
-    )
-    .min(1, 'Cart is empty'),
-});
+export const checkoutSchema = z
+  .object({
+    customer_name: z.string().min(2).max(120),
+    customer_email: z.string().email().optional().or(z.literal('')),
+    customer_phone: z
+      .string()
+      .min(10)
+      .max(10)
+      .regex(/^[6-9]\\d{9}$/),
+    shipping_address: addressSchema,
+    payment_method: z.literal('razorpay'),
+    coupon_code: z.string().max(40).optional().or(z.literal('')),
+    notes: z.string().max(500).optional().or(z.literal('')),
+    items: z
+      .array(
+        z.object({
+          product_id: z.string().uuid(),
+          quantity: z.number().int().positive().max(50),
+        })
+      )
+      .min(1, 'Cart is empty'),
+  })
+  .superRefine((data, ctx) => {
+    const uniqueProductIds = new Set(data.items.map((item) => item.product_id));
+    if (uniqueProductIds.size !== data.items.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['items'],
+        message: 'Cart contains duplicate product entries',
+      });
+    }
+  });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 /* ---------- Admin product ---------- */

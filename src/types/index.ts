@@ -172,8 +172,13 @@ export interface OrderItem {
   product_id: string;
   product_name: string;
   product_image: string | null;
+  sku: string | null;
+  product_snapshot: Record<string, unknown>;
   unit_price: number;
   quantity: number;
+  discount: number;
+  discount_amount: number;
+  tax: number;
   line_total: number;
   created_at: string;
 }

@@ -16,10 +16,10 @@ export const metadata = { title: 'Order Detail · Admin' };
 const paramsSchema = z.object({ id: z.string().uuid() });
 
 type ExtendedOrderItem = OrderItem & {
-  product_sku?: string | null;
+  sku?: string | null;
   product_snapshot?: Record<string, unknown> | null;
   discount_amount?: number | null;
-  tax_amount?: number | null;
+  tax?: number | null;
 };
 
 export default async function AdminOrderDetailPage({
@@ -95,7 +95,7 @@ export default async function AdminOrderDetailPage({
                     return (
                       <tr key={item.id} className="border-b border-stone-50 text-sm">
                         <td className="py-3 pr-4 font-semibold text-neutral-950">{item.product_name}</td>
-                        <td className="py-3 pr-4 font-mono text-xs text-neutral-500">{row.product_sku ?? item.product_id.slice(0, 8)}</td>
+                        <td className="py-3 pr-4 font-mono text-xs text-neutral-500">{row.sku ?? item.product_id.slice(0, 8)}</td>
                         <td className="py-3 pr-4 text-xs text-neutral-500">
                           {row.product_snapshot ? 'Stored' : 'Legacy item'}
                         </td>
@@ -104,7 +104,7 @@ export default async function AdminOrderDetailPage({
                         <td className="py-3 pr-4 text-emerald-700">
                           {row.discount_amount ? `-${formatRupees(row.discount_amount)}` : 'None'}
                         </td>
-                        <td className="py-3 pr-4">{row.tax_amount ? formatRupees(row.tax_amount) : 'None'}</td>
+                        <td className="py-3 pr-4">{row.tax ? formatRupees(row.tax) : 'None'}</td>
                         <td className="py-3 pr-4 font-semibold">{formatRupees(item.line_total)}</td>
                       </tr>
                     );

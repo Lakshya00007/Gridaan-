@@ -26,6 +26,8 @@ type OrderApiResponse = {
   checkout?: RazorpayCheckoutPayload;
   order?: OrderSuccessSummary;
   error?: string;
+  message?: string;
+  request_id?: string;
 };
 
 type VerifyPaymentResponse = {
@@ -475,7 +477,8 @@ export default function CheckoutView() {
       });
       const data = (await res.json()) as OrderApiResponse;
       if (!res.ok) {
-        toast.error(data.error ?? 'Could not start payment');
+        if (data.error === 'idempotency_conflict') clearCheckoutIdempotencyKey();
+        toast.error(data.message ?? data.error ?? 'Could not start payment');
         setProcessing(false);
         return;
       }
@@ -709,7 +712,6 @@ export default function CheckoutView() {
     </div>
   );
 }
-
 function Field({ label, error, children, className }: { label: string; error?: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
