@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createServiceClient } from '@/lib/supabase/server';
 import { requireAdminPermission } from '@/lib/admin/permissions';
 import { writeAdminAuditLog } from '@/lib/admin/audit';
+import { validateAdminOrderTransition } from '@/lib/admin/order-transitions';
 import {
   assertJsonRequest,
   assertSameOrigin,
@@ -68,25 +69,13 @@ export async function PATCH(
       return NextResponse.json({ order });
     }
 
-    if (
-      order.payment_status !== 'captured' &&
-      (order_status === 'confirmed' ||
-        order_status === 'packed' ||
-        order_status === 'shipped' ||
-        order_status === 'out_for_delivery' ||
-        order_status === 'delivered')
-    ) {
-      throw badRequest(
-        'Captured Razorpay payment is required before fulfilment status changes',
-        'payment_verification_required'
-      );
-    }
-
-    const disallowedTransition =
-      (order.order_status === 'cancelled' || order.order_status === 'returned') &&
-      order_status !== order.order_status;
-    if (disallowedTransition) {
-      throw badRequest('Cannot change status after cancellation or return', 'invalid_status_transition');
+    const transition = validateAdminOrderTransition({
+      currentStatus: order.order_status,
+      nextStatus: order_status,
+      paymentStatus: order.payment_status,
+    });
+    if (!transition.allowed) {
+      throw badRequest(transition.message, transition.code);
     }
 
     // Update order status

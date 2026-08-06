@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { AlertTriangle, CreditCard, IndianRupee, RefreshCcw, ShieldCheck, Webhook } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../../_components/ui';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { getAdminPaymentDetail } from '@/server/admin';
 import { formatDateTime, formatRupees } from '@/lib/utils';
 import type { RefundRecord } from '@/types';
@@ -18,7 +18,7 @@ export default async function AdminPaymentDetailPage({
 }: {
   params: Promise<{ paymentId: string }>;
 }) {
-  await requireAdminPermission('payments.read');
+  await requireAdminPagePermission('payments.read');
   const parsed = paramsSchema.safeParse(await params);
   if (!parsed.success) notFound();
 

@@ -1,14 +1,14 @@
 import { FileClock } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { getAuditPageData } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Audit Logs · Admin' };
 
 export default async function AuditLogsPage() {
-  await requireAdminPermission('audit_logs.read');
+  await requireAdminPagePermission('audit_logs.read');
   const { logs } = await getAuditPageData();
 
   return (

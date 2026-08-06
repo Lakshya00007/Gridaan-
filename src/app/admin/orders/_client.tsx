@@ -21,6 +21,8 @@ import {
   isManualPaymentMethod,
 } from '@/lib/manual-payment';
 import type { Order, OrderStatus, PaymentMethod, PaymentStatus } from '@/types';
+import { AdminConfirmDialog } from '../_components/confirm-dialog';
+import { AdminPageHeader, EmptyState } from '../_components/ui';
 
 const STATUSES: OrderStatus[] = [
   'draft',
@@ -84,6 +86,8 @@ export default function OrdersAdmin({
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [openOrder, setOpenOrder] = useState<Order | null>(null);
+  const [pendingTransition, setPendingTransition] = useState<{ id: string; status: OrderStatus } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const router = useRouter();
 
   const filtered = orders.filter((o) => {
@@ -101,56 +105,58 @@ export default function OrdersAdmin({
   });
 
   async function updateStatus(id: string, status: OrderStatus) {
-    if (!window.confirm(`Change this order status to ${status.replace(/_/g, ' ')}?`)) return;
-    const res = await fetch(`/api/admin/orders/${id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ order_status: status }),
-    });
-    if (!res.ok) {
-      toast.error('Failed to update');
-      return;
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ order_status: status }),
+      });
+      const result = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(result?.error ?? 'Failed to update order status');
+        return;
+      }
+      setOrders((current) => current.map((order) => (order.id === id ? { ...order, order_status: status } : order)));
+      if (openOrder?.id === id) setOpenOrder({ ...openOrder, order_status: status });
+      setPendingTransition(null);
+      toast.success(`Order marked ${status.replace(/_/g, ' ')}`);
+    } finally {
+      setIsUpdating(false);
     }
-    setOrders(orders.map((o) => (o.id === id ? { ...o, order_status: status } : o)));
-    if (openOrder?.id === id) setOpenOrder({ ...openOrder, order_status: status });
-    toast.success(`Order ${status}`);
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Orders</h1>
-          <p className="text-sm text-neutral-500">
-            Showing {(page - 1) * pageSize + (orders.length ? 1 : 0)}-
-            {(page - 1) * pageSize + orders.length} of {Math.max(totalCount, orders.length).toLocaleString('en-IN')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | OrderStatus)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+      <AdminPageHeader
+        title="Orders"
+        description={`Showing ${(page - 1) * pageSize + (orders.length ? 1 : 0)}–${(page - 1) * pageSize + orders.length} of ${Math.max(totalCount, orders.length).toLocaleString('en-IN')} order records.`}
+      />
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-white p-3" aria-label="Order filters">
+          <select aria-label="Filter by order status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | OrderStatus)} className="min-h-11 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
             <option value="all">All order statuses</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value as 'all' | PaymentStatus)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+          <select aria-label="Filter by payment status" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value as 'all' | PaymentStatus)} className="min-h-11 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
             <option value="all">All payment statuses</option>
             {PAYMENT_STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as 'all' | PaymentMethod)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+          <select aria-label="Filter by payment method" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as 'all' | PaymentMethod)} className="min-h-11 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
             <option value="all">All methods</option>
             {PAYMENT_METHODS.map((s) => (
               <option key={s} value={s}>{formatPaymentMethod(s)}</option>
             ))}
           </select>
-        </div>
       </div>
 
       <div className="mb-4 relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
         <input
+          aria-label="Search orders"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by order #, customer name, phone, email…"
@@ -159,7 +165,7 @@ export default function OrdersAdmin({
       </div>
 
       <div className="mb-4 grid gap-3 rounded-2xl border border-neutral-100 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <select value={fulfilmentFilter} onChange={(e) => setFulfilmentFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-neutral-200 text-sm">
+        <select aria-label="Filter by fulfilment status" value={fulfilmentFilter} onChange={(e) => setFulfilmentFilter(e.target.value)} className="min-h-11 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
           <option value="all">All fulfilment</option>
           <option value="unfulfilled">Unfulfilled</option>
           <option value="processing">Processing</option>
@@ -169,6 +175,7 @@ export default function OrdersAdmin({
         </select>
         <input
           type="number"
+          aria-label="Minimum order amount"
           min={0}
           value={minAmount}
           onChange={(e) => setMinAmount(e.target.value)}
@@ -177,6 +184,7 @@ export default function OrdersAdmin({
         />
         <input
           type="number"
+          aria-label="Maximum order amount"
           min={0}
           value={maxAmount}
           onChange={(e) => setMaxAmount(e.target.value)}
@@ -213,10 +221,10 @@ export default function OrdersAdmin({
 
       <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-12 text-center text-neutral-400">No orders.</div>
+          <EmptyState title="No matching orders" description="Adjust the current-page filters or move to another page." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[80rem]" aria-label="Orders">
               <thead>
                 <tr className="border-b border-neutral-100 text-left bg-neutral-50">
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-500">Order</th>
@@ -287,8 +295,9 @@ export default function OrdersAdmin({
                             href={buildAdminOrderLink(o, adminWhatsappNumber)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                            title="WhatsApp admin"
+                          className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                          title="WhatsApp admin"
+                          aria-label={`Open WhatsApp for order ${o.order_number ?? o.id.slice(0, 8)}`}
                           >
                             <MessageCircle className="w-4 h-4" />
                           </a>
@@ -297,6 +306,7 @@ export default function OrdersAdmin({
                           onClick={() => setOpenOrder(o)}
                           className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg"
                           title="Quick view"
+                          aria-label={`Quick view ${o.order_number ?? o.id.slice(0, 8)}`}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -304,6 +314,7 @@ export default function OrdersAdmin({
                           href={`/admin/orders/${o.id}`}
                           className="p-2 text-neutral-400 hover:text-gold-700 hover:bg-gold-50 rounded-lg"
                           title="Open order detail"
+                          aria-label={`Open order ${o.order_number ?? o.id.slice(0, 8)}`}
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Link>
@@ -322,9 +333,24 @@ export default function OrdersAdmin({
           adminWhatsappNumber={adminWhatsappNumber}
           order={openOrder}
           onClose={() => setOpenOrder(null)}
-          onStatus={(s) => updateStatus(openOrder.id, s)}
+          onStatus={(status) => setPendingTransition({ id: openOrder.id, status })}
         />
       )}
+
+      <AdminConfirmDialog
+        open={pendingTransition !== null}
+        onOpenChange={(open) => {
+          if (!open && !isUpdating) setPendingTransition(null);
+        }}
+        title="Confirm order status change"
+        description={pendingTransition ? `Change this order to ${pendingTransition.status.replace(/_/g, ' ')}? This action is recorded in the audit log.` : ''}
+        confirmLabel="Update status"
+        destructive={pendingTransition?.status === 'cancelled'}
+        busy={isUpdating}
+        onConfirm={() => {
+          if (pendingTransition) void updateStatus(pendingTransition.id, pendingTransition.status);
+        }}
+      />
     </div>
   );
 }
@@ -404,10 +430,7 @@ function OrderDrawer({
           ) : null}
           <Section title="Actions">
             <div className="grid grid-cols-2 gap-2 text-xs">
-              {(order.order_status === 'pending_payment' || order.order_status === 'payment_processing') && (
-                <ActionBtn onClick={() => onStatus('cancelled')} icon={XCircle} className="bg-red-50 text-red-700">Cancel</ActionBtn>
-              )}
-              {order.order_status === 'placed' && (
+              {order.payment_status === 'captured' && order.order_status === 'placed' && (
                 <>
                   {!isPendingManualPayment && (
                     <ActionBtn onClick={() => onStatus('confirmed')} icon={Check} className="bg-green-50 text-green-700">Confirm</ActionBtn>
@@ -415,22 +438,27 @@ function OrderDrawer({
                   <ActionBtn onClick={() => onStatus('cancelled')} icon={XCircle} className="bg-red-50 text-red-700">Cancel</ActionBtn>
                 </>
               )}
-              {order.order_status === 'confirmed' && (
+              {order.payment_status === 'captured' && order.order_status === 'confirmed' && (
                 <>
                   <ActionBtn onClick={() => onStatus('packed')} icon={Check} className="bg-cyan-50 text-cyan-700">Mark packed</ActionBtn>
                   <ActionBtn onClick={() => onStatus('cancelled')} icon={XCircle} className="bg-red-50 text-red-700">Cancel</ActionBtn>
                 </>
               )}
-              {order.order_status === 'packed' && (
+              {order.payment_status === 'captured' && order.order_status === 'packed' && (
                 <ActionBtn onClick={() => onStatus('shipped')} icon={Truck} className="bg-blue-50 text-blue-700">Mark shipped</ActionBtn>
               )}
-              {order.order_status === 'shipped' && (
+              {order.payment_status === 'captured' && order.order_status === 'shipped' && (
                 <ActionBtn onClick={() => onStatus('out_for_delivery')} icon={Truck} className="bg-purple-50 text-purple-700">Out for delivery</ActionBtn>
               )}
-              {order.order_status === 'out_for_delivery' && (
+              {order.payment_status === 'captured' && order.order_status === 'out_for_delivery' && (
                 <ActionBtn onClick={() => onStatus('delivered')} icon={Check} className="bg-green-50 text-green-700">Mark delivered</ActionBtn>
               )}
             </div>
+            {order.payment_status !== 'captured' ? (
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                Fulfilment actions remain locked until Razorpay capture is verified server-side.
+              </p>
+            ) : null}
             <div className="grid grid-cols-1 gap-2 mt-3">
               {adminWhatsappNumber && (
                 <a

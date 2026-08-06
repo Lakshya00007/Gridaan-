@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { createServiceClient } from '@/lib/supabase/server';
-import type { Category, Coupon, Order, Product } from '@/types';
+import { getVerifiedPlacedOrders } from '@/lib/admin/metrics';
+import type { Category, Coupon, Order, Product, RefundRecord } from '@/types';
 
 type QueryResult = { data: unknown; error: { message: string } | null };
 
@@ -9,7 +10,7 @@ export async function safeAdminQuery<T>(label: string, query: PromiseLike<QueryR
   const { data, error } = await query;
   if (error) {
     console.warn(`[admin-module] ${label} failed`, error.message);
-    return fallback;
+    throw new Error('Admin module data could not be loaded');
   }
   return (data as T) ?? fallback;
 }
@@ -68,10 +69,18 @@ export async function getCustomersPageData() {
     safeAdminQuery<Order[]>('customer-orders', supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(200), []),
   ]);
 
+  const ordersByUser = new Map<string, Order[]>();
+  for (const order of orders) {
+    if (!order.user_id) continue;
+    const current = ordersByUser.get(order.user_id) ?? [];
+    current.push(order);
+    ordersByUser.set(order.user_id, current);
+  }
+
   const derived = profiles.map((profile) => {
-    const matchingOrders = orders.filter((order) => order.user_id === profile.id);
-    const placedOrders = matchingOrders.filter(
-      (order) => order.payment_status === 'captured' && order.order_status !== 'pending_payment'
+    const matchingOrders = ordersByUser.get(profile.id) ?? [];
+    const placedOrders = getVerifiedPlacedOrders(matchingOrders).filter(
+      (order) => order.payment_status === 'captured'
     );
     const totalSpent = placedOrders
       .reduce((sum, order) => sum + Number(order.final_amount ?? order.total ?? 0), 0);
@@ -105,12 +114,13 @@ export async function getCouponsPageData() {
 
 export async function getReportsPageData() {
   const supabase = createServiceClient();
-  const [orders, products, coupons] = await Promise.all([
+  const [orders, products, coupons, refunds] = await Promise.all([
     safeAdminQuery<Order[]>('reports-orders', supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false }).limit(500), []),
     safeAdminQuery<Product[]>('reports-products', supabase.from('products').select('*').order('created_at', { ascending: false }).limit(200), []),
     safeAdminQuery<Coupon[]>('reports-coupons', supabase.from('coupons').select('*').order('created_at', { ascending: false }).limit(100), []),
+    safeAdminQuery<RefundRecord[]>('reports-refunds', supabase.from('refunds').select('*').order('created_at', { ascending: false }).limit(500), []),
   ]);
-  return { orders, products, coupons };
+  return { orders, products, coupons, refunds };
 }
 
 export async function getAuditPageData() {

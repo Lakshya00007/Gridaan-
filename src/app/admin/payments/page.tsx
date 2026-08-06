@@ -2,14 +2,14 @@ import Link from 'next/link';
 import { AlertTriangle, CreditCard, IndianRupee, RefreshCcw } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { listPaymentAttemptsForAdmin, listPaymentsForAdmin } from '@/server/admin';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime, formatRupees } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Payments · Admin' };
 
 export default async function PaymentsPage() {
-  await requireAdminPermission('payments.read');
+  await requireAdminPagePermission('payments.read');
   const [payments, attempts] = await Promise.all([listPaymentsForAdmin(), listPaymentAttemptsForAdmin()]);
   const captured = payments.filter((payment) => payment.captured);
   const refundPaise = payments.reduce((sum, payment) => sum + (payment.refund_amount_paise ?? 0), 0);
@@ -76,7 +76,7 @@ export default async function PaymentsPage() {
             </table>
           </div>
         ) : (
-          <EmptyState title="No payments yet" description="Payment attempts will appear after Razorpay mock order creation is used." />
+          <EmptyState title="No payment records yet" description="Verified Razorpay payment records will appear here." />
         )}
       </AdminSection>
       <div className="mt-6">

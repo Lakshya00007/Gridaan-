@@ -1,68 +1,41 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import * as Dialog from '@radix-ui/react-dialog';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   Activity,
-  BarChart3,
-  Bell,
-  Boxes,
-  ChevronLeft,
-  ClipboardList,
-  CreditCard,
-  FileClock,
-  Gift,
-  Home,
-  LayoutDashboard,
+  ChevronDown,
+  ExternalLink,
   LogOut,
   Menu,
-  Package,
-  Percent,
-  Search,
-  Settings,
   ShieldCheck,
-  ShoppingCart,
-  Star,
-  Tags,
-  UserCog,
-  Users,
   X,
-  type LucideIcon,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import {
+  getAdminRouteLabel,
+  getVisibleAdminNavigation,
+  isAdminRouteActive,
+  type AdminNavigationItem,
+} from '@/lib/admin-navigation';
+import { cn } from '@/lib/utils';
 import type { AdminRole } from '@/types';
 
 interface Props {
-  user: { id: string; email: string; full_name: string; role: AdminRole };
+  user: {
+    id: string;
+    email: string;
+    full_name: string;
+    role: AdminRole;
+    permissions: string[];
+    legacyIsAdmin: boolean;
+  };
   children: React.ReactNode;
 }
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-};
-
-const nav: NavItem[] = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
-  { href: '/admin/products', label: 'Products', icon: Package },
-  { href: '/admin/inventory', label: 'Inventory', icon: Boxes },
-  { href: '/admin/customers', label: 'Customers', icon: Users },
-  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
-  { href: '/admin/refunds', label: 'Refunds', icon: ClipboardList },
-  { href: '/admin/offers', label: 'Offers & Coupons', icon: Percent },
-  { href: '/admin/loyalty', label: 'Loyalty Program', icon: Gift },
-  { href: '/admin/reports', label: 'Reports & Analytics', icon: BarChart3 },
-  { href: '/admin/categories', label: 'Categories', icon: Tags },
-  { href: '/admin/reviews', label: 'Reviews', icon: Star },
-  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
-  { href: '/admin/users', label: 'Admin Users & Roles', icon: UserCog },
-  { href: '/admin/audit-logs', label: 'Audit Logs', icon: FileClock },
-];
+const sectionOrder = ['Overview', 'Commerce', 'Finance', 'Catalog', 'Insights', 'System'] as const;
 
 function formatRole(role: AdminRole) {
   return role
@@ -71,241 +44,206 @@ function formatRole(role: AdminRole) {
     .join(' ');
 }
 
-function getBreadcrumbs(pathname: string | null) {
-  const parts = (pathname ?? '/admin').split('/').filter(Boolean);
-  const crumbs = [{ href: '/admin', label: 'Admin' }];
-  if (parts.length <= 1) return crumbs;
-
-  let href = '';
-  for (const part of parts.slice(1)) {
-    href += `/${part}`;
-    crumbs.push({
-      href: `/admin${href}`,
-      label: part
-        .split('-')
-        .map((item) => item[0].toUpperCase() + item.slice(1))
-        .join(' '),
-    });
-  }
-  return crumbs;
-}
-
 export default function AdminShell({ user, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const breadcrumbs = useMemo(() => getBreadcrumbs(pathname), [pathname]);
+  const navigation = getVisibleAdminNavigation({
+    role: user.role,
+    explicitPermissions: user.permissions,
+    legacyIsAdmin: user.legacyIsAdmin,
+  });
 
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/');
+    router.push('/login');
     router.refresh();
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f5f1] text-neutral-950">
-      <div
-        className={cn(
-          'fixed inset-y-0 left-0 z-40 hidden border-r border-neutral-800 bg-neutral-950 text-white transition-[width] duration-200 lg:flex lg:flex-col',
-          collapsed ? 'w-[4.75rem]' : 'w-72'
-        )}
-      >
-        <SidebarContent
-          collapsed={collapsed}
-          pathname={pathname}
-          onToggle={() => setCollapsed((value) => !value)}
-        />
-      </div>
+    <div className="grid min-h-dvh w-full overflow-x-clip bg-[#f6f3ed] text-neutral-950 lg:grid-cols-[264px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-dvh border-r border-white/10 bg-neutral-950 text-white lg:flex lg:flex-col">
+        <SidebarContent navigation={navigation} pathname={pathname} role={user.role} />
+      </aside>
 
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="absolute inset-0 bg-black/45"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="relative h-full w-[20rem] max-w-[86vw] bg-neutral-950 text-white shadow-2xl">
-            <SidebarContent
-              collapsed={false}
-              pathname={pathname}
-              onToggle={() => setMobileOpen(false)}
-              mobile
-            />
-          </div>
-        </div>
-      ) : null}
-
-      <div className={cn('min-h-screen transition-[padding] duration-200', collapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-72')}>
-        <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/92 backdrop-blur-xl">
-          <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-stone-200 text-neutral-700 lg:hidden"
-              aria-label="Open admin menu"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
+      <div className="min-w-0">
+        <header className="sticky top-0 z-30 border-b border-stone-200/90 bg-white/95 backdrop-blur-xl">
+          <div className="flex h-16 min-w-0 items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <Dialog.Root>
+              <Dialog.Trigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-neutral-700 transition-colors hover:bg-stone-50 focus-visible:ring-4 focus-visible:ring-gold-100 lg:hidden"
+                  aria-label="Open admin navigation"
+                >
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 lg:hidden" />
+                <Dialog.Content className="fixed inset-y-0 left-0 z-50 w-[272px] max-w-[88vw] bg-neutral-950 text-white shadow-2xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left lg:hidden">
+                  <Dialog.Title className="sr-only">Admin navigation</Dialog.Title>
+                  <SidebarContent
+                    navigation={navigation}
+                    pathname={pathname}
+                    role={user.role}
+                    closeButton={
+                      <Dialog.Close asChild>
+                        <button
+                          type="button"
+                          className="flex h-10 w-10 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                          aria-label="Close admin navigation"
+                        >
+                          <X className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </Dialog.Close>
+                    }
+                    mobile
+                  />
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog.Root>
 
             <div className="min-w-0 flex-1">
-              <div className="hidden items-center gap-2 text-xs text-neutral-500 sm:flex">
-                {breadcrumbs.map((crumb, index) => (
-                  <div key={crumb.href} className="flex items-center gap-2">
-                    {index > 0 ? <span className="text-neutral-300">/</span> : null}
-                    <Link href={crumb.href} className="truncate hover:text-gold-700">
-                      {crumb.label}
-                    </Link>
-                  </div>
-                ))}
-              </div>
-              <div className="relative mt-0 sm:mt-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                <input
-                  type="search"
-                  placeholder="Search orders, products, customers"
-                  className="h-9 w-full max-w-xl rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm outline-none transition focus:border-gold-400 focus:bg-white focus:ring-2 focus:ring-gold-100"
-                />
-              </div>
+              <p className="truncate text-[11px] font-medium text-neutral-500">Admin / {getAdminRouteLabel(pathname)}</p>
+              <p className="truncate text-sm font-semibold text-neutral-950 sm:text-base">{getAdminRouteLabel(pathname)}</p>
             </div>
 
             <Link
               href="/"
-              className="hidden h-10 w-10 items-center justify-center rounded-lg border border-stone-200 text-neutral-600 transition hover:border-gold-300 hover:text-neutral-950 sm:inline-flex"
-              aria-label="Open storefront"
+              target="_blank"
+              className="hidden h-10 items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-xs font-semibold text-neutral-700 transition-colors hover:border-gold-300 hover:text-neutral-950 sm:inline-flex"
             >
-              <Home className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/admin/notifications"
-              className="relative h-10 w-10 rounded-lg border border-stone-200 text-neutral-600 transition hover:border-gold-300 hover:text-neutral-950 inline-flex items-center justify-center"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-gold-500" />
+              Storefront
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
 
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setProfileOpen((value) => !value)}
-                className="flex h-10 items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 text-left transition hover:border-gold-300"
-                aria-haspopup="menu"
-                aria-expanded={profileOpen}
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-950 text-xs font-semibold text-gold-300">
-                  {user.full_name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="hidden min-w-0 sm:block">
-                  <span className="block max-w-32 truncate text-xs font-semibold text-neutral-900">{user.full_name}</span>
-                  <span className="block text-[10px] text-neutral-500">{formatRole(user.role)}</span>
-                </span>
-              </button>
-
-              {profileOpen ? (
-                <div
-                  role="menu"
-                  className="absolute right-0 mt-2 w-64 rounded-xl border border-stone-200 bg-white p-2 shadow-xl"
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  type="button"
+                  className="flex h-11 min-w-11 items-center gap-2 rounded-lg border border-stone-200 bg-white px-2 text-left transition-colors hover:border-gold-300 focus-visible:ring-4 focus-visible:ring-gold-100"
+                  aria-label="Open admin profile menu"
                 >
-                  <div className="border-b border-stone-100 px-3 py-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 text-xs font-semibold text-gold-300">
+                    {user.full_name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="hidden min-w-0 sm:block">
+                    <span className="block max-w-32 truncate text-xs font-semibold">{user.full_name}</span>
+                    <span className="block text-[10px] text-neutral-500">{formatRole(user.role)}</span>
+                  </span>
+                  <ChevronDown className="hidden h-3.5 w-3.5 text-neutral-400 sm:block" aria-hidden="true" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={8}
+                  className="z-50 w-64 rounded-xl border border-stone-200 bg-white p-2 shadow-xl outline-none"
+                >
+                  <div className="border-b border-stone-100 px-3 py-2.5">
                     <p className="truncate text-sm font-semibold">{user.full_name}</p>
                     <p className="truncate text-xs text-neutral-500">{user.email}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={signOut}
-                    className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-                    role="menuitem"
+                  <DropdownMenu.Item
+                    onSelect={() => void signOut()}
+                    className="mt-2 flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-medium text-red-700 outline-none hover:bg-red-50 focus:bg-red-50"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
                     Sign out
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           </div>
         </header>
 
-        <main className="min-w-0">{children}</main>
+        <main id="main" className="min-w-0 overflow-x-hidden">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        </main>
       </div>
     </div>
   );
 }
 
 function SidebarContent({
-  collapsed,
+  navigation,
   pathname,
-  onToggle,
+  role,
+  closeButton,
   mobile = false,
 }: {
-  collapsed: boolean;
+  navigation: AdminNavigationItem[];
   pathname: string | null;
-  onToggle: () => void;
+  role: AdminRole;
+  closeButton?: React.ReactNode;
   mobile?: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
         <Link href="/admin" className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold-500/40 bg-gold-500/10 text-gold-300">
-            <Activity className="h-4 w-4" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold-500/35 bg-gold-500/10 text-gold-300">
+            <Activity className="h-4 w-4" aria-hidden="true" />
           </span>
-          {!collapsed ? (
-            <span className="min-w-0">
-              <span className="heading-display block truncate text-lg leading-5">Gridaan</span>
-              <span className="block truncate text-[10px] font-medium uppercase tracking-[0.18em] text-gold-300/80">
-                Commerce Ops
-              </span>
+          <span className="min-w-0">
+            <span className="heading-display block truncate text-lg leading-5">Gridaan</span>
+            <span className="block truncate text-[9px] font-semibold uppercase text-gold-300/75">
+              Commerce Ops
             </span>
-          ) : null}
+          </span>
         </Link>
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/10 hover:text-white"
-          aria-label={mobile ? 'Close sidebar' : 'Toggle sidebar'}
-        >
-          {mobile ? <X className="h-4 w-4" /> : <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />}
-        </button>
+        {closeButton}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {nav.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== '/admin' && pathname?.startsWith(href));
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-3" aria-label="Admin modules">
+        {sectionOrder.map((section) => {
+          const items = navigation.filter((item) => item.section === section);
+          if (!items.length) return null;
           return (
-            <Link
-              key={href}
-              href={href}
-              onClick={mobile ? onToggle : undefined}
-              title={collapsed ? label : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition',
-                active
-                  ? 'bg-white text-neutral-950 shadow-sm'
-                  : 'text-neutral-400 hover:bg-white/10 hover:text-white'
-              )}
-            >
-              <Icon className={cn('h-4 w-4 shrink-0', active && 'text-gold-600')} />
-              {!collapsed ? <span className="truncate">{label}</span> : null}
-            </Link>
+            <div key={section} className="mb-4 last:mb-0">
+              <p className="mb-1.5 px-3 text-[9px] font-semibold uppercase text-neutral-500">
+                {section}
+              </p>
+              <div className="space-y-0.5">
+                {items.map((item) => {
+                  const active = isAdminRouteActive(pathname, item.href);
+                  const link = (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'flex min-h-10 items-center gap-3 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-gold-300',
+                        active
+                          ? 'border-gold-300/25 bg-gold-300/10 text-gold-100'
+                          : 'border-transparent text-neutral-400 hover:bg-white/[0.06] hover:text-white'
+                      )}
+                    >
+                      <item.icon
+                        className={cn('h-4 w-4 shrink-0', active && 'text-gold-300')}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">{item.label}</span>
+                      {item.featureStatus === 'read_only' ? (
+                        <span className="ml-auto text-[9px] uppercase text-neutral-500">View</span>
+                      ) : null}
+                    </Link>
+                  );
+                  return mobile ? <Dialog.Close key={item.href} asChild>{link}</Dialog.Close> : link;
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
 
-      {!collapsed ? (
-        <div className="m-3 rounded-xl border border-gold-500/20 bg-gold-500/10 p-3 text-xs text-gold-100">
-          <div className="mb-2 flex items-center gap-2 font-semibold">
-            <ShieldCheck className="h-4 w-4" />
-            Secure Admin
-          </div>
-          <p className="leading-5 text-gold-100/75">
-            Service-role operations stay server-side. Payment secrets are not stored here.
-          </p>
+      <div className="shrink-0 border-t border-white/10 px-4 py-3">
+        <div className="flex items-center gap-2 text-xs text-neutral-400">
+          <ShieldCheck className="h-4 w-4 text-gold-300" aria-hidden="true" />
+          <span className="truncate">Secure admin · {formatRole(role)}</span>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

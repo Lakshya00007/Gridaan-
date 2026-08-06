@@ -44,6 +44,22 @@ export async function requireAdminRole(): Promise<ResolvedAdmin> {
   return context;
 }
 
+export async function requireAdminPagePermission(permission: AdminPermission): Promise<ResolvedAdmin> {
+  const context = await getAdminContext();
+  if (!context) redirect('/login?next=/admin');
+  if (
+    !hasPermission({
+      role: context.role,
+      explicitPermissions: context.permissions,
+      permission,
+      legacyIsAdmin: context.profile.is_admin,
+    })
+  ) {
+    redirect('/admin/forbidden');
+  }
+  return context;
+}
+
 export async function requireAdminPermission(permission: AdminPermission): Promise<ResolvedAdmin> {
   const context = await getAdminContext();
   if (!context) throw unauthorized();

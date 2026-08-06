@@ -1,14 +1,14 @@
 import { Boxes, PackageX, TrendingDown } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { getInventoryPageData } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Inventory · Admin' };
 
 export default async function InventoryPage() {
-  await requireAdminPermission('inventory.read');
+  await requireAdminPagePermission('inventory.read');
   const { products, movements } = await getInventoryPageData();
   const lowStock = products.filter((product) => {
     const available = Math.max(0, product.stock_count - (product.reserved_stock ?? 0));
@@ -29,7 +29,7 @@ export default async function InventoryPage() {
         <MetricCard label="Out of stock" value={outOfStock.length.toLocaleString('en-IN')} icon={PackageX} tone="red" />
       </div>
 
-      <AdminSection title="Stock ledger" description="Manual adjustment UI is ready for the additive inventory_movements table. Prevent negative stock in API/business rules.">
+      <AdminSection title="Stock position" description="Read-only stock visibility. Reservation and sale changes remain controlled by the payment-safe inventory RPCs.">
         {products.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[58rem] text-left">
@@ -86,7 +86,7 @@ export default async function InventoryPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="No stock movements yet" description="Reservation, release, sale commit, restock and manual adjustments will be recorded here." />
+            <EmptyState title="No stock movements yet" description="Recorded reservation, release and sale movements will appear here." />
           )}
         </AdminSection>
       </div>

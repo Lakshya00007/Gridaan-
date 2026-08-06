@@ -16,6 +16,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         email: profile.email ?? '',
         full_name: profile.full_name ?? 'Admin',
         role: admin.role,
+        permissions: admin.permissions,
+        legacyIsAdmin: profile.is_admin,
       }}
     >
       {children}

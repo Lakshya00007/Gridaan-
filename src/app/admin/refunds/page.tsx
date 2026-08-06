@@ -1,14 +1,14 @@
 import { CheckCircle2, Clock, RotateCcw } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { listRefundsForAdmin } from '@/server/admin';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime, formatRupees } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Refunds · Admin' };
 
 export default async function RefundsPage() {
-  await requireAdminPermission('refunds.read');
+  await requireAdminPagePermission('refunds.read');
   const refunds = await listRefundsForAdmin();
   const pending = refunds.filter((refund) => refund.status === 'requested' || refund.status === 'processing');
   const processed = refunds.filter((refund) => refund.status === 'processed');
@@ -61,7 +61,7 @@ export default async function RefundsPage() {
             </table>
           </div>
         ) : (
-          <EmptyState title="No refunds yet" description="Refund requests and placeholder Razorpay refunds will appear here." />
+          <EmptyState title="No refund records" description="Requested and processed refund records will appear here." />
         )}
       </AdminSection>
     </div>

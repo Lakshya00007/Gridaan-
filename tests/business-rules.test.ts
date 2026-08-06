@@ -11,6 +11,7 @@ import {
   shouldReleaseReservation,
 } from '@/lib/payments/online-payment-rules';
 import { hasPermission } from '@/lib/admin/permissions-core';
+import { maskAdminPhone } from '@/lib/admin/privacy';
 
 describe('server-side price calculation', () => {
   it('calculates totals from trusted product prices', () => {
@@ -222,5 +223,10 @@ describe('admin permission checks', () => {
     expect(hasPermission({ role: 'analyst', permission: 'reports.read' })).toBe(true);
     expect(hasPermission({ role: 'support', permission: 'products.write' })).toBe(false);
     expect(hasPermission({ role: null, permission: 'orders.read', legacyIsAdmin: true })).toBe(true);
+  });
+
+  it('masks customer phone numbers in customer-summary views', () => {
+    expect(maskAdminPhone('9876543210')).toBe('••••••3210');
+    expect(maskAdminPhone(null)).toBe('Not provided');
   });
 });

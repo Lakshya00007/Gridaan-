@@ -1,14 +1,14 @@
 import { Percent } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../_components/ui';
 import { getCouponsPageData } from '@/server/admin-modules';
-import { requireAdminPermission } from '@/lib/admin/permissions';
+import { requireAdminPagePermission } from '@/lib/admin/permissions';
 import { formatDateTime, formatRupees } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Offers & Coupons · Admin' };
 
 export default async function OffersPage() {
-  await requireAdminPermission('coupons.read');
+  await requireAdminPagePermission('coupons.read');
   const { coupons } = await getCouponsPageData();
 
   return (
