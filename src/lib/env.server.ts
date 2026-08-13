@@ -3,6 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 import { publicEnv } from './env.public';
 import { isPublishableSupportEmail, isValidIndianGstin } from './business-info';
+import { parseServerFeatureFlag } from './shipping/feature-flag';
 
 const publishableEmail = z
   .string()
@@ -30,6 +31,16 @@ const serverSchema = z.object({
   SHIPPING_DELIVERY_ESTIMATE: z.string().trim().min(3).optional(),
   SHIPPING_REMOTE_AREA_ESTIMATE: z.string().trim().min(3).optional(),
   REFUND_INITIATION_ESTIMATE: z.string().trim().min(3).optional(),
+  NIMBUSPOST_ENABLED: z.boolean().default(false),
+}).superRefine((value, ctx) => {
+  if (value.NIMBUSPOST_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['NIMBUSPOST_ENABLED'],
+      message:
+        'NimbusPost official endpoint-level API documentation and authentication contract must be implemented before enabling live shipping.',
+    });
+  }
 });
 
 function formatIssues(prefix: string, issues: z.ZodIssue[]) {
@@ -56,6 +67,7 @@ export const serverEnv = (() => {
     SHIPPING_DELIVERY_ESTIMATE: process.env.SHIPPING_DELIVERY_ESTIMATE || undefined,
     SHIPPING_REMOTE_AREA_ESTIMATE: process.env.SHIPPING_REMOTE_AREA_ESTIMATE || undefined,
     REFUND_INITIATION_ESTIMATE: process.env.REFUND_INITIATION_ESTIMATE || undefined,
+    NIMBUSPOST_ENABLED: parseServerFeatureFlag(process.env.NIMBUSPOST_ENABLED),
   });
 
   if (!parsed.success) {

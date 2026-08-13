@@ -46,6 +46,7 @@ export default function PrivacyPage() {
           heading: 'Service providers and retention',
           body: [
             'Necessary information may be shared with providers that support hosting, database, authentication, payments, messaging, analytics, and delivery, limited to their operational purpose.',
+            'For delivery, tracking, delivery communication, and shipment issue resolution, Gridaan may share fulfilment-required customer and order information with logistics or shipping partners.',
             'Records are retained only as reasonably needed for account operation, fulfilment, support, security, disputes, refunds, and applicable legal or accounting obligations.',
           ],
         },

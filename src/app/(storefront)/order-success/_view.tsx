@@ -109,7 +109,7 @@ export default function OrderSuccessView() {
           Payment successful — order placed
         </h1>
         <p className="mx-auto mb-6 max-w-md text-sm leading-6 text-neutral-600">
-          Razorpay has confirmed captured payment. Your Gridaan order has now been placed.
+          Payment received. Your Gridaan order is being prepared for shipment.
         </p>
 
         <div className="mb-6 rounded-2xl border border-neutral-100 bg-white p-5 text-left shadow-sm">

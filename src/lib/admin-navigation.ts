@@ -12,6 +12,7 @@ import {
   Settings,
   Star,
   Tags,
+  Truck,
   UserCog,
   Users,
   type LucideIcon,
@@ -45,6 +46,7 @@ const ALL_ROLES: AdminRole[] = [
 export const adminNavigation: AdminNavigationItem[] = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, permission: 'dashboard.read', requiredRoles: ALL_ROLES, featureStatus: 'active', section: 'Overview' },
   { label: 'Orders', href: '/admin/orders', icon: ClipboardList, permission: 'orders.read', requiredRoles: ['owner', 'admin', 'operations', 'support', 'analyst', 'viewer'], featureStatus: 'active', section: 'Commerce' },
+  { label: 'Shipping', href: '/admin/shipping', icon: Truck, permission: 'shipping.read', requiredRoles: ['owner', 'admin', 'operations', 'support', 'analyst', 'viewer'], featureStatus: 'active', section: 'Commerce' },
   { label: 'Products', href: '/admin/products', icon: Package, permission: 'products.read', requiredRoles: ['owner', 'admin', 'inventory_manager', 'analyst', 'viewer'], featureStatus: 'active', section: 'Commerce' },
   { label: 'Inventory', href: '/admin/inventory', icon: Boxes, permission: 'inventory.read', requiredRoles: ['owner', 'admin', 'operations', 'inventory_manager', 'viewer'], featureStatus: 'read_only', section: 'Commerce' },
   { label: 'Customers', href: '/admin/customers', icon: Users, permission: 'customers.read', requiredRoles: ['owner', 'admin', 'operations', 'support', 'analyst', 'viewer'], featureStatus: 'read_only', section: 'Commerce' },

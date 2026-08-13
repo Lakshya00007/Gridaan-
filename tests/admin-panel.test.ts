@@ -89,8 +89,8 @@ describe('admin navigation', () => {
   });
 
   it('keeps every audited module represented in the typed configuration', () => {
-    expect(adminNavigation).toHaveLength(16);
-    expect(new Set(adminNavigation.map((item) => item.href)).size).toBe(16);
+    expect(adminNavigation).toHaveLength(17);
+    expect(new Set(adminNavigation.map((item) => item.href)).size).toBe(17);
   });
 });
 
