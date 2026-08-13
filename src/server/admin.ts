@@ -4,6 +4,8 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { getVerifiedPlacedOrders } from '@/lib/admin/metrics';
 import { formatDate } from '@/lib/utils';
 import type { Order, OrderStatusHistory, PaymentRecord, Product, RefundRecord } from '@/types';
+import type { ShipmentRecord } from '@/lib/shipping/types';
+import { getShipmentsForOrder } from './shipping';
 
 export type AdminAuditLogRecord = {
   id: string;
@@ -51,6 +53,7 @@ export type AdminOrderDetail = {
   order: Order;
   payments: PaymentRecord[];
   refunds: RefundRecord[];
+  shipments: ShipmentRecord[];
   statusHistory: OrderStatusHistory[];
   auditLogs: AdminAuditLogRecord[];
 };
@@ -312,7 +315,7 @@ export async function getAdminOrderDetail(orderId: string): Promise<AdminOrderDe
 
   if (!order) return null;
 
-  const [payments, refunds, statusHistory, auditLogs] = await Promise.all([
+  const [payments, refunds, shipments, statusHistory, auditLogs] = await Promise.all([
     safeQuery<PaymentRecord[]>(
       'order-detail-payments',
       supabase.from('payments').select('*').eq('order_id', orderId).order('created_at', { ascending: false }),
@@ -323,6 +326,7 @@ export async function getAdminOrderDetail(orderId: string): Promise<AdminOrderDe
       supabase.from('refunds').select('*').eq('order_id', orderId).order('created_at', { ascending: false }),
       []
     ),
+    getShipmentsForOrder(orderId),
     safeQuery<OrderStatusHistory[]>(
       'order-detail-history',
       supabase.from('order_status_history').select('*').eq('order_id', orderId).order('created_at', { ascending: true }),
@@ -335,7 +339,7 @@ export async function getAdminOrderDetail(orderId: string): Promise<AdminOrderDe
     ),
   ]);
 
-  return { order, payments, refunds, statusHistory, auditLogs };
+  return { order, payments, refunds, shipments, statusHistory, auditLogs };
 }
 
 export async function getAdminPaymentDetail(paymentId: string): Promise<AdminPaymentDetail | null> {

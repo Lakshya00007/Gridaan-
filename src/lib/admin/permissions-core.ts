@@ -4,6 +4,9 @@ export type AdminPermission =
   | 'dashboard.read'
   | 'orders.read'
   | 'orders.write'
+  | 'shipping.read'
+  | 'shipping.write'
+  | 'shipping.cancel'
   | 'products.read'
   | 'products.write'
   | 'inventory.read'
@@ -35,6 +38,9 @@ const allPermissions: AdminPermission[] = [
   'dashboard.read',
   'orders.read',
   'orders.write',
+  'shipping.read',
+  'shipping.write',
+  'shipping.cancel',
   'products.read',
   'products.write',
   'inventory.read',
@@ -70,6 +76,9 @@ export const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'dashboard.read',
     'orders.read',
     'orders.write',
+    'shipping.read',
+    'shipping.write',
+    'shipping.cancel',
     'inventory.read',
     'customers.read',
     'payments.read',
@@ -90,6 +99,7 @@ export const rolePermissions: Record<AdminRole, AdminPermission[]> = {
   support: [
     'dashboard.read',
     'orders.read',
+    'shipping.read',
     'customers.read',
     'customers.write',
     'payments.read',
@@ -97,10 +107,11 @@ export const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'refunds.write',
     'notifications.read',
   ],
-  analyst: ['dashboard.read', 'reports.read', 'orders.read', 'products.read', 'customers.read', 'payments.read'],
+  analyst: ['dashboard.read', 'reports.read', 'orders.read', 'shipping.read', 'products.read', 'customers.read', 'payments.read'],
   viewer: [
     'dashboard.read',
     'orders.read',
+    'shipping.read',
     'products.read',
     'inventory.read',
     'customers.read',

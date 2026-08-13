@@ -4,11 +4,15 @@ import { z } from 'zod';
 import { CreditCard, FileDown, IndianRupee, MessageCircle, PackageCheck, Printer, RefreshCcw, Truck } from 'lucide-react';
 import { AdminPageHeader, AdminSection, EmptyState, MetricCard, StatusBadge } from '../../_components/ui';
 import { requireAdminPagePermission } from '@/lib/admin/permissions';
+import { hasPermission } from '@/lib/admin/permissions-core';
 import { formatPaymentMethod } from '@/lib/manual-payment';
 import { buildCustomerOrderLink, buildStatusUpdateLink } from '@/lib/whatsapp-links';
 import { getAdminOrderDetail } from '@/server/admin';
 import { cn, formatDateTime, formatRupees } from '@/lib/utils';
+import { getNimbusPostReadiness } from '@/lib/shipping/config';
+import type { ShipmentRecord } from '@/lib/shipping/types';
 import type { OrderAddress, OrderItem, PaymentRecord, RefundRecord } from '@/types';
+import { ShippingPrepareForm } from './_shipping-actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Order Detail · Admin' };
@@ -27,17 +31,24 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdminPagePermission('orders.read');
+  const admin = await requireAdminPagePermission('orders.read');
   const parsed = paramsSchema.safeParse(await params);
   if (!parsed.success) notFound();
 
   const detail = await getAdminOrderDetail(parsed.data.id);
   if (!detail) notFound();
 
-  const { order, payments, refunds, statusHistory, auditLogs } = detail;
+  const { order, payments, refunds, shipments, statusHistory, auditLogs } = detail;
   const totalItems = (order.items ?? []).reduce((sum, item) => sum + item.quantity, 0);
   const capturedPayment = payments.find((payment) => payment.captured);
   const refundTotalPaise = refunds.reduce((sum, refund) => sum + (refund.approved_amount_paise ?? 0), 0);
+  const shippingReadiness = getNimbusPostReadiness();
+  const canPrepareShipment = hasPermission({
+    role: admin.role,
+    explicitPermissions: admin.permissions,
+    permission: 'shipping.write',
+    legacyIsAdmin: admin.profile.is_admin,
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -207,14 +218,15 @@ export default async function AdminOrderDetailPage({
             </div>
           </AdminSection>
 
-          <AdminSection title="Shipment">
-            <div className="space-y-2 text-sm">
-              <DetailLine label="Carrier" value={order.shipment_carrier ?? 'Not added'} />
-              <DetailLine label="Tracking" value={order.shipment_tracking_number ?? 'Not added'} />
-              <DetailLine label="Shipped" value={order.shipped_at ? formatDateTime(order.shipped_at) : 'Not shipped'} />
-              <DetailLine label="Delivered" value={order.delivered_at ? formatDateTime(order.delivered_at) : 'Not delivered'} />
-            </div>
-          </AdminSection>
+          <ShippingCard
+            capturedPayment={Boolean(capturedPayment)}
+            customerShippingAmount={order.shipping}
+            destination={order.shipping_address}
+            shipments={shipments}
+            nimbusPostEnabled={shippingReadiness.enabled}
+            canPrepareShipment={canPrepareShipment}
+            orderId={order.id}
+          />
 
           <AdminSection title="Notes">
             <NoteBlock label="Customer note" value={order.customer_notes ?? order.notes} />
@@ -311,6 +323,96 @@ function RefundRow({ refund }: { refund: RefundRecord }) {
       </div>
     </div>
   );
+}
+
+function ShippingCard({
+  capturedPayment,
+  canPrepareShipment,
+  customerShippingAmount,
+  destination,
+  orderId,
+  shipments,
+  nimbusPostEnabled,
+}: {
+  capturedPayment: boolean;
+  canPrepareShipment: boolean;
+  customerShippingAmount: number;
+  destination: OrderAddress;
+  orderId: string;
+  shipments: ShipmentRecord[];
+  nimbusPostEnabled: boolean;
+}) {
+  const latestShipment = shipments[0] ?? null;
+  const activeShipment = shipments.find(
+    (shipment) => !['delivered', 'cancelled', 'rto_delivered', 'lost'].includes(shipment.status)
+  );
+
+  return (
+    <AdminSection
+      title="Shipping"
+      description="Payment and shipping are separate records. Shipping cannot change Razorpay capture state."
+    >
+      <div className="space-y-2 text-sm">
+        <DetailLine label="Payment captured" value={capturedPayment ? 'Yes' : 'No'} />
+        <DetailLine label="NimbusPost" value={nimbusPostEnabled ? 'Enabled, contract blocked' : 'Disabled'} />
+        <DetailLine label="Destination PIN" value={destination.pincode} />
+        <DetailLine label="Customer shipping" value={customerShippingAmount === 0 ? 'Free' : formatRupees(customerShippingAmount)} />
+        <DetailLine label="Active shipment" value={activeShipment ? activeShipment.status.replace(/_/g, ' ') : 'None'} />
+      </div>
+
+      {latestShipment ? (
+        <div className="mt-4 rounded-lg border border-stone-100 p-3 text-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold text-neutral-950">Latest shipment</p>
+            <StatusBadge value={latestShipment.status} tone={latestShipment.status === 'delivered' ? 'green' : 'blue'} />
+          </div>
+          <div className="space-y-2">
+            <DetailLine label="Provider" value={latestShipment.provider} />
+            <DetailLine label="Courier" value={latestShipment.courier_name ?? 'Not selected'} />
+            <DetailLine label="AWB" value={latestShipment.awb ?? 'Not assigned'} />
+            <DetailLine label="Package" value={formatPackage(latestShipment)} />
+            <DetailLine label="Carrier cost" value={latestShipment.charged_carrier_cost == null ? 'Not returned' : formatRupees(latestShipment.charged_carrier_cost)} />
+            <DetailLine label="Label" value={latestShipment.label_reference ?? (latestShipment.label_url ? 'Available' : 'Unavailable')} />
+            <DetailLine label="Tracking" value={latestShipment.tracking_url ? 'Available' : latestShipment.raw_status ?? 'Unavailable'} />
+            <DetailLine label="Created" value={formatDateTime(latestShipment.created_at)} />
+            <DetailLine label="Updated" value={formatDateTime(latestShipment.updated_at)} />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+          Enter actual package weight and dimensions before requesting courier rates. Live NimbusPost rate lookup and booking remain disabled until official API documentation is supplied.
+        </div>
+      )}
+
+      {!latestShipment && capturedPayment && canPrepareShipment ? (
+        <ShippingPrepareForm orderId={orderId} />
+      ) : null}
+
+      {!latestShipment && capturedPayment && !canPrepareShipment ? (
+        <p className="mt-3 rounded-lg border border-stone-200 bg-stone-50 p-3 text-xs leading-5 text-neutral-600">
+          Package entry requires shipping write permission.
+        </p>
+      ) : null}
+
+      {shipments.length > 1 ? (
+        <p className="mt-3 text-xs text-neutral-500">
+          {shipments.length} shipment records exist for this order, including historical cancelled or terminal shipments.
+        </p>
+      ) : null}
+    </AdminSection>
+  );
+}
+
+function formatPackage(shipment: ShipmentRecord) {
+  if (
+    shipment.package_weight_grams == null ||
+    shipment.package_length_cm == null ||
+    shipment.package_width_cm == null ||
+    shipment.package_height_cm == null
+  ) {
+    return 'Package details required';
+  }
+  return `${shipment.package_weight_grams} g, ${shipment.package_length_cm} x ${shipment.package_width_cm} x ${shipment.package_height_cm} cm`;
 }
 
 function AddressBlock({ title, address }: { title: string; address: OrderAddress }) {
