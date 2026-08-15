@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidMetaPixelId } from './analytics/config';
 
 const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -10,6 +11,16 @@ const publicSchema = z.object({
     .default('false')
     .transform((value) => value === 'true'),
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().trim().optional(),
+  NEXT_PUBLIC_META_PIXEL_ID: z
+    .string()
+    .trim()
+    .refine(isValidMetaPixelId, 'Meta Pixel ID must be numeric')
+    .optional(),
+  NEXT_PUBLIC_META_ALLOW_NON_PRODUCTION: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 function formatIssues(prefix: string, issues: z.ZodIssue[]) {
@@ -23,6 +34,9 @@ export const publicEnv = (() => {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED: process.env.NEXT_PUBLIC_MANUAL_PAYMENT_ENABLED,
     NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || undefined,
+    NEXT_PUBLIC_META_PIXEL_ID: process.env.NEXT_PUBLIC_META_PIXEL_ID || undefined,
+    NEXT_PUBLIC_META_ALLOW_NON_PRODUCTION:
+      process.env.NEXT_PUBLIC_META_ALLOW_NON_PRODUCTION,
   });
 
   if (!parsed.success) {

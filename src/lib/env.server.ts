@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { publicEnv } from './env.public';
 import { isPublishableSupportEmail, isValidIndianGstin } from './business-info';
 import { parseServerFeatureFlag } from './shipping/feature-flag';
+import { isValidMetaPixelId } from './analytics/config';
 
 const publishableEmail = z
   .string()
@@ -32,6 +33,9 @@ const serverSchema = z.object({
   SHIPPING_REMOTE_AREA_ESTIMATE: z.string().trim().min(3).optional(),
   REFUND_INITIATION_ESTIMATE: z.string().trim().min(3).optional(),
   NIMBUSPOST_ENABLED: z.boolean().default(false),
+  META_CAPI_ENABLED: z.boolean().default(false),
+  META_CAPI_ACCESS_TOKEN: z.string().trim().min(20).optional(),
+  META_CAPI_TEST_EVENT_CODE: z.string().trim().min(3).max(120).optional(),
 }).superRefine((value, ctx) => {
   if (value.NIMBUSPOST_ENABLED) {
     ctx.addIssue({
@@ -40,6 +44,22 @@ const serverSchema = z.object({
       message:
         'NimbusPost official endpoint-level API documentation and authentication contract must be implemented before enabling live shipping.',
     });
+  }
+  if (value.META_CAPI_ENABLED) {
+    if (!isValidMetaPixelId(publicEnv.NEXT_PUBLIC_META_PIXEL_ID)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['NEXT_PUBLIC_META_PIXEL_ID'],
+        message: 'Meta CAPI requires a valid public Meta Pixel ID.',
+      });
+    }
+    if (!value.META_CAPI_ACCESS_TOKEN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['META_CAPI_ACCESS_TOKEN'],
+        message: 'Meta CAPI requires a server-only access token.',
+      });
+    }
   }
 });
 
@@ -68,6 +88,9 @@ export const serverEnv = (() => {
     SHIPPING_REMOTE_AREA_ESTIMATE: process.env.SHIPPING_REMOTE_AREA_ESTIMATE || undefined,
     REFUND_INITIATION_ESTIMATE: process.env.REFUND_INITIATION_ESTIMATE || undefined,
     NIMBUSPOST_ENABLED: parseServerFeatureFlag(process.env.NIMBUSPOST_ENABLED),
+    META_CAPI_ENABLED: parseServerFeatureFlag(process.env.META_CAPI_ENABLED),
+    META_CAPI_ACCESS_TOKEN: process.env.META_CAPI_ACCESS_TOKEN || undefined,
+    META_CAPI_TEST_EVENT_CODE: process.env.META_CAPI_TEST_EVENT_CODE || undefined,
   });
 
   if (!parsed.success) {

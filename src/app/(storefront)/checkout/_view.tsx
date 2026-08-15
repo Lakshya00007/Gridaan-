@@ -27,9 +27,15 @@ import { useCart } from '@/store/cart';
 import { useUI } from '@/store/ui';
 import { formatRupees, cn } from '@/lib/utils';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from '@/lib/config';
-import type { Coupon, OrderSuccessSummary } from '@/types';
+import type { CartProductSnapshot, Coupon, OrderSuccessSummary } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { publicEnv } from '@/lib/env.public';
+import { CONSENT_CHANGED_EVENT, getCheckoutConsentSnapshot } from '@/lib/analytics/consent';
+import {
+  META_PIXEL_READY_EVENT,
+  trackMetaInitiateCheckout,
+  trackMetaPurchase,
+} from '@/lib/analytics/meta';
 import {
   acquireCheckoutSubmission,
   buildCheckoutOrderPayload,
@@ -79,6 +85,7 @@ type RazorpayCheckoutPayload = {
     email: string;
     contact: string;
   };
+  items?: Array<{ product: CartProductSnapshot; quantity: number }>;
   expires_at: string | null;
 };
 
@@ -141,6 +148,7 @@ export default function CheckoutView() {
   const [mounted, setMounted] = useState(false);
   const [, startTransition] = useTransition();
   const processingLock = useRef(false);
+  const initiateCheckoutTrackedRef = useRef<string | null>(null);
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [couponCode, setCouponCode] = useState('');
   const [errors, setErrors] = useState<CheckoutFormErrors>({});
@@ -192,6 +200,28 @@ export default function CheckoutView() {
   }, [coupon, subtotal]);
   const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = Math.max(0, subtotal - discount + shipping);
+
+  useEffect(() => {
+    if (!mounted || guest.length === 0) return;
+    const cartSignature = guest
+      .map((item) => `${item.product.id}:${item.quantity}`)
+      .sort()
+      .join('|');
+
+    function tryTrackInitiateCheckout() {
+      if (initiateCheckoutTrackedRef.current === cartSignature) return;
+      const tracked = trackMetaInitiateCheckout({ items: guest, value: total });
+      if (tracked) initiateCheckoutTrackedRef.current = cartSignature;
+    }
+
+    tryTrackInitiateCheckout();
+    window.addEventListener(CONSENT_CHANGED_EVENT, tryTrackInitiateCheckout);
+    window.addEventListener(META_PIXEL_READY_EVENT, tryTrackInitiateCheckout);
+    return () => {
+      window.removeEventListener(CONSENT_CHANGED_EVENT, tryTrackInitiateCheckout);
+      window.removeEventListener(META_PIXEL_READY_EVENT, tryTrackInitiateCheckout);
+    };
+  }, [guest, mounted, total]);
 
   function setField(key: keyof CheckoutFormValues, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -411,6 +441,10 @@ export default function CheckoutView() {
             return;
           }
 
+          trackMetaPurchase({
+            order: verified.order,
+            items: checkout.items?.length ? checkout.items : guest,
+          });
           clear();
           setSearchQuery('');
           clearCheckoutIdempotencyKey();
@@ -485,6 +519,7 @@ export default function CheckoutView() {
       const orderPayload = buildCheckoutOrderPayload({
         form,
         couponCode: coupon?.code,
+        marketingConsent: getCheckoutConsentSnapshot(window.localStorage),
         items: guest.map((item) => ({
           product_id: item.product.id,
           quantity: item.quantity,
@@ -520,9 +555,14 @@ export default function CheckoutView() {
         return;
       }
 
-      setPendingCheckout(data.checkout);
-      window.localStorage.setItem('gridaan-pending-checkout', JSON.stringify(data.checkout));
-      openRazorpayCheckout(data.checkout);
+      const checkoutItems = guest.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+      }));
+      const preparedCheckout = { ...data.checkout, items: checkoutItems };
+      setPendingCheckout(preparedCheckout);
+      window.localStorage.setItem('gridaan-pending-checkout', JSON.stringify(preparedCheckout));
+      openRazorpayCheckout(preparedCheckout);
     } catch (error) {
       console.error('[checkout] placeOrder failed', error);
       toast.error(error instanceof Error ? error.message : 'Network error');

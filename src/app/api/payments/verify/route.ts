@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { assertJsonRequest, assertSameOrigin, badRequest, errorResponse, notFound } from '@/lib/api';
+import { ensureMetaPurchaseEvent } from '@/lib/analytics/meta-capi.server';
 import { verifyPaymentSchema } from '@/lib/payments/payment-validation';
 import { verifyPaymentCallback } from '@/lib/payments/payment-service';
 import { createServiceClient } from '@/lib/supabase/server';
@@ -29,6 +30,15 @@ export async function POST(req: NextRequest) {
       gatewayPaymentId: input.gateway_payment_id,
       signature: input.signature,
     });
+
+    if (result.placed) {
+      after(async () => {
+        await ensureMetaPurchaseEvent({
+          orderId: input.order_id,
+          source: 'api:payments.verify',
+        });
+      });
+    }
 
     return NextResponse.json({
       ok: true,

@@ -6,6 +6,7 @@
 'use client';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { getActualCartAddedQuantity } from '@/lib/cart-quantity';
 import type { CartProductSnapshot, Product } from '@/types';
 
 interface GuestCartItem {
@@ -17,7 +18,7 @@ interface CartState {
   guest: GuestCartItem[];
   isOpen: boolean;
   setOpen: (open: boolean) => void;
-  add: (product: Product, quantity?: number) => void;
+  add: (product: Product, quantity?: number) => number;
   setQuantity: (productId: string, quantity: number) => void;
   remove: (productId: string) => void;
   clear: () => void;
@@ -57,19 +58,34 @@ export const useCart = create<CartState>()(
         const guest = get().guest;
         const existing = guest.find((g) => g.product.id === snapshot.id);
         if (existing) {
+          const addedQuantity = getActualCartAddedQuantity({
+            currentQuantity: existing.quantity,
+            requestedQuantity: quantity,
+            stockCount: snapshot.stock_count,
+          });
+          if (addedQuantity <= 0) return 0;
+          const nextQuantity = existing.quantity + addedQuantity;
           set({
             guest: guest.map((g) =>
               g.product.id === snapshot.id
                 ? {
                     ...g,
                     product: snapshot,
-                    quantity: Math.min(g.quantity + quantity, snapshot.stock_count),
+                    quantity: nextQuantity,
                   }
                 : g
             ),
           });
+          return addedQuantity;
         } else {
-          set({ guest: [...guest, { product: snapshot, quantity: Math.min(quantity, snapshot.stock_count) }] });
+          const addedQuantity = getActualCartAddedQuantity({
+            currentQuantity: 0,
+            requestedQuantity: quantity,
+            stockCount: snapshot.stock_count,
+          });
+          if (addedQuantity <= 0) return 0;
+          set({ guest: [...guest, { product: snapshot, quantity: addedQuantity }] });
+          return addedQuantity;
         }
       },
       setQuantity: (productId, quantity) => {
