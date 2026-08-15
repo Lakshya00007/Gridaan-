@@ -82,6 +82,7 @@ const nextConfig = {
       script-src-elem
         'self'
         'unsafe-inline'
+        https://connect.facebook.net
         https://checkout.razorpay.com
         https://cdn.razorpay.com
         ${isDev ? "'unsafe-eval'" : ''};
@@ -98,6 +99,7 @@ const nextConfig = {
         https://images.pexels.com
         https://res.cloudinary.com
         https://lh3.googleusercontent.com
+        https://www.facebook.com
         https://*.razorpay.com;
 
       font-src
@@ -109,6 +111,7 @@ const nextConfig = {
         'self'
         https://*.supabase.co
         wss://*.supabase.co
+        https://www.facebook.com
         https://api.razorpay.com
         https://*.razorpay.com;
 

@@ -51,9 +51,19 @@ export default function PrivacyPage() {
           ],
         },
         {
+          heading: 'Marketing analytics choices',
+          body: [
+            'Marketing and advertising measurement is optional. If you accept marketing analytics, Gridaan may use Meta Pixel in the browser to measure ecommerce actions such as page views, product views, add-to-cart actions, checkout starts, and purchases.',
+            'When configured on the server and when your order consent snapshot allows it, Gridaan may also send a server-side purchase conversion to Meta through Conversions API using order details such as product identifiers, quantities, INR value, order identifier, and hashed contact matching information such as email or phone.',
+            'If you reject marketing analytics, Meta Pixel is not intentionally loaded for your browser and server-side Meta purchase measurement is not sent from that order consent snapshot.',
+            'You can accept, reject, or change marketing analytics at any time from the Privacy choices link in the storefront footer.',
+          ],
+        },
+        {
           heading: 'Cookies, choices, and contact',
           body: [
-            'Cookies or browser storage may support authentication, cart continuity, preferences, security, and performance measurement. Blocking essential storage can prevent account or checkout features from working.',
+            'Cookies or browser storage may support necessary authentication, cart continuity, checkout, payment, security, and preference functionality. Blocking essential storage can prevent account or checkout features from working.',
+            'The marketing preference is stored separately from necessary storefront storage and does not affect your ability to shop, check out, pay, or access order support.',
             'Use the Contact page to request access, correction, or deletion where applicable. A request may require identity verification and may be limited by records Gridaan must retain lawfully.',
           ],
         },

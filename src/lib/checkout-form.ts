@@ -149,10 +149,16 @@ export function getCheckoutDismissalState<TForm, TCheckout>(
 export function buildCheckoutOrderPayload({
   form,
   couponCode,
+  marketingConsent,
   items,
 }: {
   form: CheckoutFormValues;
   couponCode?: string;
+  marketingConsent?: {
+    version: number;
+    marketing: boolean;
+    decided_at?: string | null;
+  };
   items: Array<{ product_id: string; quantity: number }>;
 }) {
   const customerPhone = normalizeIndianPhone(form.phone);
@@ -175,6 +181,7 @@ export function buildCheckoutOrderPayload({
     payment_method: 'razorpay' as const,
     coupon_code: couponCode,
     notes: form.notes,
+    ...(marketingConsent ? { marketing_consent: marketingConsent } : {}),
     items,
   };
 }

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Heart, ShoppingBag, Minus, Plus, Truck, Shield, RotateCcw, Star, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,12 @@ import type { Product } from '@/types';
 import { useRouter } from 'next/navigation';
 import { getWishlistState, toggleWishlist as toggleWishlistItem } from '@/lib/wishlist-client';
 import { businessInfo, JEWELLERY_COMPLIANCE_DISCLAIMER } from '@/lib/business-info';
+import { CONSENT_CHANGED_EVENT } from '@/lib/analytics/consent';
+import {
+  META_PIXEL_READY_EVENT,
+  trackMetaAddToCart,
+  trackMetaViewContent,
+} from '@/lib/analytics/meta';
 
 function metadataValue(metadata: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
@@ -31,6 +37,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
   const [wishlisted, setWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const viewedProductRef = useRef<string | null>(null);
   const { add: addToCart, setOpen: setCartOpen } = useCart();
   const router = useRouter();
 
@@ -77,6 +84,22 @@ export default function ProductPageClient({ product }: { product: Product }) {
     };
   }, [product.id]);
 
+  useEffect(() => {
+    function tryTrackViewContent() {
+      if (viewedProductRef.current === product.id) return;
+      const tracked = trackMetaViewContent(product);
+      if (tracked) viewedProductRef.current = product.id;
+    }
+
+    tryTrackViewContent();
+    window.addEventListener(CONSENT_CHANGED_EVENT, tryTrackViewContent);
+    window.addEventListener(META_PIXEL_READY_EVENT, tryTrackViewContent);
+    return () => {
+      window.removeEventListener(CONSENT_CHANGED_EVENT, tryTrackViewContent);
+      window.removeEventListener(META_PIXEL_READY_EVENT, tryTrackViewContent);
+    };
+  }, [product]);
+
   async function handleWishlistToggle() {
     if (wishlistLoading) return;
     setWishlistLoading(true);
@@ -101,7 +124,8 @@ export default function ProductPageClient({ product }: { product: Product }) {
 
   function handleAdd() {
     if (isOut) return;
-    addToCart(product, quantity);
+    const addedQuantity = addToCart(product, quantity);
+    if (addedQuantity > 0) trackMetaAddToCart(product, addedQuantity);
     setCartOpen(true);
   }
 
@@ -279,7 +303,8 @@ export default function ProductPageClient({ product }: { product: Product }) {
               onClick={(e) => {
                 if (isOut) return;
                 e.preventDefault();
-                addToCart(product, quantity);
+                const addedQuantity = addToCart(product, quantity);
+                if (addedQuantity > 0) trackMetaAddToCart(product, addedQuantity);
                 router.push('/checkout');
               }}
               className={cn(

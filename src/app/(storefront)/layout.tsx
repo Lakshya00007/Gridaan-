@@ -4,6 +4,8 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CartDrawer from '@/components/CartDrawer';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import CookieConsentBanner from '@/components/analytics/CookieConsentBanner';
+import MetaPixel from '@/components/analytics/MetaPixel';
 import { getProfile } from '@/lib/supabase/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getActiveCategories } from '@/server/categories';
@@ -58,6 +60,8 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <Footer whatsappHref={buildStorefrontWhatsAppLink()} business={publishedBusiness} />
       <CartDrawer />
       <WhatsAppButton />
+      <CookieConsentBanner />
+      <MetaPixel />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(globalJsonLd) }}

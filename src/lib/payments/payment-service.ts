@@ -7,6 +7,7 @@ import { calculateOrderTotals, toPaise } from '@/lib/commerce/pricing';
 import { validateRefundAmount } from '@/lib/commerce/refund-rules';
 import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { serverEnv } from '@/lib/env.server';
+import { CONSENT_VERSION } from '@/lib/analytics/consent';
 import { assertExpectedPaymentAmount } from './payment-validation';
 import {
   buildOrderItemRows,
@@ -57,7 +58,13 @@ type PaymentRow = {
   currency: string;
   status: string;
   captured: boolean;
+  captured_at?: string | null;
   refund_amount_paise: number;
+};
+
+export type MetaPurchaseJob = {
+  orderId: string;
+  source: string;
 };
 
 type ValidateCouponRow = {
@@ -134,6 +141,16 @@ function buildOrderSuccessSummary(order: Record<string, unknown>): OrderSuccessS
     payment_status: 'captured',
     order_status: 'placed',
     created_at: String(order.created_at),
+  };
+}
+
+function getMarketingConsentMetadata(input: CheckoutInput) {
+  const consent = input.marketing_consent;
+  const granted = consent?.version === CONSENT_VERSION && consent.marketing === true;
+  return {
+    version: CONSENT_VERSION,
+    marketing: granted,
+    decided_at: granted ? consent?.decided_at ?? null : consent?.decided_at ?? null,
   };
 }
 
@@ -359,6 +376,7 @@ export async function createOnlineCheckout({
     notes: input.notes || null,
     customer_notes: input.notes || null,
   };
+  const marketingConsent = getMarketingConsentMetadata(input);
 
   let order = existingAttempt?.order as Record<string, unknown> | null | undefined;
   if (!order) {
@@ -411,6 +429,7 @@ export async function createOnlineCheckout({
           checkout_reference: checkoutReference,
           checkout_fingerprint: checkoutFingerprint,
           online_payment_only: true,
+          marketing_consent: marketingConsent,
         },
         updated_at: new Date().toISOString(),
       })
@@ -443,6 +462,7 @@ export async function createOnlineCheckout({
           checkout_reference: checkoutReference,
           checkout_fingerprint: checkoutFingerprint,
           online_payment_only: true,
+          marketing_consent: marketingConsent,
         },
       })
       .select('*')
@@ -1298,6 +1318,7 @@ export async function recordWebhookEvent({
   const supabase = createServiceClient();
   const provider = getPaymentProvider();
   const validation: WebhookValidationResult = await provider.validateWebhook(rawBody, signature, { eventId });
+  const metaPurchaseJobs: MetaPurchaseJob[] = [];
 
   if (!validation.valid) {
     throw badRequest('Invalid webhook signature', 'invalid_webhook_signature');
@@ -1392,6 +1413,10 @@ export async function recordWebhookEvent({
           },
           source: `webhook:${validation.eventType}`,
         });
+        metaPurchaseJobs.push({
+          orderId: existingPayment.order_id,
+          source: `webhook:${validation.eventType}`,
+        });
       }
 
       if (validation.eventType === 'payment.failed') {
@@ -1448,6 +1473,10 @@ export async function recordWebhookEvent({
         },
         source: `webhook:${validation.eventType}`,
       });
+      metaPurchaseJobs.push({
+        orderId: existingPayment.order_id,
+        source: `webhook:${validation.eventType}`,
+      });
     }
 
     const { data: updatedEvent } = await supabase
@@ -1460,7 +1489,7 @@ export async function recordWebhookEvent({
       .select('*')
       .single();
 
-    return { duplicate: false, processed: true, event: updatedEvent ?? inserted };
+    return { duplicate: false, processed: true, event: updatedEvent ?? inserted, metaPurchaseJobs };
   } catch (error) {
     await supabase
       .from('payment_webhook_events')

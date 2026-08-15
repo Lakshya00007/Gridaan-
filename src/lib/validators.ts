@@ -56,6 +56,13 @@ export const checkoutSchema = z
     payment_method: z.literal('razorpay'),
     coupon_code: z.string().max(40).optional().or(z.literal('')),
     notes: z.string().max(500).optional().or(z.literal('')),
+    marketing_consent: z
+      .object({
+        version: z.number().int().positive(),
+        marketing: z.boolean(),
+        decided_at: z.string().datetime().nullable().optional(),
+      })
+      .optional(),
     items: z
       .array(
         z.object({

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { getWishlistState, toggleWishlist } from '@/lib/wishlist-client';
+import { trackMetaAddToCart } from '@/lib/analytics/meta';
 
 interface Props {
   product: Product;
@@ -51,7 +52,8 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
       toast.error('Out of stock');
       return;
     }
-    addToCart(product, 1);
+    const addedQuantity = addToCart(product, 1);
+    if (addedQuantity > 0) trackMetaAddToCart(product, addedQuantity);
     setCartOpen(true);
     toast.success('Added to bag');
   }

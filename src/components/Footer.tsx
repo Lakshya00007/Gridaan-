@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { MessageCircle, ShieldCheck, WalletCards, Truck } from 'lucide-react';
 import { getCategoryPageHref } from '@/lib/category-pages';
+import PrivacyChoices from '@/components/analytics/PrivacyChoices';
 import {
   BRAND_POSITIONING,
   BUSINESS_CATEGORY,
@@ -109,6 +111,7 @@ export default function Footer({ whatsappHref, business }: FooterProps) {
               { label: 'Privacy Policy', href: '/privacy' },
               { label: 'Terms of Service', href: '/terms' },
             ]}
+            extra={<PrivacyChoices />}
           />
 
           <div>
@@ -169,9 +172,11 @@ export default function Footer({ whatsappHref, business }: FooterProps) {
 function FooterColumn({
   title,
   items,
+  extra,
 }: {
   title: string;
   items: { label: string; href: string }[];
+  extra?: ReactNode;
 }) {
   return (
     <div>
@@ -184,6 +189,7 @@ function FooterColumn({
             </Link>
           </li>
         ))}
+        {extra ? <li>{extra}</li> : null}
       </ul>
     </div>
   );
