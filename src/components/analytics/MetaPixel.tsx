@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   ensureMetaPixel,
+  META_PIXEL_READY_EVENT,
   revokeMetaConsentIfLoaded,
   trackMetaPageView,
 } from '@/lib/analytics/meta';
@@ -25,7 +26,11 @@ export default function MetaPixel() {
 
     syncPixel();
     window.addEventListener(CONSENT_CHANGED_EVENT, syncPixel);
-    return () => window.removeEventListener(CONSENT_CHANGED_EVENT, syncPixel);
+    window.addEventListener(META_PIXEL_READY_EVENT, syncPixel);
+    return () => {
+      window.removeEventListener(CONSENT_CHANGED_EVENT, syncPixel);
+      window.removeEventListener(META_PIXEL_READY_EVENT, syncPixel);
+    };
   }, [pathname]);
 
   return null;

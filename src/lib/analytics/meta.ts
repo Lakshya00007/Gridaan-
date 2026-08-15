@@ -33,6 +33,7 @@ type FbqFunction = {
   loaded: boolean;
   version: string;
   push: FbqFunction;
+  disablePushState?: boolean;
 };
 
 declare global {
@@ -42,6 +43,8 @@ declare global {
     __gridaanMetaPixel?: {
       initializedPixelId?: string;
       scriptInjected?: boolean;
+      scriptLoading?: boolean;
+      sdkReady?: boolean;
       lastTrackedPath?: string;
     };
   }
@@ -92,6 +95,11 @@ function installFbqQueue() {
   return fbq;
 }
 
+export function isMetaPixelSdkReady() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.__gridaanMetaPixel?.sdkReady && window.fbq?.callMethod);
+}
+
 export function grantMetaConsentIfLoaded() {
   if (typeof window === 'undefined') return;
   window.fbq?.('consent', 'grant');
@@ -114,6 +122,7 @@ export function ensureMetaPixel() {
 
   const state = (window.__gridaanMetaPixel ??= {});
   const fbq = installFbqQueue();
+  fbq.disablePushState = true;
   fbq('consent', 'grant');
 
   if (state.initializedPixelId !== pixelId) {
@@ -126,12 +135,18 @@ export function ensureMetaPixel() {
     script.id = META_SCRIPT_ID;
     script.async = true;
     script.src = 'https://connect.facebook.net/en_US/fbevents.js';
-    script.onload = () => window.dispatchEvent(new Event(META_PIXEL_READY_EVENT));
-    script.onerror = () => window.dispatchEvent(new Event(META_PIXEL_READY_EVENT));
+    script.onload = () => {
+      state.scriptLoading = false;
+      state.sdkReady = Boolean(window.fbq?.callMethod);
+      window.dispatchEvent(new Event(META_PIXEL_READY_EVENT));
+    };
+    script.onerror = () => {
+      state.scriptLoading = false;
+      state.sdkReady = false;
+    };
     document.head.appendChild(script);
     state.scriptInjected = true;
-  } else {
-    window.dispatchEvent(new Event(META_PIXEL_READY_EVENT));
+    state.scriptLoading = true;
   }
 
   return true;
@@ -140,12 +155,16 @@ export function ensureMetaPixel() {
 export function trackMetaStandardEvent(
   eventName: MetaStandardEventName,
   data?: MetaEcommerceEventData,
-  options: { eventId?: string } = {}
+  options: { eventId?: string; requireSdkReady?: boolean } = {}
 ) {
   try {
     if (!isMetaPixelRuntimeAllowed()) return false;
     if (!window.fbq && !ensureMetaPixel()) return false;
     if (!window.fbq) return false;
+    if (options.requireSdkReady && !isMetaPixelSdkReady()) {
+      ensureMetaPixel();
+      return false;
+    }
     if (options.eventId) {
       window.fbq('track', eventName, data, { eventID: options.eventId });
     } else {
@@ -160,15 +179,18 @@ export function trackMetaStandardEvent(
 export function trackMetaPageView(pathname: string) {
   if (typeof window === 'undefined') return false;
   if (!ensureMetaPixel()) return false;
+  if (!isMetaPixelSdkReady()) return false;
   const state = (window.__gridaanMetaPixel ??= {});
   if (state.lastTrackedPath === pathname) return false;
-  const tracked = trackMetaStandardEvent('PageView');
+  const tracked = trackMetaStandardEvent('PageView', undefined, { requireSdkReady: true });
   if (tracked) state.lastTrackedPath = pathname;
   return tracked;
 }
 
 export function trackMetaViewContent(product: Product) {
-  return trackMetaStandardEvent('ViewContent', buildViewContentEvent(product));
+  return trackMetaStandardEvent('ViewContent', buildViewContentEvent(product), {
+    requireSdkReady: true,
+  });
 }
 
 export function trackMetaAddToCart(product: Product, quantity: number) {
@@ -182,7 +204,9 @@ export function trackMetaInitiateCheckout({
   items: Array<{ product: CartProductSnapshot; quantity: number }>;
   value: number;
 }) {
-  return trackMetaStandardEvent('InitiateCheckout', buildInitiateCheckoutEvent({ items, value }));
+  return trackMetaStandardEvent('InitiateCheckout', buildInitiateCheckoutEvent({ items, value }), {
+    requireSdkReady: true,
+  });
 }
 
 export function trackMetaPurchase({

@@ -55,6 +55,7 @@ import type { CartProductSnapshot, OrderSuccessSummary, Product } from '@/types'
 const projectRoot = path.resolve(import.meta.dirname, '..');
 const productId = '11111111-1111-4111-8111-111111111111';
 const secondProductId = '22222222-2222-4222-8222-222222222222';
+type MetaClientModule = typeof import('@/lib/analytics/meta');
 
 class MemoryStorage implements ConsentStorage {
   private values = new Map<string, string>();
@@ -134,8 +135,139 @@ function cartProduct(overrides: Partial<CartProductSnapshot> = {}) {
   } as CartProductSnapshot;
 }
 
+type ScriptStub = {
+  id: string;
+  async: boolean;
+  src: string;
+  onload: ((event: Event) => void) | null;
+  onerror: ((event: Event) => void) | null;
+};
+
+type MetaBrowserHarness = {
+  meta: MetaClientModule;
+  delivered: unknown[][];
+  target: EventTarget;
+  storage: MemoryStorage;
+  getScript: () => ScriptStub | null;
+  makeSdkReady: () => void;
+  windowMock: {
+    fbq?: {
+      queue: unknown[][];
+      callMethod?: (...args: unknown[]) => void;
+      disablePushState?: boolean;
+    };
+    __gridaanMetaPixel?: {
+      sdkReady?: boolean;
+      lastTrackedPath?: string;
+    };
+  };
+};
+
+async function createMetaBrowserHarness({
+  marketing = true,
+  hostname = META_PRODUCTION_HOST,
+}: {
+  marketing?: boolean;
+  hostname?: string;
+} = {}): Promise<MetaBrowserHarness> {
+  vi.resetModules();
+  vi.stubEnv('NODE_ENV', 'production');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://gridaan.supabase.co');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'a'.repeat(24));
+  vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://www.gridaan.com');
+  vi.stubEnv('NEXT_PUBLIC_META_PIXEL_ID', META_PIXEL_ID);
+  vi.stubEnv('NEXT_PUBLIC_META_ALLOW_NON_PRODUCTION', 'false');
+
+  const storage = new MemoryStorage();
+  storage.setItem(
+    CONSENT_STORAGE_KEY,
+    JSON.stringify({
+      version: CONSENT_VERSION,
+      necessary: true,
+      marketing,
+      decidedAt: '2026-08-16T00:00:00.000Z',
+    })
+  );
+
+  const target = new EventTarget();
+  const delivered: unknown[][] = [];
+  const elements = new Map<string, ScriptStub>();
+  let script: ScriptStub | null = null;
+  const windowMock: MetaBrowserHarness['windowMock'] & {
+    location: { hostname: string };
+    localStorage: MemoryStorage;
+    addEventListener: EventTarget['addEventListener'];
+    removeEventListener: EventTarget['removeEventListener'];
+    dispatchEvent: EventTarget['dispatchEvent'];
+  } = {
+    location: { hostname },
+    localStorage: storage,
+    addEventListener: target.addEventListener.bind(target),
+    removeEventListener: target.removeEventListener.bind(target),
+    dispatchEvent: target.dispatchEvent.bind(target),
+  };
+  const documentMock = {
+    getElementById(id: string) {
+      return elements.get(id) ?? null;
+    },
+    createElement(tagName: string) {
+      expect(tagName).toBe('script');
+      script = {
+        id: '',
+        async: false,
+        src: '',
+        onload: null,
+        onerror: null,
+      };
+      return script;
+    },
+    head: {
+      appendChild(element: ScriptStub) {
+        elements.set(element.id, element);
+        return element;
+      },
+    },
+  };
+
+  vi.stubGlobal('window', windowMock);
+  vi.stubGlobal('document', documentMock);
+
+  const meta = await import('@/lib/analytics/meta');
+
+  return {
+    meta,
+    delivered,
+    target,
+    storage,
+    getScript: () => script,
+    makeSdkReady: () => {
+      if (!windowMock.fbq) throw new Error('fbq was not installed');
+      windowMock.fbq.callMethod = (...args: unknown[]) => {
+        delivered.push(args);
+      };
+      script?.onload?.(new Event('load'));
+    },
+    windowMock,
+  };
+}
+
+function acceptedConsentRecord() {
+  return JSON.stringify({
+    version: CONSENT_VERSION,
+    necessary: true,
+    marketing: true,
+    decidedAt: '2026-08-16T00:00:00.000Z',
+  });
+}
+
+function deliveredTrackCalls(delivered: unknown[][]) {
+  return delivered.filter((call) => call[0] === 'track');
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.resetModules();
 });
 
 describe('Meta consent storage', () => {
@@ -337,6 +469,209 @@ describe('Meta runtime gates', () => {
     expect(META_DEBUG_NON_PRODUCTION_STORAGE_KEY).toBe(
       'gridaan_meta_debug_allow_non_production'
     );
+  });
+});
+
+describe('Meta browser Pixel dispatch', () => {
+  it('disables Meta automatic SPA PageView behavior before Pixel initialization', async () => {
+    const { meta, windowMock } = await createMetaBrowserHarness();
+
+    expect(meta.ensureMetaPixel()).toBe(true);
+
+    const queue = windowMock.fbq?.queue ?? [];
+    const initIndex = queue.findIndex(
+      (call) => call[0] === 'init' && call[1] === META_PIXEL_ID
+    );
+
+    expect(windowMock.fbq?.disablePushState).toBe(true);
+    expect(initIndex).toBeGreaterThanOrEqual(0);
+    expect(queue.some((call) => call[0] === 'trackCustom')).toBe(false);
+  });
+
+  it('sends PageView as one standard event per pathname after the real SDK is ready', async () => {
+    const { meta, delivered, makeSdkReady } = await createMetaBrowserHarness();
+
+    expect(meta.trackMetaPageView('/')).toBe(false);
+    expect(deliveredTrackCalls(delivered)).toEqual([]);
+
+    makeSdkReady();
+
+    expect(meta.trackMetaPageView('/')).toBe(true);
+    expect(meta.trackMetaPageView('/')).toBe(false);
+    expect(meta.trackMetaPageView('/products')).toBe(true);
+    expect(meta.trackMetaPageView('/products')).toBe(false);
+
+    expect(deliveredTrackCalls(delivered)).toEqual([
+      ['track', 'PageView', undefined],
+      ['track', 'PageView', undefined],
+    ]);
+    expect(delivered.some((call) => call[0] === 'trackCustom')).toBe(false);
+  });
+
+  it('sends standard ecommerce events with track, never trackCustom', async () => {
+    const { meta, delivered, makeSdkReady } = await createMetaBrowserHarness();
+    const item = product();
+    const checkoutItems = [{ product: cartProduct(), quantity: 2 }];
+    const order: OrderSuccessSummary = {
+      id: 'order-id',
+      order_number: 'GR-00000004',
+      customer_name: 'Aanya Sharma',
+      total: 2599,
+      payment_method: 'razorpay',
+      payment_status: 'captured',
+      order_status: 'placed',
+      created_at: '2026-08-16T00:00:00.000Z',
+    };
+
+    expect(meta.ensureMetaPixel()).toBe(true);
+    makeSdkReady();
+
+    expect(meta.trackMetaViewContent(item)).toBe(true);
+    expect(meta.trackMetaAddToCart(item, 1)).toBe(true);
+    expect(meta.trackMetaInitiateCheckout({ items: checkoutItems, value: 2599 })).toBe(true);
+    expect(meta.trackMetaPurchase({ order, items: checkoutItems })).toBe(true);
+
+    const tracks = deliveredTrackCalls(delivered);
+    expect(tracks.map((call) => call[1])).toEqual([
+      'ViewContent',
+      'AddToCart',
+      'InitiateCheckout',
+      'Purchase',
+    ]);
+    expect(tracks[0]?.slice(0, 2)).toEqual(['track', 'ViewContent']);
+    expect(tracks[1]?.slice(0, 2)).toEqual(['track', 'AddToCart']);
+    expect(tracks[2]?.slice(0, 2)).toEqual(['track', 'InitiateCheckout']);
+    expect(tracks[3]?.slice(0, 2)).toEqual(['track', 'Purchase']);
+    expect(tracks[3]?.[3]).toEqual({ eventID: 'purchase:GR-00000004' });
+    expect(delivered.some((call) => call[0] === 'trackCustom')).toBe(false);
+  });
+
+  it('delivers ViewContent exactly once when requested before SDK readiness', async () => {
+    const { meta, delivered, makeSdkReady, target } = await createMetaBrowserHarness();
+    const item = product();
+    let viewedProductId: string | null = null;
+
+    function tryTrackViewContent() {
+      if (viewedProductId === item.id) return;
+      const tracked = meta.trackMetaViewContent(item);
+      if (tracked) viewedProductId = item.id;
+    }
+
+    target.addEventListener(meta.META_PIXEL_READY_EVENT, tryTrackViewContent);
+    tryTrackViewContent();
+
+    expect(viewedProductId).toBeNull();
+    expect(deliveredTrackCalls(delivered)).toEqual([]);
+
+    makeSdkReady();
+    target.dispatchEvent(new Event(meta.META_PIXEL_READY_EVENT));
+    tryTrackViewContent();
+
+    expect(viewedProductId).toBe(item.id);
+    expect(deliveredTrackCalls(delivered)).toEqual([
+      ['track', 'ViewContent', buildViewContentEvent(item)],
+    ]);
+  });
+
+  it('delivers ViewContent once when the SDK is already ready', async () => {
+    const { meta, delivered, makeSdkReady } = await createMetaBrowserHarness();
+    const item = product();
+    let viewedProductId: string | null = null;
+
+    expect(meta.ensureMetaPixel()).toBe(true);
+    makeSdkReady();
+
+    function tryTrackViewContent() {
+      if (viewedProductId === item.id) return;
+      const tracked = meta.trackMetaViewContent(item);
+      if (tracked) viewedProductId = item.id;
+    }
+
+    tryTrackViewContent();
+    tryTrackViewContent();
+
+    expect(deliveredTrackCalls(delivered)).toEqual([
+      ['track', 'ViewContent', buildViewContentEvent(item)],
+    ]);
+  });
+
+  it('delivers ViewContent once when consent is granted on an already mounted product', async () => {
+    const { meta, delivered, makeSdkReady, storage, target } = await createMetaBrowserHarness({
+      marketing: false,
+    });
+    const item = product();
+    let viewedProductId: string | null = null;
+
+    function tryTrackViewContent() {
+      if (viewedProductId === item.id) return;
+      const tracked = meta.trackMetaViewContent(item);
+      if (tracked) viewedProductId = item.id;
+    }
+
+    target.addEventListener(CONSENT_CHANGED_EVENT, tryTrackViewContent);
+    target.addEventListener(meta.META_PIXEL_READY_EVENT, tryTrackViewContent);
+
+    tryTrackViewContent();
+    expect(deliveredTrackCalls(delivered)).toEqual([]);
+
+    storage.setItem(CONSENT_STORAGE_KEY, acceptedConsentRecord());
+    target.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
+    expect(deliveredTrackCalls(delivered)).toEqual([]);
+
+    makeSdkReady();
+
+    expect(viewedProductId).toBe(item.id);
+    expect(deliveredTrackCalls(delivered)).toEqual([
+      ['track', 'ViewContent', buildViewContentEvent(item)],
+    ]);
+  });
+
+  it('does not deliver ViewContent while marketing consent is rejected', async () => {
+    const { meta, delivered, target } = await createMetaBrowserHarness({ marketing: false });
+    const item = product();
+
+    function tryTrackViewContent() {
+      void meta.trackMetaViewContent(item);
+    }
+
+    target.addEventListener(CONSENT_CHANGED_EVENT, tryTrackViewContent);
+    target.addEventListener(meta.META_PIXEL_READY_EVENT, tryTrackViewContent);
+
+    tryTrackViewContent();
+    target.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
+    target.dispatchEvent(new Event(meta.META_PIXEL_READY_EVENT));
+
+    expect(deliveredTrackCalls(delivered)).toEqual([]);
+  });
+
+  it('does not globally suppress legitimate different product ViewContent events', async () => {
+    const { meta, delivered, makeSdkReady } = await createMetaBrowserHarness();
+    let viewedProductId: string | null = null;
+    const first = product();
+    const second = product({
+      id: secondProductId,
+      slug: 'silver-ring',
+      name: 'Silver Ring',
+      price: 499,
+    });
+
+    expect(meta.ensureMetaPixel()).toBe(true);
+    makeSdkReady();
+
+    function tryTrackViewContent(item: Product) {
+      if (viewedProductId === item.id) return;
+      const tracked = meta.trackMetaViewContent(item);
+      if (tracked) viewedProductId = item.id;
+    }
+
+    tryTrackViewContent(first);
+    tryTrackViewContent(first);
+    tryTrackViewContent(second);
+
+    expect(deliveredTrackCalls(delivered)).toEqual([
+      ['track', 'ViewContent', buildViewContentEvent(first)],
+      ['track', 'ViewContent', buildViewContentEvent(second)],
+    ]);
   });
 });
 
