@@ -33,7 +33,6 @@ type FbqFunction = {
   loaded: boolean;
   version: string;
   push: FbqFunction;
-  disablePushState?: boolean;
 };
 
 declare global {
@@ -45,7 +44,8 @@ declare global {
       scriptInjected?: boolean;
       scriptLoading?: boolean;
       sdkReady?: boolean;
-      lastTrackedPath?: string;
+      initialPageViewTracked?: boolean;
+      initialPageViewPath?: string;
     };
   }
 }
@@ -122,7 +122,6 @@ export function ensureMetaPixel() {
 
   const state = (window.__gridaanMetaPixel ??= {});
   const fbq = installFbqQueue();
-  fbq.disablePushState = true;
   fbq('consent', 'grant');
 
   if (state.initializedPixelId !== pixelId) {
@@ -181,9 +180,12 @@ export function trackMetaPageView(pathname: string) {
   if (!ensureMetaPixel()) return false;
   if (!isMetaPixelSdkReady()) return false;
   const state = (window.__gridaanMetaPixel ??= {});
-  if (state.lastTrackedPath === pathname) return false;
+  if (state.initialPageViewTracked) return false;
   const tracked = trackMetaStandardEvent('PageView', undefined, { requireSdkReady: true });
-  if (tracked) state.lastTrackedPath = pathname;
+  if (tracked) {
+    state.initialPageViewTracked = true;
+    state.initialPageViewPath = pathname;
+  }
   return tracked;
 }
 
