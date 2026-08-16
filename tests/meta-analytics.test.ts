@@ -945,11 +945,12 @@ describe('Meta source isolation, CSP, and server contracts', () => {
     expect(config).toMatch(/script-src-elem[\s\S]*https:\/\/connect\.facebook\.net/);
     expect(config).toMatch(/img-src[\s\S]*https:\/\/www\.facebook\.com/);
     expect(config).toMatch(/connect-src[\s\S]*https:\/\/www\.facebook\.com/);
+    expect(config).toMatch(/frame-src[\s\S]*https:\/\/www\.facebook\.com/);
     expect(config).not.toContain('*.facebook.com');
     expect(config).not.toContain('*.fbcdn.net');
     expect(config).toContain("object-src 'none'");
     expect(config).toContain("base-uri 'self'");
-    expect(config).toContain("form-action 'self'");
+    expect(config).toContain("form-action 'self' https://www.facebook.com");
     expect(config).toContain("frame-ancestors 'none'");
     expect(config).toContain('https://checkout.razorpay.com');
     expect(config).toContain('https://api.razorpay.com');

@@ -117,13 +117,14 @@ const nextConfig = {
 
       frame-src
         'self'
+        https://www.facebook.com
         https://api.razorpay.com
         https://checkout.razorpay.com
         https://*.razorpay.com;
 
       object-src 'none';
       base-uri 'self';
-      form-action 'self';
+      form-action 'self' https://www.facebook.com;
       frame-ancestors 'none';
     `
       .replace(/\s{2,}/g, ' ')
