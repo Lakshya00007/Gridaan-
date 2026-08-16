@@ -143,9 +143,21 @@ type ScriptStub = {
   onerror: ((event: Event) => void) | null;
 };
 
+type CapturedMetaCall = {
+  call: unknown[];
+  url: string;
+};
+
+type HistoryStub = {
+  pushState(data: unknown, unused: string, url?: string | URL | null): void;
+  replaceState(data: unknown, unused: string, url?: string | URL | null): void;
+};
+
 type MetaBrowserHarness = {
   meta: MetaClientModule;
   delivered: unknown[][];
+  captured: CapturedMetaCall[];
+  history: HistoryStub;
   target: EventTarget;
   storage: MemoryStorage;
   getScript: () => ScriptStub | null;
@@ -158,7 +170,8 @@ type MetaBrowserHarness = {
     };
     __gridaanMetaPixel?: {
       sdkReady?: boolean;
-      lastTrackedPath?: string;
+      initialPageViewTracked?: boolean;
+      initialPageViewPath?: string;
     };
   };
 };
@@ -191,16 +204,64 @@ async function createMetaBrowserHarness({
 
   const target = new EventTarget();
   const delivered: unknown[][] = [];
+  const captured: CapturedMetaCall[] = [];
   const elements = new Map<string, ScriptStub>();
   let script: ScriptStub | null = null;
+  const locationMock = {
+    href: `https://${hostname}/`,
+    hostname,
+    pathname: '/',
+  };
+  const setUrl = (url: string | URL | null | undefined) => {
+    if (url == null) return;
+    const next = new URL(String(url), locationMock.href);
+    locationMock.href = next.href;
+    locationMock.hostname = next.hostname;
+    locationMock.pathname = next.pathname;
+  };
+  const history: HistoryStub = {
+    pushState(_data, _unused, url) {
+      setUrl(url);
+    },
+    replaceState(_data, _unused, url) {
+      setUrl(url);
+    },
+  };
+  let metaSpaHistoryInstalled = false;
+  let previousMetaUrl = locationMock.href;
+  const recordMetaCall = (...args: unknown[]) => {
+    delivered.push(args);
+    captured.push({ call: args, url: locationMock.href });
+  };
+  const emitAutomaticPageViewIfUrlChanged = () => {
+    const currentUrl = locationMock.href;
+    if (currentUrl === previousMetaUrl) return;
+    previousMetaUrl = currentUrl;
+    windowMock.fbq?.callMethod?.('trackCustom', 'PageView');
+  };
+  const installMetaSpaHistory = () => {
+    if (metaSpaHistoryInstalled || windowMock.fbq?.disablePushState === true) return;
+    metaSpaHistoryInstalled = true;
+    const pushState = history.pushState.bind(history);
+    const replaceState = history.replaceState.bind(history);
+    history.pushState = (...args) => {
+      pushState(...args);
+      emitAutomaticPageViewIfUrlChanged();
+    };
+    history.replaceState = (...args) => {
+      replaceState(...args);
+      emitAutomaticPageViewIfUrlChanged();
+    };
+    target.addEventListener('popstate', emitAutomaticPageViewIfUrlChanged);
+  };
   const windowMock: MetaBrowserHarness['windowMock'] & {
-    location: { hostname: string };
+    location: typeof locationMock;
     localStorage: MemoryStorage;
     addEventListener: EventTarget['addEventListener'];
     removeEventListener: EventTarget['removeEventListener'];
     dispatchEvent: EventTarget['dispatchEvent'];
   } = {
-    location: { hostname },
+    location: locationMock,
     localStorage: storage,
     addEventListener: target.addEventListener.bind(target),
     removeEventListener: target.removeEventListener.bind(target),
@@ -237,14 +298,15 @@ async function createMetaBrowserHarness({
   return {
     meta,
     delivered,
+    captured,
+    history,
     target,
     storage,
     getScript: () => script,
     makeSdkReady: () => {
       if (!windowMock.fbq) throw new Error('fbq was not installed');
-      windowMock.fbq.callMethod = (...args: unknown[]) => {
-        delivered.push(args);
-      };
+      windowMock.fbq.callMethod = recordMetaCall;
+      installMetaSpaHistory();
       script?.onload?.(new Event('load'));
     },
     windowMock,
@@ -473,7 +535,7 @@ describe('Meta runtime gates', () => {
 });
 
 describe('Meta browser Pixel dispatch', () => {
-  it('disables Meta automatic SPA PageView behavior before Pixel initialization', async () => {
+  it('leaves Meta automatic SPA PageView behavior enabled before Pixel initialization', async () => {
     const { meta, windowMock } = await createMetaBrowserHarness();
 
     expect(meta.ensureMetaPixel()).toBe(true);
@@ -483,13 +545,13 @@ describe('Meta browser Pixel dispatch', () => {
       (call) => call[0] === 'init' && call[1] === META_PIXEL_ID
     );
 
-    expect(windowMock.fbq?.disablePushState).toBe(true);
+    expect(windowMock.fbq?.disablePushState).not.toBe(true);
     expect(initIndex).toBeGreaterThanOrEqual(0);
     expect(queue.some((call) => call[0] === 'trackCustom')).toBe(false);
   });
 
-  it('sends PageView as one standard event per pathname after the real SDK is ready', async () => {
-    const { meta, delivered, makeSdkReady } = await createMetaBrowserHarness();
+  it('sends one initial standard PageView and lets Meta history send SPA PageViews', async () => {
+    const { meta, captured, delivered, history, makeSdkReady } = await createMetaBrowserHarness();
 
     expect(meta.trackMetaPageView('/')).toBe(false);
     expect(deliveredTrackCalls(delivered)).toEqual([]);
@@ -498,14 +560,25 @@ describe('Meta browser Pixel dispatch', () => {
 
     expect(meta.trackMetaPageView('/')).toBe(true);
     expect(meta.trackMetaPageView('/')).toBe(false);
-    expect(meta.trackMetaPageView('/products')).toBe(true);
-    expect(meta.trackMetaPageView('/products')).toBe(false);
+    history.pushState({}, '', '/shop');
+    expect(meta.trackMetaPageView('/shop')).toBe(false);
+    history.pushState({}, '', '/shop');
+    expect(meta.trackMetaPageView('/shop')).toBe(false);
+    history.pushState({}, '', '/product/gold-earrings');
+    expect(meta.trackMetaPageView('/product/gold-earrings')).toBe(false);
 
     expect(deliveredTrackCalls(delivered)).toEqual([
       ['track', 'PageView', undefined],
-      ['track', 'PageView', undefined],
     ]);
-    expect(delivered.some((call) => call[0] === 'trackCustom')).toBe(false);
+    expect(
+      captured
+        .filter((entry) => entry.call[1] === 'PageView')
+        .map((entry) => [entry.call[0], entry.call[1], entry.url])
+    ).toEqual([
+      ['track', 'PageView', 'https://www.gridaan.com/'],
+      ['trackCustom', 'PageView', 'https://www.gridaan.com/shop'],
+      ['trackCustom', 'PageView', 'https://www.gridaan.com/product/gold-earrings'],
+    ]);
   });
 
   it('sends standard ecommerce events with track, never trackCustom', async () => {
@@ -627,7 +700,9 @@ describe('Meta browser Pixel dispatch', () => {
   });
 
   it('does not deliver ViewContent while marketing consent is rejected', async () => {
-    const { meta, delivered, target } = await createMetaBrowserHarness({ marketing: false });
+    const { meta, delivered, history, target, windowMock } = await createMetaBrowserHarness({
+      marketing: false,
+    });
     const item = product();
 
     function tryTrackViewContent() {
@@ -640,12 +715,14 @@ describe('Meta browser Pixel dispatch', () => {
     tryTrackViewContent();
     target.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
     target.dispatchEvent(new Event(meta.META_PIXEL_READY_EVENT));
+    history.pushState({}, '', '/shop');
 
+    expect(windowMock.fbq).toBeUndefined();
     expect(deliveredTrackCalls(delivered)).toEqual([]);
   });
 
-  it('does not globally suppress legitimate different product ViewContent events', async () => {
-    const { meta, delivered, makeSdkReady } = await createMetaBrowserHarness();
+  it('uses Meta history route context for product ViewContent across SPA product navigation', async () => {
+    const { meta, captured, delivered, history, makeSdkReady } = await createMetaBrowserHarness();
     let viewedProductId: string | null = null;
     const first = product();
     const second = product({
@@ -657,6 +734,7 @@ describe('Meta browser Pixel dispatch', () => {
 
     expect(meta.ensureMetaPixel()).toBe(true);
     makeSdkReady();
+    expect(meta.trackMetaPageView('/')).toBe(true);
 
     function tryTrackViewContent(item: Product) {
       if (viewedProductId === item.id) return;
@@ -664,13 +742,35 @@ describe('Meta browser Pixel dispatch', () => {
       if (tracked) viewedProductId = item.id;
     }
 
+    history.pushState({}, '', '/shop');
+    history.pushState({}, '', '/product/gold-earrings');
     tryTrackViewContent(first);
     tryTrackViewContent(first);
+    history.pushState({}, '', '/product/silver-ring');
     tryTrackViewContent(second);
 
     expect(deliveredTrackCalls(delivered)).toEqual([
+      ['track', 'PageView', undefined],
       ['track', 'ViewContent', buildViewContentEvent(first)],
       ['track', 'ViewContent', buildViewContentEvent(second)],
+    ]);
+    expect(
+      captured
+        .filter((entry) => entry.call[1] === 'PageView')
+        .map((entry) => [entry.call[0], entry.url])
+    ).toEqual([
+      ['track', 'https://www.gridaan.com/'],
+      ['trackCustom', 'https://www.gridaan.com/shop'],
+      ['trackCustom', 'https://www.gridaan.com/product/gold-earrings'],
+      ['trackCustom', 'https://www.gridaan.com/product/silver-ring'],
+    ]);
+    expect(
+      captured
+        .filter((entry) => entry.call[1] === 'ViewContent')
+        .map((entry) => [entry.url, (entry.call[2] as { content_ids: string[] }).content_ids[0]])
+    ).toEqual([
+      ['https://www.gridaan.com/product/gold-earrings', productId],
+      ['https://www.gridaan.com/product/silver-ring', secondProductId],
     ]);
   });
 });
