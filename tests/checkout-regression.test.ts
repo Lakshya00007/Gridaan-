@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPayableCheckoutIdentity,
   buildOrderItemRows,
   buildRazorpayOrderPayload,
+  canReuseCheckoutForPayableIdentity,
   createCheckoutFingerprint,
   createCheckoutReference,
   createRazorpayReceipt,
@@ -12,6 +14,7 @@ import {
   getRazorpayConfigurationError,
   getRazorpayOrderResponseError,
   getRazorpayOrderValidationError,
+  isPaymentAttemptReusable,
   sanitizeRazorpayNotes,
   shouldCommitCheckoutInventory,
 } from '@/lib/payments/checkout-preparation';
@@ -21,10 +24,13 @@ import {
   checkoutFailureLog,
 } from '@/lib/payments/checkout-errors';
 import { checkoutSchema, type CheckoutInput } from '@/lib/validators';
+import { isCheckoutAmountCurrent } from '@/lib/checkout-form';
 import { INDIAN_PHONE_ERROR, normalizeIndianPhone } from '@/lib/phone';
+import type { PaymentProviderOrder } from '@/lib/payments/types';
 import type { Product } from '@/types';
 
 const PRODUCT_ID = '11111111-1111-4111-8111-111111111111';
+const SECOND_PRODUCT_ID = '33333333-3333-4333-8333-333333333333';
 const ORDER_ID = '22222222-2222-4222-8222-222222222222';
 
 const checkoutInput: CheckoutInput = {
@@ -201,6 +207,237 @@ describe('checkout idempotency and retry decisions', () => {
         hasPayment: false,
       })
     ).toBe('in_progress');
+  });
+});
+
+describe('payable checkout reuse identity', () => {
+  const now = new Date('2026-08-17T10:00:00.000Z');
+  const validExpiresAt = '2026-08-17T10:10:00.000Z';
+  const expiredAt = '2026-08-17T09:59:00.000Z';
+
+  function identity(overrides: {
+    productId?: string;
+    quantity?: number;
+    unitPrice?: number;
+    coupon?: { id: string | null; code: string | null; discount: number };
+    shipping?: number;
+    total?: number;
+  } = {}) {
+    const quantity = overrides.quantity ?? 1;
+    const unitPrice = overrides.unitPrice ?? 799;
+    const discount = overrides.coupon?.discount ?? 0;
+    const shipping = overrides.shipping ?? 79;
+    const subtotal = unitPrice * quantity;
+    return buildPayableCheckoutIdentity({
+      items: [
+        {
+          product_id: overrides.productId ?? PRODUCT_ID,
+          quantity,
+          unit_price: unitPrice,
+        },
+      ],
+      coupon: overrides.coupon ?? { id: null, code: null, discount: 0 },
+      totals: {
+        subtotal,
+        discount,
+        shipping,
+        tax: 0,
+        total: overrides.total ?? subtotal - discount + shipping,
+      },
+    });
+  }
+
+  function providerOrder(amountPaise: number): PaymentProviderOrder {
+    return {
+      provider: 'razorpay',
+      gatewayOrderId: 'order_test_123',
+      amountPaise,
+      currency: 'INR',
+      status: 'pending',
+      integrationPending: false,
+      metadata: {},
+    };
+  }
+
+  it('allows exact same checkout retry while the pending session is still valid', () => {
+    const current = identity();
+    const metadata = { checkout_payable_signature: current.signature };
+
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: current.signature,
+      })
+    ).toBe(true);
+    expect(
+      isPaymentAttemptReusable({
+        attempt: {
+          amount_paise: 87800,
+          currency: 'INR',
+          expires_at: validExpiresAt,
+          status: 'pending',
+        },
+        providerOrder: providerOrder(87800),
+        expectedAmountPaise: 87800,
+        expectedCurrency: 'INR',
+        now,
+      })
+    ).toBe(true);
+  });
+
+  it('rejects old 378 pending checkout when the current cart is 878', () => {
+    const oldPending = identity({ unitPrice: 299, total: 378 });
+    const current = identity();
+
+    expect(oldPending.amount_paise).toBe(37800);
+    expect(current.amount_paise).toBe(87800);
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata: { checkout_payable_signature: oldPending.signature },
+        currentSignature: current.signature,
+      })
+    ).toBe(false);
+  });
+
+  it('rejects reuse when product, quantity, coupon, or shipping changes', () => {
+    const original = identity();
+    const metadata = { checkout_payable_signature: original.signature };
+
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: identity({ productId: SECOND_PRODUCT_ID }).signature,
+      })
+    ).toBe(false);
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: identity({ quantity: 2, total: 1677 }).signature,
+      })
+    ).toBe(false);
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: identity({
+          coupon: { id: 'coupon-id', code: 'SAVE100', discount: 100 },
+          total: 778,
+        }).signature,
+      })
+    ).toBe(false);
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: identity({ shipping: 0, total: 799 }).signature,
+      })
+    ).toBe(false);
+  });
+
+  it('allows reuse when the cart is restored to the exact original payable checkout', () => {
+    const original = identity();
+    const changed = identity({ quantity: 2, total: 1677 });
+    const restored = identity();
+    const metadata = { checkout_payable_signature: original.signature };
+
+    expect(changed.signature).not.toBe(original.signature);
+    expect(restored.signature).toBe(original.signature);
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: restored.signature,
+      })
+    ).toBe(true);
+  });
+
+  it('fails closed for expired attempts or missing comparison metadata', () => {
+    const current = identity();
+
+    expect(
+      canReuseCheckoutForPayableIdentity({
+        metadata: {},
+        currentSignature: current.signature,
+      })
+    ).toBe(false);
+    expect(
+      isPaymentAttemptReusable({
+        attempt: {
+          amount_paise: 87800,
+          currency: 'INR',
+          expires_at: expiredAt,
+          status: 'pending',
+        },
+        providerOrder: providerOrder(87800),
+        expectedAmountPaise: 87800,
+        expectedCurrency: 'INR',
+        now,
+      })
+    ).toBe(false);
+  });
+
+  it('rejects Razorpay amount mismatch before opening the payment modal', () => {
+    expect(isCheckoutAmountCurrent({ amount: 87800, currency: 'INR', total: 878 })).toBe(true);
+    expect(isCheckoutAmountCurrent({ amount: 37800, currency: 'INR', total: 878 })).toBe(false);
+    expect(isCheckoutAmountCurrent({ amount: 87800, currency: 'USD', total: 878 })).toBe(false);
+    expect(
+      isPaymentAttemptReusable({
+        attempt: {
+          amount_paise: 37800,
+          currency: 'INR',
+          expires_at: validExpiresAt,
+          status: 'pending',
+        },
+        providerOrder: providerOrder(37800),
+        expectedAmountPaise: 87800,
+        expectedCurrency: 'INR',
+        now,
+      })
+    ).toBe(false);
+  });
+
+  it('keeps same idempotency network retry on one provider order and one reservation path', () => {
+    expect(
+      getPaymentAttemptDecision({
+        status: 'pending',
+        hasProviderOrder: true,
+        hasPayment: true,
+      })
+    ).toBe('reuse');
+    expect(
+      isPaymentAttemptReusable({
+        attempt: {
+          amount_paise: 87800,
+          currency: 'INR',
+          expires_at: validExpiresAt,
+          status: 'pending',
+        },
+        providerOrder: providerOrder(87800),
+        expectedAmountPaise: 87800,
+        expectedCurrency: 'INR',
+        now,
+      })
+    ).toBe(true);
+  });
+
+  it('never treats captured or placed checkout as payable', () => {
+    expect(
+      getCheckoutResumeDecision({
+        orderStatus: 'placed',
+        paymentStatus: 'captured',
+      })
+    ).toBe('not_payable');
+    expect(
+      isPaymentAttemptReusable({
+        attempt: {
+          amount_paise: 87800,
+          currency: 'INR',
+          expires_at: validExpiresAt,
+          status: 'captured',
+        },
+        providerOrder: { ...providerOrder(87800), status: 'captured' },
+        expectedAmountPaise: 87800,
+        expectedCurrency: 'INR',
+        now,
+      })
+    ).toBe(false);
   });
 });
 

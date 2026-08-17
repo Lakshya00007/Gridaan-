@@ -146,6 +146,23 @@ export function getCheckoutDismissalState<TForm, TCheckout>(
   };
 }
 
+export function getCheckoutAmountPaise(total: number) {
+  if (!Number.isFinite(total) || total < 0) return 0;
+  return Math.round(total * 100);
+}
+
+export function isCheckoutAmountCurrent({
+  amount,
+  currency,
+  total,
+}: {
+  amount: number;
+  currency: string;
+  total: number;
+}) {
+  return currency === 'INR' && amount === getCheckoutAmountPaise(total);
+}
+
 export function buildCheckoutOrderPayload({
   form,
   couponCode,

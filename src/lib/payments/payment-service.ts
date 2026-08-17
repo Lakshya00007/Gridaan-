@@ -10,6 +10,8 @@ import { serverEnv } from '@/lib/env.server';
 import { CONSENT_VERSION } from '@/lib/analytics/consent';
 import { assertExpectedPaymentAmount } from './payment-validation';
 import {
+  buildPayableCheckoutIdentity,
+  canReuseCheckoutForPayableIdentity,
   buildOrderItemRows,
   createCheckoutFingerprint,
   createCheckoutReference,
@@ -19,6 +21,7 @@ import {
   getPaymentAttemptDecision,
   getPreparedCheckoutState,
   getRazorpayConfigurationError,
+  isPaymentAttemptReusable,
   isPreparedProviderOrder,
   shouldCommitCheckoutInventory,
 } from './checkout-preparation';
@@ -355,6 +358,11 @@ export async function createOnlineCheckout({
         }
       : null,
   });
+  const payableIdentity = buildPayableCheckoutIdentity({
+    items: pricingItems,
+    coupon,
+    totals,
+  });
   const orderValues = {
     user_id: profileId ?? null,
     customer_name: input.customer_name,
@@ -393,7 +401,13 @@ export async function createOnlineCheckout({
 
   if (order) {
     const metadata = (order.metadata ?? {}) as Record<string, unknown>;
-    if (metadata.checkout_fingerprint && metadata.checkout_fingerprint !== checkoutFingerprint) {
+    if (
+      metadata.checkout_fingerprint !== checkoutFingerprint ||
+      !canReuseCheckoutForPayableIdentity({
+        metadata,
+        currentSignature: payableIdentity.signature,
+      })
+    ) {
       throw checkoutError({
         publicError: 'idempotency_conflict',
         stage: 'order_resume',
@@ -428,6 +442,8 @@ export async function createOnlineCheckout({
           ...metadata,
           checkout_reference: checkoutReference,
           checkout_fingerprint: checkoutFingerprint,
+          checkout_payable_signature: payableIdentity.signature,
+          checkout_payable_identity: payableIdentity,
           online_payment_only: true,
           marketing_consent: marketingConsent,
         },
@@ -461,6 +477,8 @@ export async function createOnlineCheckout({
         metadata: {
           checkout_reference: checkoutReference,
           checkout_fingerprint: checkoutFingerprint,
+          checkout_payable_signature: payableIdentity.signature,
+          checkout_payable_identity: payableIdentity,
           online_payment_only: true,
           marketing_consent: marketingConsent,
         },
@@ -494,19 +512,28 @@ export async function createOnlineCheckout({
   try {
     const { data: existingItems, error: existingItemsError } = await supabase
       .from('order_items')
-      .select('id, product_id, quantity')
+      .select('id, product_id, quantity, unit_price')
       .eq('order_id', orderId);
     if (existingItemsError) {
       throw databaseError('order_items_lookup', existingItemsError, checkoutReference);
     }
 
     if (existingItems?.length) {
-      const expected = new Map(input.items.map((item) => [item.product_id, item.quantity]));
+      const expected = new Map(
+        pricingItems.map((item) => [
+          item.product_id,
+          { quantity: item.quantity, unitPrice: item.unit_price },
+        ])
+      );
       const matches =
         existingItems.length === expected.size &&
-        existingItems.every(
-          (item) => expected.get(String(item.product_id)) === Number(item.quantity)
-        );
+        existingItems.every((item) => {
+          const expectedItem = expected.get(String(item.product_id));
+          return (
+            expectedItem?.quantity === Number(item.quantity) &&
+            expectedItem.unitPrice === Number(item.unit_price)
+          );
+        });
       if (!matches) {
         throw checkoutError({
           publicError: 'idempotency_conflict',
@@ -633,6 +660,35 @@ export async function createPaymentOrderForOrder({
   }
 
   if (existingAttempt?.payment && isPreparedProviderOrder(existingAttempt.response_payload)) {
+    if (
+      !isPaymentAttemptReusable({
+        attempt: existingAttempt,
+        providerOrder: existingAttempt.response_payload,
+        expectedAmountPaise: amountPaise,
+        expectedCurrency: 'INR',
+      })
+    ) {
+      throw checkoutError({
+        publicError: 'idempotency_conflict',
+        stage: 'payment_attempt_update',
+        checkoutReference,
+        status: 409,
+      });
+    }
+    const { error: orderReuseUpdateError } = await supabase
+      .from('orders')
+      .update({
+        ...getPreparedCheckoutState(
+          typeof existingAttempt.expires_at === 'string'
+            ? existingAttempt.expires_at
+            : new Date(Date.now() + 15 * 60 * 1000).toISOString()
+        ),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', typedOrder.id);
+    if (orderReuseUpdateError) {
+      throw databaseError('order_resume', orderReuseUpdateError, checkoutReference);
+    }
     return {
       reused: true,
       payment: (existingAttempt as { payment?: unknown }).payment,
