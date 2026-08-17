@@ -42,6 +42,7 @@ import {
   CHECKOUT_FIELD_ORDER,
   EMPTY_CHECKOUT_FORM,
   getCheckoutDismissalState,
+  isCheckoutAmountCurrent,
   hasPreparedRazorpayCheckout,
   mapCheckoutApiFieldErrors,
   releaseCheckoutSubmission,
@@ -140,6 +141,25 @@ const indianStates = [
   'Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh',
   'Uttarakhand','West Bengal','Delhi',
 ];
+const PENDING_CHECKOUT_STORAGE_KEY = 'gridaan-pending-checkout';
+const CHECKOUT_IDEMPOTENCY_STORAGE_KEY = 'gridaan-razorpay-checkout-key';
+
+function isRestorablePendingCheckout(value: unknown): value is RazorpayCheckoutPayload {
+  if (!value || typeof value !== 'object') return false;
+  const checkout = value as Partial<RazorpayCheckoutPayload>;
+  const expiresAt = checkout.expires_at ? new Date(checkout.expires_at).getTime() : null;
+  const amount = checkout.amount;
+  return (
+    typeof checkout.order_id === 'string' &&
+    typeof checkout.checkout_reference === 'string' &&
+    typeof checkout.razorpay_order_id === 'string' &&
+    typeof amount === 'number' &&
+    Number.isSafeInteger(amount) &&
+    amount > 0 &&
+    checkout.currency === 'INR' &&
+    (expiresAt === null || (Number.isFinite(expiresAt) && expiresAt > Date.now()))
+  );
+}
 
 export default function CheckoutView() {
   const router = useRouter();
@@ -158,12 +178,17 @@ export default function CheckoutView() {
 
   useEffect(() => {
     setMounted(true);
-    const storedCheckout = window.localStorage.getItem('gridaan-pending-checkout');
+    const storedCheckout = window.localStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY);
     if (storedCheckout) {
       try {
-        setPendingCheckout(JSON.parse(storedCheckout) as RazorpayCheckoutPayload);
+        const parsed = JSON.parse(storedCheckout) as unknown;
+        if (isRestorablePendingCheckout(parsed)) {
+          setPendingCheckout(parsed);
+        } else {
+          window.localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+        }
       } catch {
-        window.localStorage.removeItem('gridaan-pending-checkout');
+        window.localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
       }
     }
     const supabase = createClient();
@@ -200,6 +225,23 @@ export default function CheckoutView() {
   }, [coupon, subtotal]);
   const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const total = Math.max(0, subtotal - discount + shipping);
+
+  useEffect(() => {
+    if (!mounted || !pendingCheckout || guest.length === 0) return;
+    if (
+      isCheckoutAmountCurrent({
+        amount: pendingCheckout.amount,
+        currency: pendingCheckout.currency,
+        total,
+      })
+    ) {
+      return;
+    }
+
+    setPendingCheckout(null);
+    window.localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+    window.localStorage.removeItem(CHECKOUT_IDEMPOTENCY_STORAGE_KEY);
+  }, [guest.length, mounted, pendingCheckout, total]);
 
   useEffect(() => {
     if (!mounted || guest.length === 0) return;
@@ -265,16 +307,29 @@ export default function CheckoutView() {
   }
 
   function getCheckoutIdempotencyKey() {
-    const storageKey = 'gridaan-razorpay-checkout-key';
-    const existing = window.localStorage.getItem(storageKey);
+    const existing = window.localStorage.getItem(CHECKOUT_IDEMPOTENCY_STORAGE_KEY);
     if (existing) return existing;
     const key = `checkout:${crypto.randomUUID()}`;
-    window.localStorage.setItem(storageKey, key);
+    window.localStorage.setItem(CHECKOUT_IDEMPOTENCY_STORAGE_KEY, key);
     return key;
   }
 
   function clearCheckoutIdempotencyKey() {
-    window.localStorage.removeItem('gridaan-razorpay-checkout-key');
+    window.localStorage.removeItem(CHECKOUT_IDEMPOTENCY_STORAGE_KEY);
+  }
+
+  function clearPendingCheckoutState({ clearIdempotency = false } = {}) {
+    setPendingCheckout(null);
+    window.localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+    if (clearIdempotency) clearCheckoutIdempotencyKey();
+  }
+
+  function hasCurrentPayableAmount(checkout: RazorpayCheckoutPayload) {
+    return isCheckoutAmountCurrent({
+      amount: checkout.amount,
+      currency: checkout.currency,
+      total,
+    });
   }
 
   async function loadRazorpayCheckout() {
@@ -346,51 +401,14 @@ export default function CheckoutView() {
     return data;
   }
 
-  async function retryPendingPayment(checkout: RazorpayCheckoutPayload) {
-    const scriptLoaded = await loadRazorpayCheckout();
-    if (!scriptLoaded || !window.Razorpay) {
-      toast.error('Could not load Razorpay Checkout. Please try again.');
-      setCheckoutProcessing(false);
-      return;
-    }
-
-    const retryKey = `retry:${crypto.randomUUID()}`;
-    const response = await fetch('/api/payments/create-order', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'idempotency-key': retryKey },
-      body: JSON.stringify({
-        order_id: checkout.order_id,
-        checkout_reference: checkout.checkout_reference,
-        idempotency_key: retryKey,
-      }),
-    });
-    const data = await response.json() as {
-      payment?: { id: string };
-      attempt?: { id: string; expires_at?: string | null };
-      provider_order?: { gatewayOrderId: string; amountPaise: number; currency: 'INR' };
-      error?: string;
-    };
-    if (!response.ok || !data.provider_order?.gatewayOrderId) {
-      toast.error(data.error ?? 'Could not retry payment');
-      setCheckoutProcessing(false);
-      return;
-    }
-
-    const nextCheckout: RazorpayCheckoutPayload = {
-      ...checkout,
-      payment_id: data.payment?.id ?? checkout.payment_id,
-      attempt_id: data.attempt?.id ?? checkout.attempt_id,
-      razorpay_order_id: data.provider_order.gatewayOrderId,
-      amount: data.provider_order.amountPaise,
-      currency: data.provider_order.currency,
-      expires_at: data.attempt?.expires_at ?? checkout.expires_at,
-    };
-    setPendingCheckout(nextCheckout);
-    window.localStorage.setItem('gridaan-pending-checkout', JSON.stringify(nextCheckout));
-    openRazorpayCheckout(nextCheckout);
-  }
-
   function openRazorpayCheckout(checkout: RazorpayCheckoutPayload) {
+    if (!hasCurrentPayableAmount(checkout)) {
+      clearPendingCheckoutState({ clearIdempotency: true });
+      toast.error('Payment session changed. Please retry checkout.');
+      setCheckoutProcessing(false);
+      return;
+    }
+
     if (!checkout.key && !publicEnv.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
       toast.error('Razorpay key is not configured');
       setCheckoutProcessing(false);
@@ -448,7 +466,7 @@ export default function CheckoutView() {
           clear();
           setSearchQuery('');
           clearCheckoutIdempotencyKey();
-          window.localStorage.removeItem('gridaan-pending-checkout');
+          window.localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
           toast.success('Payment successful. Order placed.');
           startTransition(() => {
             router.push(`/order-success?order=${encodeURIComponent(verified.order!.order_number)}`);
@@ -505,10 +523,6 @@ export default function CheckoutView() {
     }
     setProcessing(true);
     try {
-      if (pendingCheckout) {
-        await retryPendingPayment(pendingCheckout);
-        return;
-      }
       const scriptLoaded = await loadRazorpayCheckout();
       if (!scriptLoaded || !window.Razorpay) {
         toast.error('Could not load Razorpay Checkout. Please try again.');
@@ -525,12 +539,23 @@ export default function CheckoutView() {
           quantity: item.quantity,
         })),
       });
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey },
-        body: JSON.stringify(orderPayload),
-      });
-      const data = (await res.json()) as OrderApiResponse;
+
+      async function prepareCheckout(key: string) {
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'idempotency-key': key },
+          body: JSON.stringify(orderPayload),
+        });
+        return { res, data: (await res.json()) as OrderApiResponse };
+      }
+
+      let prepared = await prepareCheckout(idempotencyKey);
+      if (!prepared.res.ok && prepared.data.error === 'idempotency_conflict') {
+        clearPendingCheckoutState({ clearIdempotency: true });
+        prepared = await prepareCheckout(getCheckoutIdempotencyKey());
+      }
+
+      const { res, data } = prepared;
       if (!res.ok) {
         if (data.error === 'idempotency_conflict') clearCheckoutIdempotencyKey();
         const apiErrors = mapCheckoutApiFieldErrors(data.issues?.fieldErrors);
@@ -560,8 +585,14 @@ export default function CheckoutView() {
         quantity: item.quantity,
       }));
       const preparedCheckout = { ...data.checkout, items: checkoutItems };
+      if (!hasCurrentPayableAmount(preparedCheckout)) {
+        clearPendingCheckoutState({ clearIdempotency: true });
+        toast.error('Payment amount changed. Please retry checkout.');
+        setCheckoutProcessing(false);
+        return;
+      }
       setPendingCheckout(preparedCheckout);
-      window.localStorage.setItem('gridaan-pending-checkout', JSON.stringify(preparedCheckout));
+      window.localStorage.setItem(PENDING_CHECKOUT_STORAGE_KEY, JSON.stringify(preparedCheckout));
       openRazorpayCheckout(preparedCheckout);
     } catch (error) {
       console.error('[checkout] placeOrder failed', error);

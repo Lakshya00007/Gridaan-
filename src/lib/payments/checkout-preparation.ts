@@ -23,6 +23,30 @@ export type OrderItemInsertRow = {
   line_total: number;
 };
 
+export type PayableCheckoutIdentity = {
+  version: 1;
+  currency: 'INR';
+  amount_paise: number;
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+  }>;
+  coupon: {
+    id: string | null;
+    code: string | null;
+    discount: number;
+  };
+  totals: {
+    subtotal: number;
+    discount: number;
+    shipping: number;
+    tax: number;
+    total: number;
+  };
+  signature: string;
+};
+
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (!value || typeof value !== 'object') return value;
@@ -58,6 +82,69 @@ export function createCheckoutFingerprint(input: CheckoutInput, profileId?: stri
   });
 
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+}
+
+function rupeeAmount(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.round(numeric * 100) / 100;
+}
+
+function amountToPaise(value: unknown) {
+  return Math.round(rupeeAmount(value) * 100);
+}
+
+export function buildPayableCheckoutIdentity({
+  items,
+  coupon,
+  totals,
+}: {
+  items: Array<{ product_id: string; quantity: number; unit_price: number }>;
+  coupon: { id: string | null; code: string | null; discount: number };
+  totals: PayableCheckoutIdentity['totals'];
+}): PayableCheckoutIdentity {
+  const unsigned = {
+    version: 1 as const,
+    currency: 'INR' as const,
+    amount_paise: amountToPaise(totals.total),
+    items: items
+      .map((item) => ({
+        product_id: item.product_id,
+        quantity: Number(item.quantity),
+        unit_price: rupeeAmount(item.unit_price),
+      }))
+      .sort((left, right) => left.product_id.localeCompare(right.product_id)),
+    coupon: {
+      id: coupon.id,
+      code: coupon.code ? coupon.code.toUpperCase() : null,
+      discount: rupeeAmount(coupon.discount),
+    },
+    totals: {
+      subtotal: rupeeAmount(totals.subtotal),
+      discount: rupeeAmount(totals.discount),
+      shipping: rupeeAmount(totals.shipping),
+      tax: rupeeAmount(totals.tax),
+      total: rupeeAmount(totals.total),
+    },
+  };
+
+  return {
+    ...unsigned,
+    signature: createHash('sha256').update(JSON.stringify(canonicalize(unsigned))).digest('hex'),
+  };
+}
+
+export function canReuseCheckoutForPayableIdentity({
+  metadata,
+  currentSignature,
+}: {
+  metadata: Record<string, unknown>;
+  currentSignature: string;
+}) {
+  return (
+    typeof metadata.checkout_payable_signature === 'string' &&
+    metadata.checkout_payable_signature === currentSignature
+  );
 }
 
 export function buildOrderItemRows({
@@ -111,6 +198,41 @@ export function isPreparedProviderOrder(value: unknown): value is PaymentProvide
     order.currency === 'INR' &&
     typeof order.metadata === 'object'
   );
+}
+
+export function isPaymentAttemptReusable({
+  attempt,
+  providerOrder,
+  expectedAmountPaise,
+  expectedCurrency,
+  now = new Date(),
+}: {
+  attempt: {
+    amount_paise?: unknown;
+    currency?: unknown;
+    expires_at?: unknown;
+    status?: unknown;
+  };
+  providerOrder: PaymentProviderOrder;
+  expectedAmountPaise: number;
+  expectedCurrency: string;
+  now?: Date;
+}) {
+  const expiresAt =
+    typeof attempt.expires_at === 'string' ? new Date(attempt.expires_at).getTime() : null;
+  if (expiresAt != null && (!Number.isFinite(expiresAt) || expiresAt <= now.getTime())) {
+    return false;
+  }
+  if (Number(attempt.amount_paise) !== expectedAmountPaise) return false;
+  if (String(attempt.currency ?? '').toUpperCase() !== expectedCurrency.toUpperCase()) {
+    return false;
+  }
+  if (providerOrder.amountPaise !== expectedAmountPaise) return false;
+  if (providerOrder.currency.toUpperCase() !== expectedCurrency.toUpperCase()) return false;
+  const terminalStatuses = ['captured', 'paid', 'partially_refunded', 'refunded'];
+  if (terminalStatuses.includes(String(attempt.status ?? ''))) return false;
+  if (terminalStatuses.includes(String(providerOrder.status ?? ''))) return false;
+  return true;
 }
 
 export function getRazorpayConfigurationError({
