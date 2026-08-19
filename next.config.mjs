@@ -23,6 +23,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.gridaan.com',
+      },
     ],
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [360, 640, 750, 828, 1080, 1200, 1920],
@@ -99,6 +103,7 @@ const nextConfig = {
         https://images.pexels.com
         https://res.cloudinary.com
         https://lh3.googleusercontent.com
+        https://images.gridaan.com
         https://www.facebook.com
         https://*.razorpay.com;
 

@@ -36,6 +36,11 @@ const serverSchema = z.object({
   META_CAPI_ENABLED: z.boolean().default(false),
   META_CAPI_ACCESS_TOKEN: z.string().trim().min(20).optional(),
   META_CAPI_TEST_EVENT_CODE: z.string().trim().min(3).max(120).optional(),
+  R2_ACCOUNT_ID: z.string().trim().optional(),
+  R2_ACCESS_KEY_ID: z.string().trim().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().trim().optional(),
+  R2_BUCKET_NAME: z.string().trim().optional(),
+  R2_PUBLIC_BASE_URL: z.string().trim().url().optional(),
 }).superRefine((value, ctx) => {
   if (value.NIMBUSPOST_ENABLED) {
     ctx.addIssue({
@@ -60,6 +65,22 @@ const serverSchema = z.object({
         message: 'Meta CAPI requires a server-only access token.',
       });
     }
+  }
+  const r2Values = [
+    value.R2_ACCOUNT_ID,
+    value.R2_ACCESS_KEY_ID,
+    value.R2_SECRET_ACCESS_KEY,
+    value.R2_BUCKET_NAME,
+    value.R2_PUBLIC_BASE_URL,
+  ];
+  const hasAnyR2Value = r2Values.some(Boolean);
+  const hasEveryR2Value = r2Values.every(Boolean);
+  if (hasAnyR2Value && !hasEveryR2Value) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['R2_ACCOUNT_ID'],
+      message: 'Cloudflare R2 configuration must include account ID, access key, secret, bucket, and public base URL together.',
+    });
   }
 });
 
@@ -91,6 +112,11 @@ export const serverEnv = (() => {
     META_CAPI_ENABLED: parseServerFeatureFlag(process.env.META_CAPI_ENABLED),
     META_CAPI_ACCESS_TOKEN: process.env.META_CAPI_ACCESS_TOKEN || undefined,
     META_CAPI_TEST_EVENT_CODE: process.env.META_CAPI_TEST_EVENT_CODE || undefined,
+    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID || undefined,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID || undefined,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY || undefined,
+    R2_BUCKET_NAME: process.env.R2_BUCKET_NAME || undefined,
+    R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL || undefined,
   });
 
   if (!parsed.success) {

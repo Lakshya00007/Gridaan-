@@ -6,12 +6,34 @@ import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { createServiceClient } from '@/lib/supabase/server';
 import { assertJsonRequest, assertSameOrigin, errorResponse, notFound } from '@/lib/api';
 import { productSchema } from '@/lib/validators';
+import { deleteManagedProductImageUrls } from '@/lib/r2/client';
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
 const PRODUCT_SELECT = '*, category:categories(*)';
+
+function getRemovedImages(before: unknown, after: unknown) {
+  const beforeImages = Array.isArray(before) ? before.filter((url): url is string => typeof url === 'string') : [];
+  const afterImages = new Set(
+    Array.isArray(after) ? after.filter((url): url is string => typeof url === 'string') : []
+  );
+
+  return beforeImages.filter((url) => !afterImages.has(url));
+}
+
+async function deleteManagedImagesSafely(urls: string[], context: string) {
+  if (urls.length === 0) return;
+  try {
+    await deleteManagedProductImageUrls(urls);
+  } catch (error) {
+    console.warn(`[admin/products] R2 ${context} cleanup failed`, {
+      image_count: urls.length,
+      error: error instanceof Error ? error.name : 'unknown',
+    });
+  }
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -50,6 +72,14 @@ export async function PATCH(
       afterData: product,
     });
 
+    await deleteManagedImagesSafely(
+      getRemovedImages(
+        (before as { images?: unknown } | null)?.images,
+        (product as { images?: unknown }).images
+      ),
+      'removed-image'
+    );
+
     revalidatePath('/admin/products');
     revalidatePath('/');
     revalidatePath('/shop');
@@ -75,6 +105,13 @@ export async function DELETE(
 
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
+
+    await deleteManagedImagesSafely(
+      Array.isArray((before as { images?: unknown } | null)?.images)
+        ? ((before as { images: string[] }).images)
+        : [],
+      'product-delete'
+    );
 
     await writeAdminAuditLog({
       supabase,
