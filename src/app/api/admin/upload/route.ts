@@ -1,11 +1,22 @@
-import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireAdminPermission } from '@/lib/admin/permissions';
-import { createServiceClient } from '@/lib/supabase/server';
-import { assertSameOrigin, badRequest, errorResponse } from '@/lib/api';
+import { assertJsonRequest, assertSameOrigin, badRequest, errorResponse } from '@/lib/api';
+import { deleteManagedProductImageUrls } from '@/lib/r2/client';
+import { ProductImageValidationError } from '@/lib/r2/product-media';
+import { uploadProductImage } from '@/lib/r2/product-images.server';
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']);
+const uploadProductImageSchema = z.object({
+  product_id: z.string().uuid().optional(),
+});
+
+const deleteProductImagesSchema = z.object({
+  urls: z.array(z.string().url()).min(1).max(50),
+});
+
+function productImageErrorResponse(error: ProductImageValidationError) {
+  return errorResponse(badRequest(error.message, error.code));
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,37 +24,51 @@ export async function POST(req: NextRequest) {
     await requireAdminPermission('products.write');
 
     const formData = await req.formData();
+    const productIdValue = formData.get('product_id');
+    const { product_id: productId } = uploadProductImageSchema.parse({
+      product_id: typeof productIdValue === 'string' && productIdValue.trim()
+        ? productIdValue.trim()
+        : undefined,
+    });
     const file = formData.get('file');
 
     if (!(file instanceof File)) {
       throw badRequest('File is required', 'missing_file');
     }
 
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      throw badRequest('Unsupported image type', 'invalid_file_type');
+    const uploaded = await uploadProductImage({
+      file,
+      productId,
+    });
+
+    return NextResponse.json({
+      url: uploaded.url,
+      product_id: uploaded.productId,
+      width: uploaded.width,
+      height: uploaded.height,
+      size: uploaded.size,
+      content_type: uploaded.contentType,
+    });
+  } catch (err) {
+    if (err instanceof ProductImageValidationError) {
+      return productImageErrorResponse(err);
     }
+    return errorResponse(err);
+  }
+}
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw badRequest('Image must be 5MB or smaller', 'file_too_large');
-    }
+export async function DELETE(req: NextRequest) {
+  try {
+    assertJsonRequest(req);
+    assertSameOrigin(req);
+    await requireAdminPermission('products.write');
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const extension = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
-    const path = `products/${randomUUID()}.${extension}`;
-    const supabase = createServiceClient();
+    const input = deleteProductImagesSchema.parse(await req.json());
+    const deletedKeys = await deleteManagedProductImageUrls(input.urls);
 
-    const { error } = await supabase.storage
-      .from('product-images')
-      .upload(path, bytes, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (error) throw error;
-
-    const { data } = supabase.storage.from('product-images').getPublicUrl(path);
-
-    return NextResponse.json({ url: data.publicUrl });
+    return NextResponse.json({
+      deleted: deletedKeys.length,
+    });
   } catch (err) {
     return errorResponse(err);
   }

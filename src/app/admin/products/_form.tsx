@@ -19,6 +19,13 @@ type ImageMeta = {
   is_primary?: boolean;
 };
 
+type UploadResponse = {
+  url?: string;
+  product_id?: string;
+  error?: string;
+  code?: string;
+};
+
 export default function ProductForm({ product, categories, onClose, onSave }: Props) {
   const initialImageMeta = useMemo<ImageMeta[]>(() => {
     const existing = product.image_metadata ?? [];
@@ -67,6 +74,9 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
     seo_description: product.seo_description ?? '',
     search_keywords_text: (product.search_keywords ?? []).join(', '),
   });
+  const initialImageUrls = useMemo(() => new Set(product.images ?? []), [product.images]);
+  const [mediaProductId, setMediaProductId] = useState(product.id ?? null);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -82,6 +92,27 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
     }));
   }
 
+  async function requestDeleteUploadedImages(urls: string[]) {
+    if (urls.length === 0) return;
+    await fetch('/api/admin/upload', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ urls }),
+    }).catch(() => null);
+  }
+
+  async function cleanupUnsavedUploads(urls = uploadedImageUrls) {
+    const safeUrls = urls.filter((url) => !initialImageUrls.has(url));
+    if (safeUrls.length === 0) return;
+    setUploadedImageUrls((current) => current.filter((url) => !safeUrls.includes(url)));
+    await requestDeleteUploadedImages(safeUrls);
+  }
+
+  function handleClose() {
+    void cleanupUnsavedUploads();
+    onClose();
+  }
+
   function moveImage(index: number, direction: -1 | 1) {
     const nextIndex = index + direction;
     if (nextIndex < 0 || nextIndex >= form.images.length) return;
@@ -90,26 +121,54 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
     setImageList(next);
   }
 
-  async function handleImageUpload(file: File) {
+  function removeImage(url: string) {
+    setImageList(form.images.filter((imageUrl) => imageUrl !== url));
+    if (uploadedImageUrls.includes(url) && !initialImageUrls.has(url)) {
+      setUploadedImageUrls((current) => current.filter((imageUrl) => imageUrl !== url));
+      void requestDeleteUploadedImages([url]);
+    }
+  }
+
+  async function handleImageUpload(files: File[]) {
+    if (files.length === 0) return;
     setUploading(true);
+    const uploadedUrls: string[] = [];
+    let nextProductId = mediaProductId;
+
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? 'Upload failed');
-        return;
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        if (nextProductId) fd.append('product_id', nextProductId);
+
+        const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+        const data = (await res.json()) as UploadResponse;
+        if (!res.ok || !data.url || !data.product_id) {
+          throw new Error(data.error ?? 'Upload failed');
+        }
+
+        nextProductId = data.product_id;
+        uploadedUrls.push(data.url);
       }
+
+      setMediaProductId(nextProductId);
+      setUploadedImageUrls((current) => [...current, ...uploadedUrls]);
       setForm((current) => ({
         ...current,
-        images: [...current.images, data.url],
+        images: [...current.images, ...uploadedUrls],
         image_metadata: [
           ...current.image_metadata,
-          { url: data.url, alt: current.name, is_primary: current.images.length === 0 },
+          ...uploadedUrls.map((url, index) => ({
+            url,
+            alt: current.name,
+            is_primary: current.images.length + index === 0,
+          })),
         ],
       }));
-      toast.success('Image uploaded');
+      toast.success(uploadedUrls.length === 1 ? 'Image uploaded' : 'Images uploaded');
+    } catch (error) {
+      await requestDeleteUploadedImages(uploadedUrls);
+      toast.error(error instanceof Error ? error.message : 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -117,6 +176,7 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     if (!form.name.trim()) {
       toast.error('Name is required');
       return;
@@ -129,7 +189,7 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
     try {
       const slug = form.slug.trim() || slugify(form.name);
       const data = {
-        ...(product.id ? { id: product.id } : {}),
+        ...(product.id || mediaProductId ? { id: product.id ?? mediaProductId ?? undefined } : {}),
         name: form.name,
         slug,
         sku: form.sku || null,
@@ -167,14 +227,18 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
         search_keywords: splitList(form.search_keywords_text),
       };
       const saved = await onSave(data);
-      if (saved) onClose();
+      if (saved) {
+        onClose();
+      } else {
+        await cleanupUnsavedUploads();
+      }
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={handleClose}>
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
@@ -185,7 +249,7 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
             <h2 className="text-lg font-semibold">{product.id ? 'Edit product' : 'New product'}</h2>
             <p className="text-xs text-neutral-500">Catalogue, inventory, media, SEO and commerce eligibility</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-neutral-100" aria-label="Close">
+          <button type="button" onClick={handleClose} className="rounded-lg p-2 hover:bg-neutral-100" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -298,7 +362,7 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
                             <IconButton type="button" onClick={() => moveImage(i, -1)} disabled={i === 0} label="Move up"><ArrowUp className="h-3.5 w-3.5" /></IconButton>
                             <IconButton type="button" onClick={() => moveImage(i, 1)} disabled={i === form.images.length - 1} label="Move down"><ArrowDown className="h-3.5 w-3.5" /></IconButton>
                             <IconButton type="button" onClick={() => setImageList([img, ...form.images.filter((url) => url !== img)])} disabled={i === 0} label="Make primary"><Star className="h-3.5 w-3.5" /></IconButton>
-                            <IconButton type="button" onClick={() => setImageList(form.images.filter((url) => url !== img))} label="Remove image"><X className="h-3.5 w-3.5" /></IconButton>
+                            <IconButton type="button" onClick={() => removeImage(img)} label="Remove image"><X className="h-3.5 w-3.5" /></IconButton>
                           </div>
                         </div>
                       </div>
@@ -310,12 +374,14 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
                   <span className="text-xs font-medium">{uploading ? 'Uploading...' : 'Upload image'}</span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
                     className="hidden"
                     disabled={uploading}
                     onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleImageUpload(f);
+                      const files = Array.from(e.target.files ?? []);
+                      e.currentTarget.value = '';
+                      void handleImageUpload(files);
                     }}
                   />
                 </label>
@@ -337,7 +403,7 @@ export default function ProductForm({ product, categories, onClose, onSave }: Pr
         </div>
 
         <div className="mt-6 flex justify-end gap-2 border-t border-neutral-100 pt-5">
-          <button type="button" onClick={onClose} className="btn-outline">Cancel</button>
+          <button type="button" onClick={handleClose} className="btn-outline">Cancel</button>
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : product.id ? 'Save changes' : 'Create product'}
           </button>

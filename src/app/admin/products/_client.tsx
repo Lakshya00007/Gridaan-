@@ -55,7 +55,7 @@ export default function ProductsAdmin({
   }
 
   async function handleSave(data: Partial<Product>) {
-    const isUpdate = !!data.id;
+    const isUpdate = Boolean(data.id && list.some((product) => product.id === data.id));
     const url = isUpdate ? `/api/admin/products/${data.id}` : '/api/admin/products';
     const method = isUpdate ? 'PATCH' : 'POST';
     const res = await fetch(url, {
