@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServiceClient } from '@/lib/supabase/server';
 import { requireAdminPermission } from '@/lib/admin/permissions';
@@ -12,6 +12,7 @@ import {
   notFound,
 } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
+import { sendOrderEmailEvent } from '@/lib/email/service';
 
 const updateSchema = z.object({
   order_status: z.enum([
@@ -125,6 +126,17 @@ export async function PATCH(
     });
 
     revalidatePath('/admin/orders');
+    const emailEvent =
+      order_status === 'shipped'
+        ? 'order_shipped'
+        : order_status === 'delivered'
+          ? 'order_delivered'
+          : order_status === 'cancelled'
+            ? 'order_cancelled'
+            : null;
+    if (emailEvent) {
+      after(() => sendOrderEmailEvent({ orderId: id, eventType: emailEvent }));
+    }
 
     return NextResponse.json({ order: updated });
   } catch (err) {

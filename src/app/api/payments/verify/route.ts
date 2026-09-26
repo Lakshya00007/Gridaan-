@@ -4,6 +4,7 @@ import { ensureMetaPurchaseEvent } from '@/lib/analytics/meta-capi.server';
 import { verifyPaymentSchema } from '@/lib/payments/payment-validation';
 import { verifyPaymentCallback } from '@/lib/payments/payment-service';
 import { createServiceClient } from '@/lib/supabase/server';
+import { sendOrderEmailEvent } from '@/lib/email/service';
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,10 @@ export async function POST(req: NextRequest) {
           orderId: input.order_id,
           source: 'api:payments.verify',
         });
+        await Promise.all([
+          sendOrderEmailEvent({ orderId: input.order_id, eventType: 'order_confirmation' }),
+          sendOrderEmailEvent({ orderId: input.order_id, eventType: 'admin_new_order' }),
+        ]);
       });
     }
 

@@ -41,6 +41,9 @@ const serverSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().trim().optional(),
   R2_BUCKET_NAME: z.string().trim().optional(),
   R2_PUBLIC_BASE_URL: z.string().trim().url().optional(),
+  RESEND_API_KEY: z.string().trim().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().trim().min(1).optional(),
+  ADMIN_ORDER_EMAIL: z.string().trim().email().optional(),
 }).superRefine((value, ctx) => {
   if (value.NIMBUSPOST_ENABLED) {
     ctx.addIssue({
@@ -117,6 +120,9 @@ export const serverEnv = (() => {
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY || undefined,
     R2_BUCKET_NAME: process.env.R2_BUCKET_NAME || undefined,
     R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL || undefined,
+    RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || undefined,
+    ADMIN_ORDER_EMAIL: process.env.ADMIN_ORDER_EMAIL || undefined,
   });
 
   if (!parsed.success) {

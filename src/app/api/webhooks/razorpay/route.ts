@@ -2,6 +2,7 @@ import { after, NextRequest, NextResponse } from 'next/server';
 import { errorResponse } from '@/lib/api';
 import { ensureMetaPurchaseEvent } from '@/lib/analytics/meta-capi.server';
 import { recordWebhookEvent, type MetaPurchaseJob } from '@/lib/payments/payment-service';
+import { sendOrderEmailEvent } from '@/lib/email/service';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +20,10 @@ export async function POST(req: NextRequest) {
           orderId: job.orderId,
           source: job.source,
         });
+        await Promise.all([
+          sendOrderEmailEvent({ orderId: job.orderId, eventType: 'order_confirmation' }),
+          sendOrderEmailEvent({ orderId: job.orderId, eventType: 'admin_new_order' }),
+        ]);
       });
     }
 

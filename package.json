@@ -36,6 +36,7 @@
     "react-dom": "19.0.0",
     "react-hook-form": "^7.54.2",
     "react-hot-toast": "^2.4.1",
+    "resend": "^6.28.1",
     "sharp": "^0.35.3",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.6.0",
