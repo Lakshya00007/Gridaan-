@@ -12,7 +12,7 @@ import { cn, formatDateTime, formatRupees } from '@/lib/utils';
 import { getNimbusPostReadiness } from '@/lib/shipping/config';
 import type { ShipmentRecord } from '@/lib/shipping/types';
 import type { OrderAddress, OrderItem, PaymentRecord, RefundRecord } from '@/types';
-import { ShippingPrepareForm } from './_shipping-actions';
+import { ShippingLiveActions, ShippingPrepareForm } from './_shipping-actions';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Order Detail · Admin' };
@@ -223,7 +223,7 @@ export default async function AdminOrderDetailPage({
             customerShippingAmount={order.shipping}
             destination={order.shipping_address}
             shipments={shipments}
-            nimbusPostEnabled={shippingReadiness.enabled}
+            nimbusPostEnabled={shippingReadiness.canCreateLiveShipments}
             canPrepareShipment={canPrepareShipment}
             orderId={order.id}
           />
@@ -354,7 +354,7 @@ function ShippingCard({
     >
       <div className="space-y-2 text-sm">
         <DetailLine label="Payment captured" value={capturedPayment ? 'Yes' : 'No'} />
-        <DetailLine label="NimbusPost" value={nimbusPostEnabled ? 'Enabled, contract blocked' : 'Disabled'} />
+        <DetailLine label="NimbusPost" value={nimbusPostEnabled ? 'Ready' : 'Not configured'} />
         <DetailLine label="Destination PIN" value={destination.pincode} />
         <DetailLine label="Customer shipping" value={customerShippingAmount === 0 ? 'Free' : formatRupees(customerShippingAmount)} />
         <DetailLine label="Active shipment" value={activeShipment ? activeShipment.status.replace(/_/g, ' ') : 'None'} />
@@ -380,12 +380,16 @@ function ShippingCard({
         </div>
       ) : (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
-          Enter actual package weight and dimensions before requesting courier rates. Live NimbusPost rate lookup and booking remain disabled until official API documentation is supplied.
+          Enter actual package weight and dimensions before requesting courier rates.
         </div>
       )}
 
       {!latestShipment && capturedPayment && canPrepareShipment ? (
         <ShippingPrepareForm orderId={orderId} />
+      ) : null}
+
+      {latestShipment && canPrepareShipment ? (
+        <ShippingLiveActions shipmentId={latestShipment.id} status={latestShipment.status} awb={latestShipment.awb} enabled={nimbusPostEnabled} />
       ) : null}
 
       {!latestShipment && capturedPayment && !canPrepareShipment ? (

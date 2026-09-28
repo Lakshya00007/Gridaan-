@@ -34,6 +34,12 @@ const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
+function emailEventForStatus(status: string) {
+  return status === 'shipped' ? 'order_shipped' as const
+    : status === 'delivered' ? 'order_delivered' as const
+      : status === 'cancelled' ? 'order_cancelled' as const : null;
+}
+
 /**
  * PATCH /api/admin/orders/[id]
  * Update order status. Admin-only.
@@ -67,6 +73,8 @@ export async function PATCH(
     const { order_status } = input;
 
     if (order.order_status === order_status) {
+      const emailEvent = emailEventForStatus(order_status);
+      if (emailEvent) after(() => sendOrderEmailEvent({ orderId: id, eventType: emailEvent }));
       return NextResponse.json({ order });
     }
 
@@ -80,15 +88,23 @@ export async function PATCH(
     }
 
     // Update order status
-    const { error: updateError } = await supabase
+    const now = new Date().toISOString();
+    const { data: changed, error: updateError } = await supabase
       .from('orders')
-      .update({ 
+      .update({
         order_status,
-        updated_at: new Date().toISOString()
+        ...(order_status === 'shipped' ? { shipped_at: now } : {}),
+        ...(order_status === 'delivered' ? { delivered_at: now } : {}),
+        ...(order_status === 'cancelled' ? { cancelled_at: now } : {}),
+        updated_at: now,
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('order_status', order.order_status)
+      .select('id')
+      .maybeSingle();
 
     if (updateError) throw updateError;
+    if (!changed) throw badRequest('Order status changed. Refresh and try again.', 'order_status_conflict');
 
     // Insert status history
     await supabase
@@ -126,14 +142,7 @@ export async function PATCH(
     });
 
     revalidatePath('/admin/orders');
-    const emailEvent =
-      order_status === 'shipped'
-        ? 'order_shipped'
-        : order_status === 'delivered'
-          ? 'order_delivered'
-          : order_status === 'cancelled'
-            ? 'order_cancelled'
-            : null;
+    const emailEvent = emailEventForStatus(order_status);
     if (emailEvent) {
       after(() => sendOrderEmailEvent({ orderId: id, eventType: emailEvent }));
     }

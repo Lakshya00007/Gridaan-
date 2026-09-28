@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { assertJsonRequest, assertSameOrigin, badRequest, errorResponse, notFound } from '@/lib/api';
 import { markPaymentAttemptFailed } from '@/lib/payments/payment-service';
 import { createServiceClient } from '@/lib/supabase/server';
+import { requireVerifiedCustomer } from '@/lib/auth/customer';
 
 const failSchema = z.object({
   order_id: z.string().uuid(),
@@ -19,12 +20,14 @@ export async function POST(req: NextRequest) {
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
+    const user = await requireVerifiedCustomer();
     const input = failSchema.parse(await req.json());
     const supabase = createServiceClient();
     const { data: order, error } = await supabase
       .from('orders')
       .select('id, checkout_reference')
       .eq('id', input.order_id)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     if (error) throw error;

@@ -6,8 +6,7 @@ import CartDrawer from '@/components/CartDrawer';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import CookieConsentBanner from '@/components/analytics/CookieConsentBanner';
 import MetaPixel from '@/components/analytics/MetaPixel';
-import { getProfile } from '@/lib/supabase/auth';
-import { createClient } from '@/lib/supabase/server';
+import { getProfile, getUser } from '@/lib/supabase/auth';
 import { getActiveCategories } from '@/server/categories';
 import { buildStorefrontWhatsAppLink } from '@/lib/whatsapp';
 import {
@@ -29,11 +28,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const [profile, categories] = await Promise.all([getProfile(), getActiveCategories()]);
+  const [user, profile, categories] = await Promise.all([
+    getUser(),
+    getProfile(),
+    getActiveCategories(),
+  ]);
   const publishedBusiness = getPublishedBusinessInfo();
   const globalJsonLd = {
     '@context': 'https://schema.org',

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { serverEnv } from '@/lib/env.server';
+import { pickupSchema } from './providers/nimbuspost/schemas';
 
 export type NimbusPostReadiness = {
   provider: 'nimbuspost';
@@ -15,19 +16,28 @@ export type NimbusPostReadiness = {
 };
 
 export function getNimbusPostReadiness(): NimbusPostReadiness {
+  const hasCredentials = Boolean(serverEnv.NIMBUSPOST_EMAIL && serverEnv.NIMBUSPOST_PASSWORD);
+  let pickupValid = false;
+  try {
+    pickupValid = pickupSchema.safeParse(JSON.parse(serverEnv.NIMBUSPOST_PICKUP_JSON ?? '')).success;
+  } catch {
+    pickupValid = false;
+  }
+  const available = serverEnv.NIMBUSPOST_ENABLED && hasCredentials && pickupValid;
+  const missing = [
+    ...(!hasCredentials ? ['NimbusPost seller email and password'] : []),
+    ...(!pickupValid ? ['Verified pickup address in NIMBUSPOST_PICKUP_JSON'] : []),
+    ...(!serverEnv.NIMBUSPOST_ENABLED ? ['Enable NIMBUSPOST_ENABLED after account, wallet, and pickup verification'] : []),
+  ];
   return {
     provider: 'nimbuspost',
     enabled: serverEnv.NIMBUSPOST_ENABLED,
-    configured: false,
-    canCheckServiceability: false,
-    canFetchRates: false,
-    canCreateLiveShipments: false,
-    canFetchLabels: false,
-    canSyncTracking: false,
-    missing: [
-      'Official NimbusPost endpoint-level API documentation from seller panel or generated API credentials',
-      'Official NimbusPost authentication contract',
-      'Verified NimbusPost pickup location and prepaid courier configuration',
-    ],
+    configured: hasCredentials && pickupValid,
+    canCheckServiceability: available,
+    canFetchRates: available,
+    canCreateLiveShipments: available,
+    canFetchLabels: available,
+    canSyncTracking: available,
+    missing,
   };
 }

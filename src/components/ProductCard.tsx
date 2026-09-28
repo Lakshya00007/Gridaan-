@@ -87,7 +87,6 @@ export default function ProductCard({ product, index = 0, priority = false }: Pr
       <Link
         href={`/product/${product.slug}`}
         className="block h-full rounded-2xl border border-stone-200/70 bg-white p-2.5 shadow-[0_16px_36px_-30px_rgba(53,38,18,0.32)] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-stone-300 group-hover:shadow-[0_20px_42px_-28px_rgba(53,38,18,0.4)]"
-        prefetch
       >
         <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-neutral-100 ring-1 ring-black/5">
           <div

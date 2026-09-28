@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Save } from 'lucide-react';
 import { toast } from 'sonner';
+import type { CourierQuote } from '@/lib/shipping/types';
 
 export function ShippingPrepareForm({ orderId }: { orderId: string }) {
   const router = useRouter();
@@ -123,6 +124,90 @@ export function ShippingPrepareForm({ orderId }: { orderId: string }) {
         <Save className="h-4 w-4" aria-hidden="true" />
         Save package details
       </button>
+    </div>
+  );
+}
+
+export function ShippingLiveActions({ shipmentId, status, enabled, awb }: {
+  shipmentId: string;
+  status: string;
+  enabled: boolean;
+  awb: string | null;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [rates, setRates] = useState<CourierQuote[]>([]);
+  const [selectedId, setSelectedId] = useState('');
+
+  async function post(path: string, body: Record<string, unknown>) {
+    setBusy(true);
+    try {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message ?? 'NimbusPost request failed.');
+      return result;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'NimbusPost request failed.');
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadRates() {
+    const result = await post('/api/admin/shipping/rates', { shipment_id: shipmentId });
+    if (!result) return;
+    const next = result.rates as CourierQuote[];
+    setRates(next);
+    setSelectedId(next[0]?.courierId ?? '');
+    if (!next.length) toast.error('No prepaid courier is available for this package and destination.');
+  }
+
+  async function book() {
+    const selected = rates.find((rate) => rate.courierId === selectedId);
+    if (!selected) return;
+    if (!window.confirm(`Book ${selected.courierName} for ₹${selected.totalCharge.toFixed(2)}? This may charge your NimbusPost wallet.`)) return;
+    const result = await post('/api/admin/shipping/book', {
+      shipment_id: shipmentId,
+      courier_id: selected.courierId,
+      maximum_charge: selected.totalCharge,
+    });
+    if (!result) return;
+    toast.success('NimbusPost shipment booked.');
+    router.refresh();
+  }
+
+  async function sync() {
+    const result = await post('/api/admin/shipping/sync', { shipment_id: shipmentId });
+    if (!result) return;
+    toast.success('Tracking updated.');
+    router.refresh();
+  }
+
+  if (!enabled) return null;
+  return (
+    <div className="mt-4 space-y-3 rounded-lg border border-stone-200 bg-white p-3 text-sm">
+      {status === 'ready_to_ship' ? (
+        <>
+          <button type="button" disabled={busy} onClick={() => void loadRates()} className="min-h-10 rounded-lg border border-stone-300 px-3 font-semibold disabled:opacity-60">Get prepaid courier rates</button>
+          {rates.length ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-xs font-medium text-neutral-600">Courier
+                <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className="mt-1 block min-h-10 rounded-lg border border-stone-200 px-3 text-sm">
+                  {rates.map((rate) => <option key={rate.courierId} value={rate.courierId}>{rate.courierName} · ₹{rate.totalCharge.toFixed(2)}</option>)}
+                </select>
+              </label>
+              <button type="button" disabled={busy || !selectedId} onClick={() => void book()} className="min-h-10 rounded-lg bg-neutral-950 px-3 font-semibold text-white disabled:opacity-60">Book shipment</button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      {awb ? <button type="button" disabled={busy} onClick={() => void sync()} className="min-h-10 rounded-lg border border-stone-300 px-3 font-semibold disabled:opacity-60">Sync tracking</button> : null}
+      {status === 'booking_uncertain' ? <p className="text-amber-800">Booking outcome is uncertain. Check the NimbusPost seller panel before taking further action.</p> : null}
     </div>
   );
 }

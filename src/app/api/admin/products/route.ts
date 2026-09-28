@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { requireAdminPermission } from '@/lib/admin/permissions';
 import { writeAdminAuditLog } from '@/lib/admin/audit';
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     revalidatePath('/admin/products');
     revalidatePath('/');
     revalidatePath('/shop');
+    revalidateTag('products');
 
     return NextResponse.json({ product });
   } catch (err) {

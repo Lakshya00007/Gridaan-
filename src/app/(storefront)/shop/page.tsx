@@ -4,8 +4,6 @@ import { getActiveCategories } from '@/server/categories';
 import { listProducts } from '@/server/products';
 import type { ProductSort } from '@/types';
 
-export const dynamic = 'force-dynamic';
-
 export const metadata = buildPageMetadata({
   title: 'Shop Artificial & Fashion Jewellery Online',
   description:

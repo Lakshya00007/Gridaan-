@@ -11,17 +11,13 @@ import { cn } from '@/lib/utils';
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [trending, newArrivals, bestSellers, categories] = await Promise.all([
+  const [trending, newArrivals, bestSellers, categories, { products: featuredSets }] = await Promise.all([
     getFeaturedProducts('is_trending', 4),
     getFeaturedProducts('is_new_arrival', 4),
     getFeaturedProducts('is_best_seller', 4),
     getActiveCategories(),
+    listProducts({ category: 'women-full-sets', limit: 2 }),
   ]);
-
-  const { products: featuredSets } = await listProducts({
-    category: 'women-full-sets',
-    limit: 2,
-  });
 
   return (
     <>
@@ -144,7 +140,6 @@ export default async function HomePage() {
                   key={cat.id}
                   href={categoryPage ? getCategoryPageHref(categoryPage.slug) : `/shop?category=${cat.slug}`}
                   className="group w-40 flex-shrink-0 snap-center md:w-auto"
-                  prefetch
                 >
                   <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-stone-200/70 bg-gradient-to-br from-stone-100 via-cream-50 to-stone-200 shadow-[0_18px_38px_-30px_rgba(53,38,18,0.3)] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-gold-300 group-hover:shadow-[0_22px_42px_-28px_rgba(53,38,18,0.38)]">
                     {categoryImage ? (

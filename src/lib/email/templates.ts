@@ -3,6 +3,10 @@ import type { ShipmentRecord } from '@/lib/shipping/types';
 
 const colors = { ink: '#26221f', muted: '#756d67', gold: '#a67c52', border: '#e9e2dc' };
 
+function businessDate(value: string) {
+  return new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', timeZoneName: 'short' });
+}
+
 function escapeHtml(value: unknown) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -35,7 +39,7 @@ function orderItems(order: Order) {
   return (order.items ?? [])
     .map(
       (item) =>
-        `<div style="display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid ${colors.border};padding:12px 0;font-size:14px"><span>${escapeHtml(item.product_name)} × ${item.quantity}</span><strong>₹${Number(item.line_total).toFixed(2)}</strong></div>`
+        `<div style="display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid ${colors.border};padding:12px 0;font-size:14px"><span>${escapeHtml(item.product_name)} × ${item.quantity}<br><small>₹${Number(item.unit_price).toFixed(2)} each</small></span><strong>₹${Number(item.line_total).toFixed(2)}</strong></div>`
     )
     .join('');
 }
@@ -78,12 +82,12 @@ export function renderOrderEmail({
     `<h1 style="font-size:25px;font-weight:500;margin:0 0 12px">${escapeHtml(titles[kind])}</h1>`,
     `<p style="font-size:16px;line-height:1.6">Hi ${escapeHtml(order.customer_name || 'there')},<br>${intros[kind]}</p>`,
     row('Order number', escapeHtml(number)),
-    row(kind === 'delivered' ? 'Delivered date' : 'Order date', escapeHtml(new Date(kind === 'delivered' && order.delivered_at ? order.delivered_at : order.created_at).toLocaleString('en-IN'))),
+    row('Order date', escapeHtml(businessDate(order.created_at))),
+    kind === 'delivered' && order.delivered_at ? row('Delivered date', escapeHtml(businessDate(order.delivered_at))) : '',
     kind === 'confirmation' ? row('Payment method', escapeHtml(order.payment_method)) + row('Payment status', escapeHtml(order.payment_status)) : '',
     kind === 'shipped' ? row('Courier', escapeHtml(shipment?.courier_name ?? 'Courier information will be available shortly.')) + row('Tracking', tracking) : '',
-    kind !== 'cancelled' ? `<h2 style="font-size:16px;margin:26px 0 0">Items</h2>${orderItems(order)}${row('Total', `₹${Number(order.final_amount ?? order.total).toFixed(2)}`)}${kind !== 'delivered' ? `<h2 style="font-size:16px;margin:26px 0 0">Shipping address</h2><p style="line-height:1.6">${address(order)}</p>` : ''}` : '',
-    kind === 'cancelled' && order.notes ? row('Cancellation note', escapeHtml(order.notes)) : '',
-    kind === 'cancelled' ? row('Cancellation date', escapeHtml(new Date(order.updated_at).toLocaleString('en-IN'))) : '',
+    kind !== 'cancelled' ? `<h2 style="font-size:16px;margin:26px 0 0">Items</h2>${orderItems(order)}${kind === 'confirmation' ? row('Subtotal', `₹${Number(order.subtotal).toFixed(2)}`) + (Number(order.discount) > 0 ? row('Discount', `-₹${Number(order.discount).toFixed(2)}`) : '') + row('Shipping', `₹${Number(order.shipping).toFixed(2)}`) : ''}${row('Total paid', `₹${Number(order.final_amount ?? order.total).toFixed(2)}`)}${kind !== 'delivered' ? `<h2 style="font-size:16px;margin:26px 0 0">Shipping address</h2><p style="line-height:1.6">${address(order)}</p>` : ''}` : '',
+    kind === 'cancelled' && order.cancelled_at ? row('Cancellation date', escapeHtml(businessDate(order.cancelled_at))) : '',
     `<div style="margin-top:28px"><a href="${escapeHtml(orderUrl)}" style="display:inline-block;background:${colors.ink};color:#fff;padding:13px 20px;text-decoration:none;font-size:14px">${kind === 'shipped' ? 'Track Your Order' : 'View Your Order'}</a></div>`,
   ].join('');
   return { subject: titles[kind], html: layout(content, supportEmail) };

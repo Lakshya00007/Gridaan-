@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { checkoutSchema } from '@/lib/validators';
 import { ApiError, assertJsonRequest, assertSameOrigin } from '@/lib/api';
-import { getProfile } from '@/lib/supabase/auth';
+import { requireVerifiedCustomer } from '@/lib/auth/customer';
 import { isRateLimited, getClientIdentifier } from '@/lib/rate-limit';
 import { createOnlineCheckout } from '@/lib/payments/payment-service';
 import { publicEnv } from '@/lib/env.public';
@@ -36,21 +36,14 @@ export async function POST(req: NextRequest) {
     assertJsonRequest(req);
     assertSameOrigin(req);
 
-    const input = checkoutSchema.parse(await req.json());
-    let profile: Awaited<ReturnType<typeof getProfile>>;
-    try {
-      profile = await getProfile();
-    } catch (cause) {
-      throw new CheckoutProcessingError({
-        publicError: 'order_database_error',
-        stage: 'profile_lookup',
-        cause,
-      });
-    }
+    const user = await requireVerifiedCustomer();
+    const submitted = await req.json();
+    // Order updates always go to the email proven by the authenticated session.
+    const input = checkoutSchema.parse({ ...submitted, customer_email: user.email });
     const idempotencyKey = req.headers.get('idempotency-key') ?? undefined;
     const result = await createOnlineCheckout({
       input,
-      profileId: profile?.id ?? null,
+      profileId: user.id,
       idempotencyKey,
     });
 

@@ -6,6 +6,7 @@ import type {
   ShipmentCreationDraft,
   ShipmentRecord,
 } from '../../types';
+import type { Order } from '@/types';
 
 export type NimbusPostProviderCapabilities = {
   serviceability: boolean;
@@ -30,7 +31,25 @@ export type NimbusPostRateInput = {
 };
 
 export type NimbusPostCreateShipmentInput = ShipmentCreationDraft & {
+  order: Order;
+  shipment: ShipmentRecord;
   courierId: string;
+};
+
+export type NimbusPostBookingResult = {
+  providerShipmentId: string;
+  providerOrderId: string;
+  awb: string;
+  courierId: string;
+  courierName: string;
+  rawStatus: string;
+  labelUrl: string | null;
+};
+
+export type NimbusPostTrackingResult = {
+  rawStatus: string;
+  status: ShipmentRecord['status'] | null;
+  history: Array<Record<string, unknown>>;
 };
 
 export type NimbusPostTrackingInput = {
@@ -42,8 +61,8 @@ export type NimbusPostProvider = {
   capabilities: NimbusPostProviderCapabilities;
   checkServiceability(input: NimbusPostServiceabilityInput): Promise<ServiceabilityResult>;
   getRates(input: NimbusPostRateInput): Promise<CourierQuote[]>;
-  createShipment(input: NimbusPostCreateShipmentInput): Promise<ShipmentRecord>;
+  createShipment(input: NimbusPostCreateShipmentInput): Promise<NimbusPostBookingResult>;
   getLabel(input: NimbusPostTrackingInput): Promise<{ url: string | null; reference: string | null }>;
-  syncTracking(input: NimbusPostTrackingInput): Promise<ShipmentRecord>;
+  syncTracking(input: NimbusPostTrackingInput): Promise<NimbusPostTrackingResult>;
   cancelShipment(input: NimbusPostTrackingInput & { reason?: string }): Promise<ShipmentRecord>;
 };

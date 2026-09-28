@@ -1,5 +1,6 @@
 import { publicSupabase } from '@/lib/supabase/public';
 import { unstable_cache } from 'next/cache';
+import { cache } from 'react';
 import type { Product, ProductFilter } from '@/types';
 import { calculateApprovedReviewSummaries } from '@/lib/reviews';
 
@@ -35,7 +36,9 @@ function normalizeSearchTerm(value: string) {
   return value.replace(/[^\p{L}\p{N}\s-]/gu, ' ').trim().replace(/\s+/g, ' ');
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
+// Share metadata/page work only within this render. Product detail stock and
+// prices are still read afresh for each visitor/request.
+export const getProductBySlug = cache(async (slug: string): Promise<Product | null> => {
   const { data, error } = await publicSupabase
     .from('products')
     .select(PRODUCT_COLS)
@@ -52,7 +55,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   if (!data) return null;
   const [product] = await withApprovedReviewStats([data as unknown as Product]);
   return product ?? null;
-}
+});
 
 export async function getProductById(id: string): Promise<Product | null> {
   const { data, error } = await publicSupabase
@@ -98,7 +101,7 @@ export const getFeaturedProducts = unstable_cache(
   { revalidate: 300, tags: ['products'] }
 );
 
-export async function listProducts(
+async function loadProducts(
   filter: ProductFilter
 ): Promise<{ products: Product[]; count: number }> {
   let q = publicSupabase
@@ -115,8 +118,7 @@ export async function listProducts(
       .maybeSingle();
 
     if (categoryError) {
-      console.error('[products] category lookup failed', { code: categoryError.code });
-      return { products: [], count: 0 };
+      throw categoryError;
     }
 
     if (!category?.id) {
@@ -161,14 +163,34 @@ export async function listProducts(
   const { data, count, error } = await q;
 
   if (error) {
-    console.error('[products] list failed', { code: error.code });
-    return { products: [], count: 0 };
+    throw error;
   }
 
   return {
     products: await withApprovedReviewStats((data ?? []) as unknown as Product[]),
     count: count ?? 0,
   };
+}
+
+// Only anonymous, public catalog data enters this cache. Session/profile/order
+// reads stay request-bound. Checkout always rechecks live stock and pricing.
+const getCachedProducts = unstable_cache(loadProducts, ['public-product-list-v1'], {
+  revalidate: 60,
+  tags: ['products', 'categories'],
+});
+
+export async function listProducts(
+  filter: ProductFilter
+): Promise<{ products: Product[]; count: number }> {
+  try {
+    return await getCachedProducts(filter);
+  } catch (error) {
+    // Do not store a temporary database failure as a successful empty catalog.
+    console.error('[products] list failed', {
+      code: error && typeof error === 'object' && 'code' in error ? error.code : 'unknown',
+    });
+    return { products: [], count: 0 };
+  }
 }
 
 export async function getRelatedProducts(

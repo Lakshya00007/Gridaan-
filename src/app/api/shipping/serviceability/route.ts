@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { assertJsonRequest, assertSameOrigin, errorResponse } from '@/lib/api';
 import { getClientIdentifier, isRateLimited } from '@/lib/rate-limit';
 import { getNimbusPostReadiness } from '@/lib/shipping/config';
+import { createNimbusPostClient } from '@/lib/shipping/providers/nimbuspost/client';
 
 const serviceabilitySchema = z.object({
   pincode: z.string().trim().regex(/^\d{6}$/, 'PIN must be 6 digits'),
@@ -42,14 +43,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      status: 'temporarily_unable_to_check',
-      provider: 'nimbuspost',
-      pincode: input.pincode,
-      checked_at: new Date().toISOString(),
-      request_id: requestId,
-      message: 'NimbusPost serviceability contract is not available.',
-    });
+    try {
+      const result = await createNimbusPostClient().checkServiceability({
+        destination: { pincode: input.pincode, city: '', state: '', country: 'India' },
+      });
+      return NextResponse.json({
+        status: result.status,
+        provider: result.provider,
+        pincode: result.pincode,
+        checked_at: result.checkedAt,
+        request_id: requestId,
+        message: result.message,
+      });
+    } catch {
+      return NextResponse.json({
+        status: 'temporarily_unable_to_check',
+        provider: 'nimbuspost',
+        pincode: input.pincode,
+        checked_at: new Date().toISOString(),
+        request_id: requestId,
+        message: 'Shipping serviceability is temporarily unavailable.',
+      });
+    }
   } catch (err) {
     return errorResponse(err);
   }

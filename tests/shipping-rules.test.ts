@@ -135,10 +135,14 @@ describe('shipping persistence and security guardrails', () => {
     expect(migration).not.toMatch(/payment_status\s*=/);
   });
 
-  it('keeps NimbusPost credentials out of public environment names and provider code', () => {
+  it('keeps NimbusPost credentials server-only', () => {
     const envExample = read('.env.example');
     const providerClient = read('src/lib/shipping/providers/nimbuspost/client.ts');
+    const providerAuth = read('src/lib/shipping/providers/nimbuspost/auth.ts');
     expect(envExample).not.toMatch(/^NEXT_PUBLIC_NIMBUSPOST/m);
-    expect(providerClient).not.toMatch(/api\.nimbuspost|authorization|bearer/i);
+    expect(providerClient).toContain("import 'server-only'");
+    expect(providerAuth).toContain("import 'server-only'");
+    expect(providerClient).not.toMatch(/process\.env|NIMBUSPOST_PASSWORD/);
+    expect(providerAuth).not.toMatch(/NEXT_PUBLIC_NIMBUSPOST/);
   });
 });

@@ -1,10 +1,10 @@
 import './globals.css';
 import type { Viewport } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import localFont from 'next/font/local';
 import { Toaster } from 'sonner';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' });
+const inter = localFont({ src: './fonts/Inter-Latin.woff2', variable: '--font-inter', display: 'swap', weight: '100 900' });
+const playfair = localFont({ src: './fonts/PlayfairDisplay-Latin.woff2', variable: '--font-playfair', display: 'swap', weight: '400 900' });
 
 export const viewport: Viewport = {
   themeColor: [

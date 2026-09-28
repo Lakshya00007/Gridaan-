@@ -30,14 +30,18 @@ export default function OrderSuccessView() {
 
     fetch(`/api/orders/${encodeURIComponent(lookupParam)}`)
       .then(async (response) => {
+        if (response.status === 401) {
+          router.replace(`/login?next=${encodeURIComponent(`/order-success?order=${encodeURIComponent(lookupParam)}`)}`);
+          return;
+        }
         const data = (await response.json()) as OrderLookupResponse;
         if (!response.ok || !data.order) {
           setError(data.error ?? 'Order not found.');
           setOrder(null);
           return;
         }
-        if (data.order.payment_status !== 'captured' || data.order.order_status !== 'placed') {
-          setError('This order has not been placed because payment is not captured yet.');
+        if (data.order.payment_status !== 'captured') {
+          setError('Payment confirmation for this order is still pending.');
           setOrder(null);
           return;
         }
@@ -70,11 +74,9 @@ export default function OrderSuccessView() {
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
             <AlertCircle className="h-10 w-10 text-amber-600" />
           </div>
-          <h2 className="heading-display mb-3 text-2xl text-neutral-900 md:text-3xl">
-            Payment verification is pending
-          </h2>
+          <h2 className="heading-display mb-3 text-2xl text-neutral-900 md:text-3xl">Order details unavailable</h2>
           <p className="mb-6 text-sm leading-6 text-neutral-500">
-            {error || 'Your order will appear only after Razorpay confirms captured payment.'}
+            {error || 'Please sign in with the email used for your order, then try again.'}
           </p>
           <div className="flex justify-center gap-3">
             <Link href="/checkout" className="btn-primary text-sm">
@@ -106,10 +108,10 @@ export default function OrderSuccessView() {
         </motion.div>
 
         <h1 className="heading-display mb-3 text-2xl text-neutral-950 md:text-3xl">
-          Payment successful — order placed
+          {order.order_status === 'cancelled' ? 'Order cancelled' : order.order_status === 'delivered' ? 'Order delivered' : order.order_status === 'shipped' ? 'Order shipped' : 'Payment successful — order placed'}
         </h1>
         <p className="mx-auto mb-6 max-w-md text-sm leading-6 text-neutral-600">
-          Payment received. Your Gridaan order is being prepared for shipment.
+          {order.order_status === 'delivered' ? 'Your Gridaan order has been delivered.' : order.order_status === 'shipped' ? 'Your Gridaan order is on its way.' : order.order_status === 'cancelled' ? 'This order was cancelled.' : 'Payment received. Your Gridaan order is being prepared for shipment.'}
         </p>
 
         <div className="mb-6 rounded-2xl border border-neutral-100 bg-white p-5 text-left shadow-sm">
@@ -119,7 +121,7 @@ export default function OrderSuccessView() {
             <SummaryRow label="Amount" value={formatRupees(order.total)} />
             <SummaryRow label="Payment Method" value="Online Payment" />
             <SummaryRow label="Payment Status" value="CAPTURED" />
-            <SummaryRow label="Order Status" value="PLACED" />
+            <SummaryRow label="Order Status" value={order.order_status.toUpperCase()} />
           </dl>
         </div>
 

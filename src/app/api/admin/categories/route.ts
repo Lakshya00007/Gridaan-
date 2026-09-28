@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdminPermission } from '@/lib/admin/permissions';
 import { writeAdminAuditLog } from '@/lib/admin/audit';
 import { createServiceClient } from '@/lib/supabase/server';
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     revalidatePath('/admin/categories');
     revalidatePath('/');
     revalidatePath('/shop');
+    revalidateTag('products');
 
     return NextResponse.json({ category });
   } catch (err) {

@@ -248,9 +248,12 @@ export async function createOnlineCheckout({
   idempotencyKey,
 }: {
   input: CheckoutInput;
-  profileId?: string | null;
+  profileId: string;
   idempotencyKey?: string;
 }) {
+  if (!profileId || !input.customer_email) {
+    throw badRequest('Verified email sign-in is required', 'email_login_required');
+  }
   if (input.payment_method !== 'razorpay') {
     throw badRequest('Only Razorpay online payment is available', 'online_payment_only');
   }
@@ -400,6 +403,9 @@ export async function createOnlineCheckout({
   }
 
   if (order) {
+    if (order.user_id !== profileId || order.customer_email !== input.customer_email) {
+      throw badRequest('Checkout belongs to another customer', 'checkout_owner_mismatch');
+    }
     const metadata = (order.metadata ?? {}) as Record<string, unknown>;
     if (
       metadata.checkout_fingerprint !== checkoutFingerprint ||
@@ -450,6 +456,7 @@ export async function createOnlineCheckout({
         updated_at: new Date().toISOString(),
       })
       .eq('id', String(order.id))
+      .eq('user_id', profileId)
       .in('order_status', ['pending_payment', 'cancelled', 'draft'])
       .select('*')
       .maybeSingle();
@@ -568,6 +575,7 @@ export async function createOnlineCheckout({
 
     const paymentResult = await createPaymentOrderForOrder({
       orderId,
+      userId: profileId,
       idempotencyKey: key,
       checkoutReference,
     });
@@ -603,13 +611,16 @@ export async function createOnlineCheckout({
 
 export async function createPaymentOrderForOrder({
   orderId,
+  userId,
   idempotencyKey,
   checkoutReference: suppliedCheckoutReference,
 }: {
   orderId: string;
+  userId: string;
   idempotencyKey?: string;
   checkoutReference?: string;
 }) {
+  if (!userId) throw badRequest('Verified email sign-in is required', 'email_login_required');
   const supabase = createServiceClient();
   const provider = getPaymentProvider();
   const key = getIdempotencyKey(idempotencyKey);
@@ -638,6 +649,9 @@ export async function createPaymentOrderForOrder({
   if (!order) throw notFound('Order not found');
 
   const typedOrder = order as OrderPaymentRow;
+  if (typedOrder.user_id !== userId) {
+    throw notFound('Order not found');
+  }
   const checkoutReference =
     suppliedCheckoutReference ?? typedOrder.checkout_reference ?? createCheckoutReference(key);
   if (['paid', 'captured', 'refunded'].includes(typedOrder.payment_status)) {
@@ -1135,10 +1149,7 @@ export async function finalizeCapturedPayment({
     throw badRequest('Payment is not captured', 'payment_not_captured');
   }
 
-  if (
-    typedPayment.order.payment_status === 'captured' &&
-    typedPayment.order.order_status === 'placed'
-  ) {
+  if (typedPayment.order.payment_status === 'captured') {
     return buildOrderSuccessSummary(typedPayment.order);
   }
 
@@ -1217,11 +1228,25 @@ export async function finalizeCapturedPayment({
       updated_at: now,
     })
     .eq('id', orderId)
+    .in('order_status', ['draft', 'pending_payment', 'payment_processing', 'placed'])
     .select('*')
     .maybeSingle();
 
   if (updateOrderError) throw updateOrderError;
-  if (!updatedOrder) throw notFound('Order not found after payment capture');
+  if (!updatedOrder) {
+    // An admin may have advanced the order between our read and the update.
+    // A delayed capture must never move fulfilment back to `placed`.
+    const { data: currentOrder, error: currentOrderError } = await supabase
+      .from('orders')
+      .select('*, items:order_items(*)')
+      .eq('id', orderId)
+      .single();
+    if (currentOrderError) throw currentOrderError;
+    if (currentOrder?.payment_status === 'captured') {
+      return buildOrderSuccessSummary(currentOrder);
+    }
+    throw badRequest('Order status changed during payment finalization', 'payment_finalization_conflict');
+  }
 
   await supabase
     .from('order_status_history')

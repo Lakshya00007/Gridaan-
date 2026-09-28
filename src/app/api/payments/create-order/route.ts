@@ -3,18 +3,21 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { assertJsonRequest, assertSameOrigin, badRequest, errorResponse, notFound } from '@/lib/api';
 import { createPaymentOrderSchema } from '@/lib/payments/payment-validation';
 import { createPaymentOrderForOrder } from '@/lib/payments/payment-service';
+import { requireVerifiedCustomer } from '@/lib/auth/customer';
 
 export async function POST(req: NextRequest) {
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
 
+    const user = await requireVerifiedCustomer();
     const input = createPaymentOrderSchema.parse(await req.json());
     const supabase = createServiceClient();
     const { data: order, error } = await supabase
       .from('orders')
       .select('id, checkout_reference, payment_status, order_status, payment_method')
       .eq('id', input.order_id)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     if (error) throw error;
@@ -29,6 +32,7 @@ export async function POST(req: NextRequest) {
 
     const result = await createPaymentOrderForOrder({
       orderId: input.order_id,
+      userId: user.id,
       idempotencyKey: input.idempotency_key ?? req.headers.get('idempotency-key') ?? undefined,
     });
 

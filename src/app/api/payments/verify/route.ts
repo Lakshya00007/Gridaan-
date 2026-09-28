@@ -5,18 +5,21 @@ import { verifyPaymentSchema } from '@/lib/payments/payment-validation';
 import { verifyPaymentCallback } from '@/lib/payments/payment-service';
 import { createServiceClient } from '@/lib/supabase/server';
 import { sendOrderEmailEvent } from '@/lib/email/service';
+import { requireVerifiedCustomer } from '@/lib/auth/customer';
 
 export async function POST(req: NextRequest) {
   try {
     assertJsonRequest(req);
     assertSameOrigin(req);
 
+    const user = await requireVerifiedCustomer();
     const input = verifyPaymentSchema.parse(await req.json());
     const supabase = createServiceClient();
     const { data: order, error } = await supabase
       .from('orders')
       .select('id, checkout_reference')
       .eq('id', input.order_id)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     if (error) throw error;

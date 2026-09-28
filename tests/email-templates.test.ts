@@ -69,6 +69,10 @@ describe('transactional email templates', () => {
     expect(email.html).toContain('captured');
     expect(email.html).toContain('₹500.00');
     expect(email.html).toContain('Asha');
+    expect(email.html).toContain('Subtotal');
+    expect(email.html).toContain('Shipping');
+    expect(email.html).toContain('each');
+    expect(email.html).toContain('IST');
   });
 
   it('does not invent tracking details when AWB is unavailable', () => {
@@ -91,5 +95,18 @@ describe('transactional email templates', () => {
 
     expect(email.subject).toBe('New Gridaan Order #GR-00000042');
     expect(email.html).toContain('/admin/orders/11111111-1111-4111-8111-111111111111');
+  });
+
+  it('does not mislabel the order date as delivery or leak checkout notes as cancellation reason', () => {
+    const delivered = renderOrderEmail({
+      kind: 'delivered', order: { ...order, delivered_at: null }, orderUrl: 'https://www.gridaan.com/account',
+    });
+    expect(delivered.html).not.toContain('Delivered date');
+    const cancelled = renderOrderEmail({
+      kind: 'cancelled', order: { ...order, notes: 'Private checkout message', cancelled_at: '2026-09-24T10:00:00.000Z' },
+      orderUrl: 'https://www.gridaan.com/account',
+    });
+    expect(cancelled.html).toContain('Cancellation date');
+    expect(cancelled.html).not.toContain('Private checkout message');
   });
 });

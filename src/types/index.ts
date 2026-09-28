@@ -224,6 +224,7 @@ export interface Order {
   shipment_carrier?: string | null;
   shipped_at?: string | null;
   delivered_at?: string | null;
+  cancelled_at?: string | null;
   is_test?: boolean;
   is_archived?: boolean;
   data_classification?: 'test' | 'genuine' | 'cancelled' | 'archived';

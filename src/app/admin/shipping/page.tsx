@@ -39,11 +39,10 @@ export default async function AdminShippingPage() {
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
             <p className="font-semibold">
-              NimbusPost live shipment creation is {dashboard.readiness.enabled ? 'blocked' : 'disabled'}.
+              NimbusPost live shipment creation is {dashboard.readiness.canCreateLiveShipments ? 'ready' : 'disabled'}.
             </p>
             <p>
-              No wallet-affecting operation can run until official NimbusPost API documentation,
-              authentication details, prepaid courier setup, wallet funding, and pickup location are verified.
+              Enter seller credentials and a verified pickup address, confirm wallet funding and prepaid couriers, then enable NimbusPost. Booking requires an explicit admin action.
             </p>
             {dashboard.migrationRequired ? (
               <p className="mt-2 font-semibold">

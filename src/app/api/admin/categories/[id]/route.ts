@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { requireAdminPermission } from '@/lib/admin/permissions';
 import { writeAdminAuditLog } from '@/lib/admin/audit';
@@ -53,6 +53,7 @@ export async function PATCH(
     revalidatePath('/admin/categories');
     revalidatePath('/');
     revalidatePath('/shop');
+    revalidateTag('products');
 
     return NextResponse.json({ category });
   } catch (err) {
@@ -87,6 +88,7 @@ export async function DELETE(
     revalidatePath('/admin/categories');
     revalidatePath('/');
     revalidatePath('/shop');
+    revalidateTag('products');
 
     return NextResponse.json({ ok: true });
   } catch (err) {
